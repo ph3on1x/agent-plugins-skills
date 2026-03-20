@@ -25,12 +25,23 @@ Files in `context/` are named by topic. No date prefixes. Git history serves as 
 
 - Kebab-case descriptive names: `auth-research.md`, `payment-integration.md`
 - Handoffs use a `handoff-` prefix: `handoff.md`, `handoff-auth-module.md`
-- The command infers the topic slug from the `$ARGUMENTS` provided
+
+**Slug inference rules:**
+
+The command derives a filename slug from `$ARGUMENTS` using these steps:
+
+1. Extract the core topic noun phrase from the arguments (strip verbs like "research", "results on", "notes about", "current state of")
+2. Convert to kebab-case, lowercase
+3. Truncate to a maximum of 5 words
+4. Before creating a new file, check `context/` for existing files whose slug overlaps significantly (e.g., `auth-research.md` exists and the user runs `/write auth research notes`)
+5. If a near-match is found, treat it as the same topic and merge into the existing file — do not create a new file
+6. If ambiguous (multiple near-matches), list the candidates and ask the user which file to update or whether to create a new one
 
 **Examples:**
 
 ```
 /write auth research              → context/auth-research.md
+/write auth research notes        → context/auth-research.md (matches existing)
 /write payment integration notes  → context/payment-integration-notes.md
 /compress                         → context/handoff.md
 /compress auth module             → context/handoff-auth-module.md
@@ -101,22 +112,25 @@ Every time `/select` loads one or more context files — both in bare mode (vali
 ### Step 1 — Build the reference set
 
 - Parse the `## References` manifest at the bottom of the file (explicit tracking)
-- Scan the file body for additional file paths and function/class/module names (implicit scanning)
-- Deduplicate into a single set of referenced code paths
+- Scan the file body for additional file paths (implicit scanning)
+- **Implicit scanning filters:** Only match paths that look like project-relative file paths (contain `/` and a file extension, e.g., `src/auth/middleware.ts`). Ignore standard library references (`Object.keys`, `Promise.resolve`), dependency names (`express`, `react`), and common programming terms. When in doubt, only trust the explicit `## References` manifest.
+- Deduplicate into a single set of referenced file paths
 
 ### Step 2 — Check git
 
-- Get the context file's last modified time (from filesystem or `git log` for the context file itself)
-- For each referenced path, check `git log --since=<mtime> -- <path>`
-- Check whether referenced paths still exist on disk
+- **Canonical timestamp:** Use `git log -1 --format=%aI -- <context-file>` to get the last commit date of the context file. This is the authoritative "last updated" time. If the context file is not git-tracked, fall back to filesystem mtime with a warning: "This context file is not tracked by git — staleness check may be unreliable."
+- For each referenced path, check `git log --since=<timestamp> -- <path>`
+- Check whether referenced file paths still exist on disk
 
 ### Step 3 — Classify
 
+Staleness detection operates at the **file level only** — it checks whether referenced files have changed or been deleted. It does not verify whether specific functions or classes within those files still exist.
+
 | Status | Meaning | Criteria |
 |--------|---------|----------|
-| **Fresh** | Safe to load | No referenced code has changed since the file was last written |
-| **Stale** | Load with caution | Referenced code has changed — report lists which files changed and when |
-| **Broken** | Do not trust | Referenced files or functions no longer exist |
+| **Fresh** | Safe to load | No referenced files have changed since the context file was last committed |
+| **Stale** | Load with caution | Referenced files have changed — report lists which files changed and when |
+| **Broken** | Do not trust | One or more referenced files no longer exist on disk |
 
 ### Step 4 — Report and recommend
 
@@ -180,11 +194,41 @@ Both `/write` and `/compress` outputs gain a `## References` section as the fina
 
 ### `/compress` output template
 
-The existing handoff template from the PRD gains:
+```markdown
+# Handoff: <session/scope summary>
 
-- A `## References` section at the bottom
-- Header says `> Last updated by /compress on ...`
-- Same rebuild-from-scratch behavior on every update
+> Last updated by /compress on YYYY-MM-DD HH:MM
+
+## Goal
+<What we were trying to accomplish>
+
+## Completed
+<What was done, with specific details>
+- <change 1: file path, what changed, why>
+- <change 2: ...>
+
+## In Progress
+<What's partially done, current state>
+
+## Decisions Made
+- <Decision>: <rationale>
+
+## Next Steps
+1. <Immediate next action>
+2. <Following action>
+
+## Blockers / Open Questions
+- <Any unresolved issues>
+
+## References
+- `src/auth/middleware.ts` — modified, added token refresh logic
+- `src/auth/session.ts:42` — session expiry config, relevant to next steps
+- `src/models/user.ts` — User model, role fields referenced in auth decisions
+```
+
+### `/compress` behavioral note
+
+Bare `/compress` updates `context/handoff.md` — there is no date-based escape hatch for multiple handoffs per day. This is intentional: the handoff file represents the current state of work, not a historical snapshot. If the user needs parallel handoffs for different work streams, they must scope them: `/compress auth module`, `/compress api migration`. Git history preserves prior handoff states.
 
 ---
 
