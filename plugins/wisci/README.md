@@ -28,6 +28,12 @@ These failures are not edge cases — they are the default outcome of long-runni
 | `/select [topic]` | Load context with automatic staleness detection and stripping | **Poisoning** — strips sections whose referenced files have changed. **Confusion** — loads only relevant, validated context |
 | `/compress [scope]` | Create compressed handoff for session transitions | **Distraction** — keeps utilization in the effective range through deliberate compaction |
 
+### Helper Commands
+
+| Command | What It Does |
+|---------|-------------|
+| `/commit [message]` | Create git commits enriched with a `Context:` section that tracks AI-layer changes — turning `git log` into long-term memory |
+
 ## Why WISCI, Not Another Framework
 
 Most development frameworks are prescriptive — they define a specific workflow, a rigid spec format, or a step-by-step process you must follow. They sound good in theory, but in practice they fight against the way you actually work. They were built by someone, for something, and you spend more time conforming to the framework than solving your problem.
@@ -67,12 +73,15 @@ The right optimization target is not tokens per request — it is tokens per tas
 
 - **Auto-stripping** — `/select` removes stale content before loading it into your context window. No passive warnings — outdated sections are stripped, and broken references (deleted files) are flagged. This prevents the most common form of context poisoning: acting on information that no longer reflects the codebase.
 
+- **Git as long-term memory** — `/commit` enriches git commits with a `Context:` section that logs changes to AI-layer files (scratchpad, rules, commands, instructions). This makes the AI context system's evolution visible and queryable in `git log`, so future sessions can trace when a rule was added, why a decision was made, or what context changed alongside code.
+
 ## Typical Workflow
 
 1. **Research** — Use `/isolate` to explore a topic with dedicated subagents
 2. **Save** — Use `/write` to persist findings to `scratchpad/`
-3. **Resume** — Use `/select` to reload context in a new session (stale content auto-stripped)
-4. **Handoff** — Use `/compress` to create a minimal handoff document when switching tasks
+3. **Commit** — Use `/commit` to create enriched git commits that track AI-layer changes
+4. **Resume** — Use `/select` to reload context in a new session (stale content auto-stripped)
+5. **Handoff** — Use `/compress` to create a minimal handoff document when switching tasks
 
 ## Acknowledgments
 
