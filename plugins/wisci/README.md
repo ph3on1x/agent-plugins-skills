@@ -24,7 +24,7 @@ Requires Claude Code with plugin support.
 | You're thinking... | Use | What happens |
 |---|---|---|
 | "I'll need this info tomorrow" | `/write auth-research` | Saves your findings to `scratchpad/auth-research.md` with file references that track staleness |
-| "Let me explore this without cluttering my session" | `/isolate how does the payment flow work` | 1-3 subagents research in isolated windows; results appear inline, your context stays clean |
+| "I need to research something without cluttering my session" | `/isolate compare OAuth2 libraries for Node.js` | 1-3 subagents handle it in isolated windows (websearch, docs, any task); results appear inline, your context stays clean |
 | "Where was I?" | `/select` | Loads a codebase overview + lists your saved context files, flagging any that are stale |
 | "I need my auth research back" | `/select auth-research` | Loads that specific context file, auto-stripping any sections whose source files have changed |
 | "Done for the day" | `/compress` | Creates a handoff document so your next session picks up exactly where you left off |
@@ -37,8 +37,11 @@ Requires Claude Code with plugin support.
 
 **Session 1 — Research and plan:**
 ```
-> /isolate how does auth work in this codebase
-  (subagents explore auth middleware, token handling, session management — results appear inline)
+> /select auth-layer
+  (deep dive into auth middleware, token handling, session management — results appear inline)
+
+> /isolate compare JWT vs session-based auth for our use case
+  (subagents websearch best practices and read external docs — results inline, context stays clean)
 
 > /write auth-research
   (saves findings to scratchpad/auth-research.md with exact file paths and line numbers)
@@ -70,11 +73,14 @@ Requires Claude Code with plugin support.
 > /select
   (instant codebase overview: directory structure, tech stack, conventions, available context files)
 
-> /isolate what are the main API endpoints and how do they connect to the database
-  (subagents explore independently — you get a structured report without reading 50 files yourself)
+> /select api-layer
+  (deep dive into the API layer — subagents explore routes, handlers, and database connections)
 
-> /write api-overview
-  (persists the exploration results — now any future session can /select api-overview instead of re-exploring)
+> /isolate what are the best practices for testing Express middleware
+  (subagents websearch and read external docs — results inline without polluting your context)
+
+> /write onboarding-notes
+  (persists everything — now any future session can /select onboarding-notes instead of re-exploring)
 ```
 
 ### Picking up a teammate's work
@@ -99,8 +105,8 @@ Requires Claude Code with plugin support.
 | Command | What It Does |
 |---------|-------------|
 | `/write <topic>` | Save context to persistent scratchpad files with source tracking and section-level merge |
-| `/isolate <task>` | Research with 1-3 subagents in isolated context windows — results inline, noise stays out |
-| `/select [topic]` | Load context with automatic staleness detection — stale sections stripped, broken refs flagged |
+| `/isolate <task>` | Delegate any task to 1-3 subagents in isolated context windows — websearch, research, exploration — results inline, noise stays out |
+| `/select [topic]` | Load project context (codebase overview or saved scratchpad files) with automatic staleness detection |
 | `/compress [scope]` | Create compressed handoff documents for session transitions |
 
 ### Helper Commands
