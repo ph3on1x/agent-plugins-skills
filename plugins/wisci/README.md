@@ -1,6 +1,8 @@
+<div align="center">
+
 # WISCI
 
-**Context Engineering Framework for AI Coding Agents**
+**Context engineering framework for AI coding agents**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.2.0-green.svg)]()
@@ -9,13 +11,18 @@
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-Extension-4285F4.svg)](https://github.com/google-gemini/gemini-cli)
 [![Codex CLI](https://img.shields.io/badge/Codex_CLI-Compatible-10a37f.svg)](https://github.com/openai/codex)
 
-Ever notice your AI coding sessions get worse the longer they run? The model repeats itself, forgets what it just learned, or acts on information that's no longer true. That's not a bug — it's what happens when context fills up with noise.
+Ever notice your AI coding sessions get worse the longer they run?<br>
+That's not a bug — it's what happens when context fills up with noise.
 
-WISCI gives you four slash commands — **Write**, **Isolate**, **Select**, **Compress** — that keep your AI coding sessions sharp. Save what matters, load only what's relevant, research without polluting your context, and hand off cleanly between sessions.
+[Installation](#installation) • [Usage](#when-to-use-what) • [The Problem](#the-problem) • [How It Works](#how-it-works) • [Examples](#real-world-scenarios)
+
+</div>
+
+WISCI gives you four commands — **Write**, **Isolate**, **Select**, **Compress** — that keep your sessions sharp. Save what matters, load only what's relevant, research without polluting your context, and hand off cleanly between sessions.
 
 ## Installation
 
-WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKILL.md` format), which is supported across all major AI coding agents.
+WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKILL.md` format), supported across all major AI coding agents.
 
 <table>
 <tr>
@@ -40,7 +47,8 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 </tr>
 </table>
 
-> **Note:** `/isolate` uses subagent spawning, which works best on Claude Code and Codex CLI. On platforms without inline subagent support, research runs in a single agent — functional, but without parallel exploration.
+> [!NOTE]
+> `/isolate` uses subagent spawning, which works best on Claude Code and Codex CLI. On other platforms, research runs in a single agent — functional, but without parallel exploration.
 
 ## When to Use What
 
@@ -84,59 +92,33 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 
 ## The Problem
 
-LLM context windows fail in four predictable ways. WISCI gives you a command for each:
+LLM context windows degrade in four predictable ways — each addressed by a specific WISCI command:
 
-```mermaid
-graph LR
-    P["<b>Poisoning</b><br/>Wrong facts persist<br/>and compound"] -->|"/write /select"| P2["Exact facts with source tracking.<br/>Stale sections auto-stripped."]
-    D["<b>Distraction</b><br/>Model fixates on<br/>accumulated noise"] -->|"/isolate /compress"| D2["Research in isolated windows.<br/>Deliberate compaction."]
-    C["<b>Confusion</b><br/>Irrelevant context<br/>causes wrong actions"] -->|"/select /isolate"| C2["Load only what's relevant.<br/>Each agent gets clean context."]
-    K["<b>Clash</b><br/>Contradictions from<br/>incremental gathering"] -->|"/write"| K2["Section-level merge<br/>consolidates without contradictions."]
+- **Context Poisoning** — Wrong facts persist and compound across a session. `/write` preserves exact facts with source tracking. `/select` auto-strips sections whose referenced files have changed.
 
-    style P fill:#dc3545,color:#fff,stroke:#dc3545
-    style D fill:#fd7e14,color:#fff,stroke:#fd7e14
-    style C fill:#ffc107,color:#000,stroke:#ffc107
-    style K fill:#6f42c1,color:#fff,stroke:#6f42c1
-    style P2 fill:#28a745,color:#fff,stroke:#28a745
-    style D2 fill:#28a745,color:#fff,stroke:#28a745
-    style C2 fill:#28a745,color:#fff,stroke:#28a745
-    style K2 fill:#28a745,color:#fff,stroke:#28a745
-```
+- **Context Distraction** — The model fixates on accumulated history instead of using its training. `/isolate` keeps research noise in separate windows. `/compress` deliberately compacts to stay in the effective range.
+
+- **Context Confusion** — Irrelevant information leads to wrong tool selection and document usage. `/select` loads only relevant, validated context. `/isolate` gives each agent a clean, focused window.
+
+- **Context Clash** — Information gathered incrementally across turns creates internal contradictions. `/write` uses section-level merge to consolidate without contradictions.
 
 These failures are not edge cases — they are the default outcome of long-running sessions. Context quality degrades significantly past 40% utilization, yet most tools only react at 95% when auto-compaction kicks in. By then, the damage is done.
 
 ## How It Works
 
-```mermaid
-graph TD
-    SELECT["/select"] --> WORK["Work"]
-    WORK --> ISOLATE["/isolate (as needed)"]
-    ISOLATE --> WRITE["/write"]
-    WRITE --> COMPRESS["/compress"]
-    COMPRESS -.->|"new session"| SELECT
+The four commands form a continuous cycle — each session builds on the last:
 
-    WRITE -->|save| SP["scratchpad/<br/>auth-research.md<br/>handoff.md<br/>api-notes.md"]
-    SELECT -->|load| SP
-    COMPRESS -->|save| SP
+**`/select`** → work → **`/isolate`** (as needed) → **`/write`** → **`/compress`** → *new session* → **`/select`** → ...
 
-    style SELECT fill:#0d6efd,color:#fff,stroke:#0d6efd
-    style ISOLATE fill:#6610f2,color:#fff,stroke:#6610f2
-    style WRITE fill:#198754,color:#fff,stroke:#198754
-    style COMPRESS fill:#dc3545,color:#fff,stroke:#dc3545
-    style WORK fill:#6c757d,color:#fff,stroke:#6c757d
-    style SP fill:#f8f9fa,color:#000,stroke:#dee2e6
-```
+The `scratchpad/` directory is where context lives between sessions:
 
-- **Topic-based storage** — Context lives in `scratchpad/` as markdown files organized by topic, preserving exact file paths, decisions, and reasoning.
-- **Staleness detection** — Every scratchpad file includes a `## References` manifest. When loaded, git history is checked to detect whether referenced files have changed.
+- **Topic-based storage** — Markdown files organized by topic, preserving exact file paths, decisions, and reasoning.
+- **Staleness detection** — Every file includes a `## References` manifest. When loaded, git history is checked to detect whether referenced files have changed.
 - **Section-level merge** — `/write` merges at `##` heading boundaries — stale sections are pruned automatically.
 - **Auto-stripping** — `/select` removes stale content before loading. Outdated sections are stripped, broken references flagged.
-- **Git as long-term memory** — `/commit` appends a `Context:` section to commits that logs changes to AI-layer files, making the context system's evolution queryable in `git log`.
+- **Git as long-term memory** — `/commit` appends a `Context:` section to commits, making the context system's evolution queryable in `git log`.
 
-Sessions are disposable but knowledge is not. Each cycle compounds what your project knows. The `scratchpad/` directory becomes a living knowledge base that survives session boundaries, context compactions, and team handoffs.
-
-<details>
-<summary><strong>Real-World Scenarios</strong></summary>
+## Real-World Scenarios
 
 ### Building a feature across multiple sessions
 
@@ -203,16 +185,14 @@ Sessions are disposable but knowledge is not. Each cycle compounds what your pro
   (refreshes the file with current state — stale sections replaced, references updated)
 ```
 
-</details>
-
 ## Acknowledgments
 
 WISCI builds on foundational work in context engineering:
 
-- **Lance Martin / LangChain** — The [WISC taxonomy](https://blog.langchain.com/context-engineering-for-agents/) (Write, Isolate, Select, Compress) that provides the structural foundation
+- **Lance Martin / LangChain** — The [WISC taxonomy](https://blog.langchain.com/context-engineering-for-agents/) (Write, Isolate, Select, Compress)
 - **Andrej Karpathy** — The [context engineering framing](https://x.com/karpathy/status/1937884699741483308) (LLM as CPU, context window as RAM, external storage as disk)
 - **Drew Breunig** — The [four failure modes taxonomy](https://www.dbreunig.com/2025/05/22/context-engineering.html) (poisoning, distraction, confusion, clash)
-- **Anthropic** — The [Claude Code](https://github.com/anthropics/claude-code) platform and [Agent Skills standard](https://agentskills.io) that make this possible
+- **Anthropic** — [Claude Code](https://github.com/anthropics/claude-code) and the [Agent Skills standard](https://agentskills.io)
 
 ## License
 
