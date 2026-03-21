@@ -20,7 +20,7 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 
 | Platform | How to install |
 |----------|---------------|
-| **Claude Code** | `/plugin marketplace add ph3on1x/wisci` then `/plugin install wisci@wisci-framework` |
+| **Claude Code** | `/plugin marketplace add ph3on1x/wisci`<br>`/plugin install wisci@wisci-framework` |
 | **Gemini CLI** | `gemini extensions install <github-url>` |
 | **Codex CLI** | Clone the repo, then run `./scripts/setup-platforms.sh` |
 | **Cursor** | Auto-discovers skills — no setup needed if Claude Code plugin is installed. Otherwise, run `./scripts/setup-platforms.sh` |
