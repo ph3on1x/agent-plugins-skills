@@ -1,0 +1,11 @@
+{
+  "name": "relamo",
+  "description": "Recursive Language Model skill for Claude Code — programmatic codebase exploration via Python REPL loop",
+  "version": "1.0.0",
+  "repository": "https://github.com/ph3on1x/relamo",
+  "author": {
+    "name": "Dennis Nasarov"
+  },
+  "license": "MIT",
+  "keywords": ["rlm", "recursive-language-model", "context-exploration", "repl"]
+}
