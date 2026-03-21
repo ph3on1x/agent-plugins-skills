@@ -18,24 +18,65 @@ WISCI gives you four slash commands — **Write**, **Isolate**, **Select**, **Co
 
 WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKILL.md` format), which is supported across all major AI coding agents.
 
-| Platform | How to install |
-|----------|---------------|
-| **Claude Code** | `/plugin marketplace add ph3on1x/wisci`<br>`/plugin install wisci@wisci-framework` |
-| **Gemini CLI** | `gemini extensions install <github-url>` |
-| **Codex CLI** | Clone the repo, then run `./scripts/setup-platforms.sh` |
-| **Cursor** | Auto-discovers skills — no setup needed if Claude Code plugin is installed. Otherwise, run `./scripts/setup-platforms.sh` |
+<table>
+<tr>
+  <th width="200">Platform</th>
+  <th>How to install</th>
+</tr>
+<tr>
+  <td><strong>Claude Code</strong></td>
+  <td><code>/plugin marketplace add ph3on1x/wisci</code><br><code>/plugin install wisci@wisci-framework</code></td>
+</tr>
+<tr>
+  <td><strong>Gemini CLI</strong></td>
+  <td><code>gemini extensions install &lt;github-url&gt;</code></td>
+</tr>
+<tr>
+  <td><strong>Codex CLI</strong></td>
+  <td>Clone the repo, then run <code>./scripts/setup-platforms.sh</code></td>
+</tr>
+<tr>
+  <td><strong>Cursor</strong></td>
+  <td>Auto-discovers skills — no setup needed if Claude Code plugin is installed. Otherwise, run <code>./scripts/setup-platforms.sh</code></td>
+</tr>
+</table>
 
 > **Note:** `/isolate` uses subagent spawning, which works best on Claude Code and Codex CLI. On platforms without inline subagent support, research runs in a single agent — functional, but without parallel exploration.
 
 ## When to Use What
 
-| You're thinking... | Use | What happens |
-|---|---|---|
-| "I'll need this info tomorrow" | `/write auth-research` | Saves your findings to `scratchpad/auth-research.md` with file references that track staleness |
-| "I need to research something without cluttering my session" | `/isolate compare OAuth2 libraries for Node.js` | 1-3 subagents handle it in isolated windows (websearch, docs, any task); results appear inline, your context stays clean |
-| "Where was I?" | `/select` | Loads a codebase overview + lists your saved context files, flagging any that are stale |
-| "I need my auth research back" | `/select auth-research` | Loads that specific context file, auto-stripping any sections whose source files have changed |
-| "Done for the day" | `/compress` | Creates a handoff document so your next session picks up exactly where you left off |
+<table>
+<tr>
+  <th width="280">You're thinking...</th>
+  <th width="280">Use</th>
+  <th>What happens</th>
+</tr>
+<tr>
+  <td>"I'll need this info tomorrow"</td>
+  <td><code>/write auth-research</code></td>
+  <td>Saves your findings to <code>scratchpad/auth-research.md</code> with file references that track staleness</td>
+</tr>
+<tr>
+  <td>"I need to research something without cluttering my session"</td>
+  <td><code>/isolate compare OAuth2 libraries for Node.js</code></td>
+  <td>1-3 subagents handle it in isolated windows (websearch, docs, any task); results appear inline, your context stays clean</td>
+</tr>
+<tr>
+  <td>"Where was I?"</td>
+  <td><code>/select</code></td>
+  <td>Loads a codebase overview + lists your saved context files, flagging any that are stale</td>
+</tr>
+<tr>
+  <td>"I need my auth research back"</td>
+  <td><code>/select auth-research</code></td>
+  <td>Loads that specific context file, auto-stripping any sections whose source files have changed</td>
+</tr>
+<tr>
+  <td>"Done for the day"</td>
+  <td><code>/compress</code></td>
+  <td>Creates a handoff document so your next session picks up exactly where you left off</td>
+</tr>
+</table>
 
 **Helper:** `/commit` creates conventional commits enriched with a `Context:` section that logs AI-layer changes — turning `git log` into long-term memory.
 
@@ -108,20 +149,32 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 
 ## Commands
 
-### Primary Commands
-
-| Command | What It Does |
-|---------|-------------|
-| `/write <topic>` | Save context to persistent scratchpad files with source tracking and section-level merge |
-| `/isolate <task>` | Delegate any task to 1-3 subagents in isolated context windows — websearch, research, exploration — results inline, noise stays out |
-| `/select [topic]` | Load project context (codebase overview or saved scratchpad files) with automatic staleness detection |
-| `/compress [scope]` | Create compressed handoff documents for session transitions |
-
-### Helper Commands
-
-| Command | What It Does |
-|---------|-------------|
-| `/commit [message]` | Create git commits enriched with a `Context:` section that tracks AI-layer changes — turning `git log` into long-term memory |
+<table>
+<tr>
+  <th width="200">Command</th>
+  <th>What It Does</th>
+</tr>
+<tr>
+  <td><code>/write &lt;topic&gt;</code></td>
+  <td>Save context to persistent scratchpad files with source tracking and section-level merge</td>
+</tr>
+<tr>
+  <td><code>/isolate &lt;task&gt;</code></td>
+  <td>Delegate any task to 1-3 subagents in isolated context windows — websearch, research, exploration — results inline, noise stays out</td>
+</tr>
+<tr>
+  <td><code>/select [topic]</code></td>
+  <td>Load project context (codebase overview or saved scratchpad files) with automatic staleness detection</td>
+</tr>
+<tr>
+  <td><code>/compress [scope]</code></td>
+  <td>Create compressed handoff documents for session transitions</td>
+</tr>
+<tr>
+  <td><code>/commit [message]</code></td>
+  <td>Create git commits enriched with a <code>Context:</code> section that tracks AI-layer changes — turning <code>git log</code> into long-term memory</td>
+</tr>
+</table>
 
 ## The Iterate Philosophy
 
@@ -167,12 +220,28 @@ LLM context windows fail in four predictable ways:
 
 These failures are not edge cases — they are the default outcome of long-running sessions. Context quality degrades significantly past 40% utilization, yet most tools only react at 95% when auto-compaction kicks in. By then, the damage is done.
 
-| Command | Failure Modes Addressed |
-|---------|------------------------|
-| `/write` | **Poisoning** — preserves exact facts with source tracking. **Clash** — section-level merge consolidates without contradictions |
-| `/isolate` | **Distraction** — research noise stays in separate windows. **Confusion** — each agent gets a clean, focused context |
-| `/select` | **Poisoning** — strips sections whose referenced files have changed. **Confusion** — loads only relevant, validated context |
-| `/compress` | **Distraction** — keeps utilization in the effective range through deliberate compaction |
+<table>
+<tr>
+  <th width="160">Command</th>
+  <th>Failure Modes Addressed</th>
+</tr>
+<tr>
+  <td><code>/write</code></td>
+  <td><strong>Poisoning</strong> — preserves exact facts with source tracking. <strong>Clash</strong> — section-level merge consolidates without contradictions</td>
+</tr>
+<tr>
+  <td><code>/isolate</code></td>
+  <td><strong>Distraction</strong> — research noise stays in separate windows. <strong>Confusion</strong> — each agent gets a clean, focused context</td>
+</tr>
+<tr>
+  <td><code>/select</code></td>
+  <td><strong>Poisoning</strong> — strips sections whose referenced files have changed. <strong>Confusion</strong> — loads only relevant, validated context</td>
+</tr>
+<tr>
+  <td><code>/compress</code></td>
+  <td><strong>Distraction</strong> — keeps utilization in the effective range through deliberate compaction</td>
+</tr>
+</table>
 </details>
 
 ## Acknowledgments
