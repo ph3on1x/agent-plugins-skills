@@ -1,0 +1,12 @@
+{
+  "name": "wisci",
+  "description": "WISCI context engineering framework — Write, Isolate, Select, Compress, Iterate. Four commands for proactive LLM context management.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dennis Nasarov"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ph3on1x/wisci",
+  "homepage": "https://github.com/ph3on1x/wisci#readme",
+  "keywords": ["context-engineering", "wisci", "scratchpad", "session-management"]
+}
