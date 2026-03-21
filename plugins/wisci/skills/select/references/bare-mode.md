@@ -25,6 +25,9 @@ Report the primary language, framework, and key dependencies.
 Use Glob to look for documentation files:
 - `README.md` or `README.*`
 - `CLAUDE.md` or `.claude/CLAUDE.md`
+- `AGENTS.md` — Codex CLI / cross-platform instructions
+- `GEMINI.md` — Gemini CLI instructions
+- `.cursor/rules/` — Cursor project rules
 - `docs/` directory contents
 - `CONTRIBUTING.md`, `ARCHITECTURE.md`
 

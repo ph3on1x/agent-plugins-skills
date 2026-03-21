@@ -76,9 +76,14 @@ These paths are AI-layer files. Changes to them are logged in the `Context:` sec
 - `.claude/plugins/**` — Claude plugin configurations
 - `wisci-plugin/**` — WISCI skill definitions and plugin config
 - `.cursorrules` — Cursor AI rules
+- `.cursor/rules/**` — Cursor project rules
 - `.github/copilot-instructions.md` — Copilot instructions
 - `AGENTS.md` — Codex agent instructions
 - `codex.md` — Codex instructions
+- `GEMINI.md` — Gemini CLI instructions
+- `.gemini/GEMINI.md` — Gemini CLI instructions (.gemini dir)
+- `.gemini/settings.json` — Gemini CLI settings
+- `.gemini/extensions/**` — Gemini CLI extensions
 
 A staged file matches if its path starts with any of the directory prefixes above or exactly matches a filename entry.
 
