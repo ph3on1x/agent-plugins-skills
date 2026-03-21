@@ -24,8 +24,8 @@ These failures are not edge cases — they are the default outcome of long-runni
 | Command | What It Does | Failure Modes Addressed |
 |---------|-------------|------------------------|
 | `/write <topic>` | Externalize context to persistent, structured scratchpad files | **Poisoning** — preserves exact facts with source tracking. **Clash** — section-level merge consolidates without contradictions |
-| `/select [topic]` | Load context with automatic staleness detection and stripping | **Poisoning** — strips sections whose referenced files have changed. **Confusion** — loads only relevant, validated context |
 | `/isolate <task>` | Delegate research to 1-3 subagents with isolated context windows | **Distraction** — research noise stays in separate windows. **Confusion** — each agent gets a clean, focused context |
+| `/select [topic]` | Load context with automatic staleness detection and stripping | **Poisoning** — strips sections whose referenced files have changed. **Confusion** — loads only relevant, validated context |
 | `/compress [scope]` | Create compressed handoff for session transitions | **Distraction** — keeps utilization in the effective range through deliberate compaction |
 
 ## Why WISCI, Not Another Framework
