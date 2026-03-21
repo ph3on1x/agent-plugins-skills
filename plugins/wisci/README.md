@@ -108,35 +108,23 @@ These failures are not edge cases — they are the default outcome of long-runni
 ## How It Works
 
 ```mermaid
-graph LR
-    subgraph Session["Session Cycle"]
-        direction LR
-        SELECT["/select"] --> WORK["Work"]
-        WORK --> ISOLATE["/isolate<br/>(as needed)"]
-        ISOLATE --> WRITE["/write"]
-        WRITE --> COMPRESS["/compress"]
-    end
-
+graph TD
+    SELECT["/select"] --> WORK["Work"]
+    WORK --> ISOLATE["/isolate (as needed)"]
+    ISOLATE --> WRITE["/write"]
+    WRITE --> COMPRESS["/compress"]
     COMPRESS -.->|"new session"| SELECT
 
-    subgraph Storage["scratchpad/"]
-        direction TB
-        F1["auth-research.md"]
-        F2["handoff.md"]
-        F3["api-notes.md"]
-    end
-
-    WRITE --> Storage
-    SELECT --> Storage
-    COMPRESS --> Storage
+    WRITE -->|save| SP["scratchpad/<br/>auth-research.md<br/>handoff.md<br/>api-notes.md"]
+    SELECT -->|load| SP
+    COMPRESS -->|save| SP
 
     style SELECT fill:#0d6efd,color:#fff,stroke:#0d6efd
     style ISOLATE fill:#6610f2,color:#fff,stroke:#6610f2
     style WRITE fill:#198754,color:#fff,stroke:#198754
     style COMPRESS fill:#dc3545,color:#fff,stroke:#dc3545
     style WORK fill:#6c757d,color:#fff,stroke:#6c757d
-    style Storage fill:#f8f9fa,color:#000,stroke:#dee2e6
-    style Session fill:transparent,stroke:#dee2e6
+    style SP fill:#f8f9fa,color:#000,stroke:#dee2e6
 ```
 
 - **Topic-based storage** — Context lives in `scratchpad/` as markdown files organized by topic, preserving exact file paths, decisions, and reasoning.
