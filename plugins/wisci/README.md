@@ -40,7 +40,7 @@ You decide when to write context, what to isolate, which topics to select, and w
 
 ```
 /plugin marketplace add ph3on1x/wisci
-/plugin install wisci@wisci-marketplace
+/plugin install wisci@wisci-framework
 ```
 
 ## The Iterate Philosophy
