@@ -5,10 +5,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.2.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
+&nbsp;
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-Extension-4285F4.svg)](https://github.com/google-gemini/gemini-cli)
 [![Codex CLI](https://img.shields.io/badge/Codex_CLI-Compatible-10a37f.svg)](https://github.com/openai/codex)
 [![Cursor](https://img.shields.io/badge/Cursor-Compatible-000000.svg)](https://cursor.com)
+
+---
 
 Ever notice your AI coding sessions get worse the longer they run? The model repeats itself, forgets what it just learned, or acts on information that's no longer true. That's not a bug — it's what happens when context fills up with noise.
 
@@ -77,8 +80,6 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
   <td>Creates a handoff document so your next session picks up exactly where you left off</td>
 </tr>
 </table>
-
-**Helper:** `/commit` creates conventional commits enriched with a `Context:` section that logs AI-layer changes — turning `git log` into long-term memory.
 
 ## Real-World Scenarios
 
@@ -181,9 +182,9 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 The "I" in WISCI is not a fifth command — it is the principle that these four commands form a continuous cycle:
 
 ```
-/select  →  work  →  /isolate (as needed)  →  /write  →  /compress
-    ↑                                                          |
-    └───────────────────── new session ────────────────────────┘
+  /select  →  work  →  /isolate (as needed)  →  /write  →  /compress
+     ↑                                                         │
+     └──────────────────────  new session  ────────────────────┘
 ```
 
 Sessions are disposable but knowledge is not. Each cycle compounds what your project knows. The `scratchpad/` directory becomes a living knowledge base that survives session boundaries, context compactions, and team handoffs.
@@ -251,7 +252,7 @@ WISCI builds on foundational work in context engineering:
 - **Lance Martin / LangChain** — The [WISC taxonomy](https://blog.langchain.com/context-engineering-for-agents/) (Write, Isolate, Select, Compress) that provides the structural foundation
 - **Andrej Karpathy** — The [context engineering framing](https://x.com/karpathy/status/1937884699741483308) (LLM as CPU, context window as RAM, external storage as disk)
 - **Drew Breunig** — The [four failure modes taxonomy](https://www.dbreunig.com/2025/05/22/context-engineering.html) (poisoning, distraction, confusion, clash)
-- **Anthropic** — The Claude Code plugin platform that makes this possible
+- **Anthropic** — The [Claude Code](https://github.com/anthropics/claude-code) platform and [Agent Skills standard](https://agentskills.io) that make this possible
 
 ## License
 
