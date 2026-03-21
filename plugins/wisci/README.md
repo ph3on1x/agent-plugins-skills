@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)]()
 
 Context engineering is "the art of filling the context window with just the right information for the next step" (Andrej Karpathy). WISCI implements this as four slash commands — **Write**, **Isolate**, **Select**, **Compress** — plus an **Iterate** philosophy that keeps your Claude Code sessions working with accurate, focused context instead of accumulated noise.
 
