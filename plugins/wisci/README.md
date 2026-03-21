@@ -9,8 +9,6 @@
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-Extension-4285F4.svg)](https://github.com/google-gemini/gemini-cli)
 [![Codex CLI](https://img.shields.io/badge/Codex_CLI-Compatible-10a37f.svg)](https://github.com/openai/codex)
 
----
-
 Ever notice your AI coding sessions get worse the longer they run? The model repeats itself, forgets what it just learned, or acts on information that's no longer true. That's not a bug — it's what happens when context fills up with noise.
 
 WISCI gives you four slash commands — **Write**, **Isolate**, **Select**, **Compress** — that keep your AI coding sessions sharp. Save what matters, load only what's relevant, research without polluting your context, and hand off cleanly between sessions.
@@ -77,9 +75,80 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
   <td><code>/compress</code></td>
   <td>Creates a handoff document so your next session picks up exactly where you left off</td>
 </tr>
+<tr>
+  <td>"Time to commit"</td>
+  <td><code>/commit</code></td>
+  <td>Creates a conventional commit with a <code>Context:</code> section that logs AI-layer changes — turning <code>git log</code> into long-term memory</td>
+</tr>
 </table>
 
-## Real-World Scenarios
+## The Problem
+
+LLM context windows fail in four predictable ways. WISCI gives you a command for each:
+
+```mermaid
+graph LR
+    P["<b>Poisoning</b><br/>Wrong facts persist<br/>and compound"] -->|"/write /select"| P2["Exact facts with source tracking.<br/>Stale sections auto-stripped."]
+    D["<b>Distraction</b><br/>Model fixates on<br/>accumulated noise"] -->|"/isolate /compress"| D2["Research in isolated windows.<br/>Deliberate compaction."]
+    C["<b>Confusion</b><br/>Irrelevant context<br/>causes wrong actions"] -->|"/select /isolate"| C2["Load only what's relevant.<br/>Each agent gets clean context."]
+    K["<b>Clash</b><br/>Contradictions from<br/>incremental gathering"] -->|"/write"| K2["Section-level merge<br/>consolidates without contradictions."]
+
+    style P fill:#dc3545,color:#fff,stroke:#dc3545
+    style D fill:#fd7e14,color:#fff,stroke:#fd7e14
+    style C fill:#ffc107,color:#000,stroke:#ffc107
+    style K fill:#6f42c1,color:#fff,stroke:#6f42c1
+    style P2 fill:#28a745,color:#fff,stroke:#28a745
+    style D2 fill:#28a745,color:#fff,stroke:#28a745
+    style C2 fill:#28a745,color:#fff,stroke:#28a745
+    style K2 fill:#28a745,color:#fff,stroke:#28a745
+```
+
+These failures are not edge cases — they are the default outcome of long-running sessions. Context quality degrades significantly past 40% utilization, yet most tools only react at 95% when auto-compaction kicks in. By then, the damage is done.
+
+## How It Works
+
+```mermaid
+graph LR
+    subgraph Session["Session Cycle"]
+        direction LR
+        SELECT["/select"] --> WORK["Work"]
+        WORK --> ISOLATE["/isolate<br/>(as needed)"]
+        ISOLATE --> WRITE["/write"]
+        WRITE --> COMPRESS["/compress"]
+    end
+
+    COMPRESS -.->|"new session"| SELECT
+
+    subgraph Storage["scratchpad/"]
+        direction TB
+        F1["auth-research.md"]
+        F2["handoff.md"]
+        F3["api-notes.md"]
+    end
+
+    WRITE --> Storage
+    SELECT --> Storage
+    COMPRESS --> Storage
+
+    style SELECT fill:#0d6efd,color:#fff,stroke:#0d6efd
+    style ISOLATE fill:#6610f2,color:#fff,stroke:#6610f2
+    style WRITE fill:#198754,color:#fff,stroke:#198754
+    style COMPRESS fill:#dc3545,color:#fff,stroke:#dc3545
+    style WORK fill:#6c757d,color:#fff,stroke:#6c757d
+    style Storage fill:#f8f9fa,color:#000,stroke:#dee2e6
+    style Session fill:transparent,stroke:#dee2e6
+```
+
+- **Topic-based storage** — Context lives in `scratchpad/` as markdown files organized by topic, preserving exact file paths, decisions, and reasoning.
+- **Staleness detection** — Every scratchpad file includes a `## References` manifest. When loaded, git history is checked to detect whether referenced files have changed.
+- **Section-level merge** — `/write` merges at `##` heading boundaries — stale sections are pruned automatically.
+- **Auto-stripping** — `/select` removes stale content before loading. Outdated sections are stripped, broken references flagged.
+- **Git as long-term memory** — `/commit` appends a `Context:` section to commits that logs changes to AI-layer files, making the context system's evolution queryable in `git log`.
+
+Sessions are disposable but knowledge is not. Each cycle compounds what your project knows. The `scratchpad/` directory becomes a living knowledge base that survives session boundaries, context compactions, and team handoffs.
+
+<details>
+<summary><strong>Real-World Scenarios</strong></summary>
 
 ### Building a feature across multiple sessions
 
@@ -146,101 +215,6 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
   (refreshes the file with current state — stale sections replaced, references updated)
 ```
 
-## Commands
-
-<table>
-<tr>
-  <th width="200">Command</th>
-  <th>What It Does</th>
-</tr>
-<tr>
-  <td><code>/write &lt;topic&gt;</code></td>
-  <td>Save context to persistent scratchpad files with source tracking and section-level merge</td>
-</tr>
-<tr>
-  <td><code>/isolate &lt;task&gt;</code></td>
-  <td>Delegate any task to 1-3 subagents in isolated context windows — websearch, research, exploration — results inline, noise stays out</td>
-</tr>
-<tr>
-  <td><code>/select [topic]</code></td>
-  <td>Load project context (codebase overview or saved scratchpad files) with automatic staleness detection</td>
-</tr>
-<tr>
-  <td><code>/compress [scope]</code></td>
-  <td>Create compressed handoff documents for session transitions</td>
-</tr>
-<tr>
-  <td><code>/commit [message]</code></td>
-  <td>Create git commits enriched with a <code>Context:</code> section that tracks AI-layer changes — turning <code>git log</code> into long-term memory</td>
-</tr>
-</table>
-
-## The Iterate Philosophy
-
-The "I" in WISCI is not a fifth command — it is the principle that these four commands form a continuous cycle:
-
-```
-  /select  →  work  →  /isolate (as needed)  →  /write  →  /compress
-     ↑                                                         │
-     └──────────────────────  new session  ────────────────────┘
-```
-
-Sessions are disposable but knowledge is not. Each cycle compounds what your project knows. The `scratchpad/` directory becomes a living knowledge base that survives session boundaries, context compactions, and team handoffs.
-
-## How It Works
-
-- **Topic-based storage** — Context lives in `scratchpad/` as markdown files organized by topic. Each file has structured `##` sections preserving exact file paths, decisions, and reasoning.
-- **Staleness detection** — Every scratchpad file includes a `## References` manifest. When loaded, git history is checked to detect whether referenced files have changed.
-- **Section-level merge** — `/write` merges at `##` heading boundaries — stale sections are pruned automatically.
-- **Auto-stripping** — `/select` removes stale content before loading. Outdated sections are stripped, broken references flagged.
-- **Git as long-term memory** — `/commit` appends a `Context:` section to commits that logs changes to AI-layer files, making the context system's evolution queryable in `git log`.
-
-## Why WISCI, Not Another Framework
-
-<details>
-<summary>WISCI is a toolbox, not a blueprint</summary>
-
-Most development frameworks are prescriptive — they define a specific workflow, a rigid spec format, or a step-by-step process you must follow. They sound good in theory, but in practice they fight against the way you actually work.
-
-WISCI takes the opposite approach. It does not tell you what to build, how to structure your tasks, or which process to follow. It gives you four tools — each designed to address a specific, well-understood context engineering failure mode — and gets out of your way.
-
-You decide when to write context, what to isolate, which topics to select, and when to compress. There is no prescribed order, no mandatory spec format, no opinionated scaffold. Your workflow stays yours — you just stop losing context along the way.
-</details>
-
-<details>
-<summary>The context failure modes WISCI addresses</summary>
-
-LLM context windows fail in four predictable ways:
-
-- **Context Poisoning** — Errors or hallucinations persist in context, cascading into future responses. A single wrong assumption compounds across an entire session.
-- **Context Distraction** — As context grows, the model fixates on accumulated history instead of using its training. Past actions get repeated rather than new strategies developed.
-- **Context Confusion** — Irrelevant information leads to wrong tool selection or document usage. Performance degrades as the number of available but unrelated context items increases.
-- **Context Clash** — Information gathered incrementally across turns creates internal contradictions. Research shows a 39% performance drop when information is sharded across multiple interactions.
-
-These failures are not edge cases — they are the default outcome of long-running sessions. Context quality degrades significantly past 40% utilization, yet most tools only react at 95% when auto-compaction kicks in. By then, the damage is done.
-
-<table>
-<tr>
-  <th width="160">Command</th>
-  <th>Failure Modes Addressed</th>
-</tr>
-<tr>
-  <td><code>/write</code></td>
-  <td><strong>Poisoning</strong> — preserves exact facts with source tracking. <strong>Clash</strong> — section-level merge consolidates without contradictions</td>
-</tr>
-<tr>
-  <td><code>/isolate</code></td>
-  <td><strong>Distraction</strong> — research noise stays in separate windows. <strong>Confusion</strong> — each agent gets a clean, focused context</td>
-</tr>
-<tr>
-  <td><code>/select</code></td>
-  <td><strong>Poisoning</strong> — strips sections whose referenced files have changed. <strong>Confusion</strong> — loads only relevant, validated context</td>
-</tr>
-<tr>
-  <td><code>/compress</code></td>
-  <td><strong>Distraction</strong> — keeps utilization in the effective range through deliberate compaction</td>
-</tr>
-</table>
 </details>
 
 ## Acknowledgments
