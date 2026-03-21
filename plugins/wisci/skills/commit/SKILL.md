@@ -83,7 +83,8 @@ These paths are AI-layer files. Changes to them are logged in the `Context:` sec
 - `.claude/commands/**` — Claude custom commands
 - `.claude/settings.json` — Claude settings
 - `.claude/plugins/**` — Claude plugin configurations
-- `wisci-plugin/**` — WISCI skill definitions and plugin config
+- `skills/**` — WISCI skill definitions
+- `.claude-plugin/**` — WISCI plugin config
 - `.cursorrules` — Cursor AI rules
 - `.cursor/rules/**` — Cursor project rules
 - `.github/copilot-instructions.md` — Copilot instructions

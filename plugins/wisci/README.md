@@ -5,7 +5,7 @@
 **Context engineering framework for AI coding agents**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.1-green.svg)]()
+[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-Extension-4285F4.svg)](https://github.com/google-gemini/gemini-cli)
@@ -31,7 +31,7 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 </tr>
 <tr>
   <td><strong>Claude Code</strong></td>
-  <td><code>/plugin marketplace add ph3on1x/wisci</code><br><code>/plugin install wisci@wisci-framework</code></td>
+  <td><code>claude plugin add ph3on1x/wisci</code></td>
 </tr>
 <tr>
   <td><strong>Gemini CLI</strong></td>
