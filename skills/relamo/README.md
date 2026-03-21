@@ -161,7 +161,7 @@ The REPL engine (`scripts/repl.py`) is a [uv](https://docs.astral.sh/uv/) single
 | `recursion_limit` | 1 | Max depth for `recursive_llm()` |
 | `max_iterations` | 15 | REPL loop cap |
 | `timeout_seconds` | 120 | Per LLM call timeout |
-| `max_output_chars` | 5,000 | Stdout truncation limit |
+| `max_output_chars` | 10,000 | Stdout truncation limit |
 | `max_file_size` | 1 MB | Skip individual files larger than this |
 | `max_context_bytes` | 50 MB | Total codebase size limit |
 
@@ -180,8 +180,8 @@ Each `llm_query()` or `recursive_llm()` call uses the Claude API. Approximate co
 | Operation | Estimated Cost |
 |-----------|---------------|
 | Single `llm_query()` | $0.01 -- $0.05 |
-| Batch of 20 chunks | $0.20 -- $1.00 |
-| Full session (15 iterations) | $1.00 -- $5.00 |
+| Batch of 20 chunks | $0.15 -- $1.00 |
+| Full session (15 iterations) | $0.50 -- $5.00 |
 
 ## Requirements
 

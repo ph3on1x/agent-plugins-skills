@@ -120,7 +120,7 @@ rm /tmp/relamo-XXXX/state.pkl
 
 **Output truncation**: If output is cut off, increase the limit:
 ```python
-config["max_output_chars"] = 15000
+config["max_output_chars"] = 20000
 ```
 
 **Timeout on `llm_query`**: Network issues or very large prompts. Increase timeout:

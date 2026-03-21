@@ -115,7 +115,7 @@ Discover and apply these patterns as appropriate:
 | `recursion_limit` | 1 |
 | `max_iterations` | 15 |
 | `timeout_seconds` | 120 |
-| `max_output_chars` | 5000 |
+| `max_output_chars` | 10000 |
 
 For full configuration and rationale, read `${CLAUDE_SKILL_DIR}/references/safety-config.md`.
 

@@ -31,7 +31,7 @@ DEFAULT_CONFIG = {
     "recursion_limit": 1,
     "max_iterations": 15,
     "timeout_seconds": 120,
-    "max_output_chars": 5000,
+    "max_output_chars": 10_000,
     "max_file_size": 1_000_000,       # 1 MB per file
     "max_context_bytes": 50_000_000,  # 50 MB total
 }
@@ -475,7 +475,7 @@ def cmd_execute(args: argparse.Namespace) -> None:
     stdout_val = stdout_capture.getvalue()
     stderr_val = stderr_capture.getvalue()
 
-    max_chars = config.get("max_output_chars", 5000)
+    max_chars = config.get("max_output_chars", 10_000)
 
     if stdout_val:
         if len(stdout_val) > max_chars:
