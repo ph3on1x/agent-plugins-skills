@@ -3,35 +3,29 @@
 **Context Engineering Framework for AI Coding Agents**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
 [![Version](https://img.shields.io/badge/version-1.2.0-green.svg)]()
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
+[![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-Extension-4285F4.svg)](https://github.com/google-gemini/gemini-cli)
+[![Codex CLI](https://img.shields.io/badge/Codex_CLI-Compatible-10a37f.svg)](https://github.com/openai/codex)
+[![Cursor](https://img.shields.io/badge/Cursor-Compatible-000000.svg)](https://cursor.com)
 
 Ever notice your AI coding sessions get worse the longer they run? The model repeats itself, forgets what it just learned, or acts on information that's no longer true. That's not a bug — it's what happens when context fills up with noise.
 
-WISCI gives you four slash commands — **Write**, **Isolate**, **Select**, **Compress** — that keep your Claude Code sessions sharp. Save what matters, load only what's relevant, research without polluting your context, and hand off cleanly between sessions.
+WISCI gives you four slash commands — **Write**, **Isolate**, **Select**, **Compress** — that keep your AI coding sessions sharp. Save what matters, load only what's relevant, research without polluting your context, and hand off cleanly between sessions.
 
 ## Installation
 
-### Claude Code (primary)
-
-Requires Claude Code with plugin support.
-
-```bash
-/plugin marketplace add ph3on1x/wisci        # register the marketplace source
-/plugin install wisci@wisci-framework        # install the plugin
-```
-
-### Other Platforms
-
-WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKILL.md` format), which is supported by Claude Code, Codex CLI, Cursor, Gemini CLI, GitHub Copilot, and others.
+WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKILL.md` format), which is supported across all major AI coding agents.
 
 | Platform | How to install |
 |----------|---------------|
+| **Claude Code** | `/plugin marketplace add ph3on1x/wisci` then `/plugin install wisci@wisci-framework` |
 | **Gemini CLI** | `gemini extensions install <github-url>` |
-| **Codex CLI** | Clone the repo, then run `./scripts/setup-platforms.sh` to symlink skills into `.agents/skills/` |
-| **Cursor** | Auto-discovers `.claude/skills/` — no extra setup needed if the Claude Code plugin is installed. Otherwise, run `./scripts/setup-platforms.sh` |
+| **Codex CLI** | Clone the repo, then run `./scripts/setup-platforms.sh` |
+| **Cursor** | Auto-discovers skills — no setup needed if Claude Code plugin is installed. Otherwise, run `./scripts/setup-platforms.sh` |
 
-> **Note:** `/isolate` uses Claude Code's subagent spawning. On platforms without inline subagent support, research runs in a single agent — functional, but without parallel exploration.
+> **Note:** `/isolate` uses subagent spawning, which works best on Claude Code and Codex CLI. On platforms without inline subagent support, research runs in a single agent — functional, but without parallel exploration.
 
 ## When to Use What
 
