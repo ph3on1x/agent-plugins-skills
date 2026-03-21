@@ -1,7 +1,7 @@
 {
   "name": "wisci",
   "description": "WISCI context engineering framework — Write, Isolate, Select, Compress, Iterate. Four primary commands plus helpers for proactive LLM context management.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": {
     "name": "Dennis Nasarov"
   },
