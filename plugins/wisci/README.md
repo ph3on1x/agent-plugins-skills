@@ -31,7 +31,7 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 </tr>
 <tr>
   <td><strong>Claude Code</strong></td>
-  <td><code>claude plugin add ph3on1x/wisci</code></td>
+  <td><code>claude plugin marketplace add ph3on1x/wisci</code><br><code>claude plugin install wisci</code></td>
 </tr>
 <tr>
   <td><strong>Gemini CLI</strong></td>
