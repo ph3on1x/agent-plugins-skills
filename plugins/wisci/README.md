@@ -28,6 +28,14 @@ These failures are not edge cases — they are the default outcome of long-runni
 | `/isolate <task>` | Delegate research to 1-3 subagents with isolated context windows | **Distraction** — research noise stays in separate windows. **Confusion** — each agent gets a clean, focused context |
 | `/compress [scope]` | Create compressed handoff for session transitions | **Distraction** — keeps utilization in the effective range through deliberate compaction |
 
+## Why WISCI, Not Another Framework
+
+Most development frameworks are prescriptive — they define a specific workflow, a rigid spec format, or a step-by-step process you must follow. They sound good in theory, but in practice they fight against the way you actually work. They were built by someone, for something, and you spend more time conforming to the framework than solving your problem.
+
+WISCI takes the opposite approach. It is not a workflow. It does not tell you what to build, how to structure your tasks, or which process to follow. It gives you four tools — each designed to address a specific, well-understood context engineering failure mode — and gets out of your way.
+
+You decide when to write context, what to isolate, which topics to select, and when to compress. There is no prescribed order, no mandatory spec format, no opinionated scaffold. WISCI is the toolbox, not the blueprint. Your workflow stays yours — you just stop losing context along the way.
+
 ## Installation
 
 ```
