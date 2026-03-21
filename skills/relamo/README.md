@@ -53,10 +53,11 @@ The entire codebase lives outside the prompt as a Python string. Claude writes c
 
 ## Quick Start
 
-Install the plugin:
+Add the marketplace and install:
 
 ```
-/plugin install ph3on1x/relamo
+/plugin marketplace add ph3on1x/relamo
+/plugin install relamo@relamo
 ```
 
 Run it:
