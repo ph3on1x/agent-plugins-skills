@@ -2,11 +2,14 @@
 
 # ReLaMo
 
-**Recursive Language Model plugin for Claude Code — programmatic codebase exploration via persistent Python REPL**
+**Recursive Language Model skill for AI coding agents — programmatic codebase exploration via persistent Python REPL**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)]()
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
+[![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-Extension-4285F4.svg)](https://github.com/google-gemini/gemini-cli)
+[![Codex CLI](https://img.shields.io/badge/Codex_CLI-Compatible-10a37f.svg)](https://github.com/openai/codex)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB.svg)](https://python.org)
 [![uv](https://img.shields.io/badge/uv-powered-blueviolet.svg)](https://docs.astral.sh/uv/)
 
@@ -17,9 +20,11 @@ That's what happens when your tools can only read one file at a time.
 
 </div>
 
-relamo is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that implements the **Recursive Language Model (RLM)** pattern. Instead of stuffing files into prompts, it concatenates your codebase into a Python variable and lets Claude write code to search, extract, and analyze it iteratively — with full state persistence across REPL iterations.
+relamo implements the **Recursive Language Model (RLM)** pattern as an [Agent Skills](https://agentskills.io) standard skill, supported across all major AI coding agents. Instead of stuffing files into prompts, it concatenates your codebase into a Python variable and lets the agent write code to search, extract, and analyze it iteratively — with full state persistence across REPL iterations.
 
 ## Installation
+
+relamo uses the [Agent Skills open standard](https://agentskills.io) (`SKILL.md` format), supported across all major AI coding agents.
 
 <table>
 <tr>
@@ -30,10 +35,22 @@ relamo is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin
   <td><strong>Claude Code</strong></td>
   <td><code>claude plugin marketplace add ph3on1x/relamo</code><br><code>claude plugin install relamo@relamo</code></td>
 </tr>
+<tr>
+  <td><strong>Gemini CLI</strong></td>
+  <td><code>gemini extensions install &lt;github-url&gt;</code></td>
+</tr>
+<tr>
+  <td><strong>Codex CLI</strong></td>
+  <td>Clone the repo, then run <code>./scripts/setup-platforms.sh</code></td>
+</tr>
+<tr>
+  <td><strong>Cursor</strong></td>
+  <td>Auto-discovers skills — no setup needed if Claude Code plugin is installed. Otherwise, run <code>./scripts/setup-platforms.sh</code></td>
+</tr>
 </table>
 
 > [!NOTE]
-> Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with `claude` CLI in PATH, Python 3.11+ (managed automatically by uv), and [uv](https://docs.astral.sh/uv/) (auto-installs the `dill` dependency).
+> Requires Python 3.11+ (managed automatically by uv) and [uv](https://docs.astral.sh/uv/) (auto-installs the `dill` dependency). The core REPL loop (`search()`, `extract_file()`, `list_files()`, `FINAL()`) works on all platforms. `llm_query()` and `recursive_llm()` require `claude` CLI in PATH — on platforms without it, these functions return an error message while the rest of the skill remains fully functional.
 
 ## When to Use What
 
@@ -97,10 +114,10 @@ relamo is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin
 
 ## The Problem
 
-Claude Code is great at reading individual files. But when you need to understand how an entire codebase fits together:
+AI coding agents are great at reading individual files. But when you need to understand how an entire codebase fits together:
 
 - **Context window limits** — large codebases don't fit in a single prompt
-- **No state between tool calls** — each Read/Grep starts from scratch
+- **No state between tool calls** — each file read starts from scratch
 - **No batch processing** — you can't programmatically map an operation across 50 files
 
 ## How It Works
@@ -120,13 +137,13 @@ flowchart TD
     style F fill:#16213e,stroke:#e94560,color:#fff
 ```
 
-The entire codebase lives outside the prompt as a Python string. Claude writes code to interact with it — `search()`, `extract_file()`, `llm_query()` — accumulating findings in variables across iterations. This is the [RLM pattern](https://arxiv.org/abs/2307.00522) brought to Claude Code as a plugin.
+The entire codebase lives outside the prompt as a Python string. The agent writes code to interact with it — `search()`, `extract_file()`, `llm_query()` — accumulating findings in variables across iterations. This is the [RLM pattern](https://arxiv.org/abs/2307.00522) brought to AI coding agents as a skill.
 
 The REPL engine (`scripts/repl.py`) is a [uv](https://docs.astral.sh/uv/) single-file script with [PEP 723](https://peps.python.org/pep-0723/) inline metadata. No manual dependency installation needed — `uv run` handles everything.
 
 1. **Init** — gathers your codebase via `git ls-files` (or directory walk), skips binaries and large files, concatenates everything with `=== path ===` delimiters
 2. **Execute** — runs Python code in a namespace where `context` and helpers are pre-loaded; state persists via [dill](https://github.com/uqfoundation/dill) serialization
-3. **Loop** — Claude assesses, writes code, executes, reads output, and decides whether to continue or call `FINAL()`
+3. **Loop** — the agent assesses, writes code, executes, reads output, and decides whether to continue or call `FINAL()`
 
 ### Available Functions
 
@@ -139,9 +156,9 @@ The REPL engine (`scripts/repl.py`) is a [uv](https://docs.astral.sh/uv/) single
 <tr><td><code>list_files()</code></td><td>All file paths in context</td></tr>
 <tr><td><code>extract_file(path)</code></td><td>Extract single file content by path</td></tr>
 <tr><td><code>search(pattern, context_chars=200)</code></td><td>Regex search with surrounding context</td></tr>
-<tr><td><code>llm_query(prompt)</code></td><td>Claude completion via <code>claude -p</code></td></tr>
+<tr><td><code>llm_query(prompt)</code></td><td>LLM completion via <code>claude -p</code> (requires Claude CLI)</td></tr>
 <tr><td><code>llm_query_batched(prompts)</code></td><td>Sequential LLM calls on a list of prompts</td></tr>
-<tr><td><code>recursive_llm(query, sub_context)</code></td><td>Spawn child RLM instance</td></tr>
+<tr><td><code>recursive_llm(query, sub_context)</code></td><td>Spawn child RLM instance (requires Claude CLI)</td></tr>
 <tr><td><code>FINAL(answer)</code></td><td>Emit final answer and terminate</td></tr>
 <tr><td><code>FINAL_VAR(var_name)</code></td><td>Emit a variable as the answer</td></tr>
 <tr><td><code>config</code></td><td>Mutable safety config dict</td></tr>
@@ -250,7 +267,7 @@ The REPL runs in a restricted environment:
 ## Acknowledgments
 
 - **MIT CSAIL** — The [Recursive Language Model](https://arxiv.org/abs/2307.00522) research paper this plugin implements
-- **Anthropic** — [Claude Code](https://github.com/anthropics/claude-code) and the plugin system
+- **Anthropic** — [Claude Code](https://github.com/anthropics/claude-code) and the [Agent Skills standard](https://agentskills.io)
 
 ## License
 
