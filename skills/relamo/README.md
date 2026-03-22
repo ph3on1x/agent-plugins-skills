@@ -247,21 +247,6 @@ The REPL runs in a restricted environment:
 - **Blocked builtins**: `eval`, `exec`, `compile` are removed
 - **Import whitelist**: only `re`, `json`, `math`, `collections`, `itertools`, `functools`, `textwrap`, `difflib`, `hashlib`, `datetime`, `csv`, `io`, `os.path`, `pathlib`, `string`, `unicodedata`
 
-### Cost Estimates
-
-> [!IMPORTANT]
-> Each `llm_query()` or `recursive_llm()` call uses the Claude API. Monitor usage when running deep recursive analyses.
-
-<table>
-<tr>
-  <th width="280">Operation</th>
-  <th>Estimated Cost</th>
-</tr>
-<tr><td>Single <code>llm_query()</code></td><td>$0.01 – $0.05</td></tr>
-<tr><td>Batch of 20 chunks</td><td>$0.15 – $1.00</td></tr>
-<tr><td>Full session (15 iterations)</td><td>$0.50 – $5.00</td></tr>
-</table>
-
 ## Acknowledgments
 
 - **MIT CSAIL** — The [Recursive Language Model](https://arxiv.org/abs/2307.00522) research paper this plugin implements
