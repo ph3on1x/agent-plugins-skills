@@ -1,6 +1,6 @@
 <div align="center">
 
-# RELAMO
+# ReLaMo
 
 **Recursive Language Model plugin for Claude Code — programmatic codebase exploration via persistent Python REPL**
 
