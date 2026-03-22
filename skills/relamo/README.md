@@ -50,7 +50,7 @@ relamo uses the [Agent Skills open standard](https://agentskills.io) (`SKILL.md`
 </table>
 
 > [!NOTE]
-> Requires Python 3.11+ (managed automatically by uv) and [uv](https://docs.astral.sh/uv/) (auto-installs the `dill` dependency). The core REPL loop (`search()`, `extract_file()`, `list_files()`, `FINAL()`) works on all platforms. `llm_query()` and `recursive_llm()` require `claude` CLI in PATH — on platforms without it, these functions return an error message while the rest of the skill remains fully functional.
+> Requires Python 3.11+ (managed automatically by uv) and [uv](https://docs.astral.sh/uv/) (auto-installs the `dill` dependency). `llm_query()` and `recursive_llm()` auto-detect the first available CLI in PATH (`claude`, `gemini`, `codex`). Override with `RELAMO_LLM_CMD` env var.
 
 ## When to Use What
 
@@ -156,9 +156,9 @@ The REPL engine (`scripts/repl.py`) is a [uv](https://docs.astral.sh/uv/) single
 <tr><td><code>list_files()</code></td><td>All file paths in context</td></tr>
 <tr><td><code>extract_file(path)</code></td><td>Extract single file content by path</td></tr>
 <tr><td><code>search(pattern, context_chars=200)</code></td><td>Regex search with surrounding context</td></tr>
-<tr><td><code>llm_query(prompt)</code></td><td>LLM completion via <code>claude -p</code> (requires Claude CLI)</td></tr>
+<tr><td><code>llm_query(prompt)</code></td><td>LLM completion via auto-detected CLI (<code>claude</code>, <code>gemini</code>, or <code>codex</code>)</td></tr>
 <tr><td><code>llm_query_batched(prompts)</code></td><td>Sequential LLM calls on a list of prompts</td></tr>
-<tr><td><code>recursive_llm(query, sub_context)</code></td><td>Spawn child RLM instance (requires Claude CLI)</td></tr>
+<tr><td><code>recursive_llm(query, sub_context)</code></td><td>Spawn child RLM instance via auto-detected CLI</td></tr>
 <tr><td><code>FINAL(answer)</code></td><td>Emit final answer and terminate</td></tr>
 <tr><td><code>FINAL_VAR(var_name)</code></td><td>Emit a variable as the answer</td></tr>
 <tr><td><code>config</code></td><td>Mutable safety config dict</td></tr>

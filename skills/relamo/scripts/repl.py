@@ -21,6 +21,8 @@ import tempfile
 import traceback
 from pathlib import Path
 
+import shutil
+
 import dill
 
 # ---------------------------------------------------------------------------
@@ -37,6 +39,37 @@ DEFAULT_CONFIG = {
 }
 
 FILE_DELIMITER = "=== {} ==="
+
+# LLM CLI detection order: env var override, then auto-detect in PATH.
+# Each entry: (binary, args_for_prompt, extra_description)
+# The prompt is appended as the final argument.
+_LLM_CLI_CANDIDATES = [
+    ("claude", ["-p", "{prompt}", "--no-session-persistence", "--output-format", "text"]),
+    ("gemini", ["-p", "{prompt}"]),
+    ("codex",  ["exec", "--ephemeral", "{prompt}"]),
+]
+
+
+def _detect_llm_cli() -> tuple[str, list[str]] | None:
+    """Return (binary, arg_template) for the first available LLM CLI.
+
+    Checks RELAMO_LLM_CMD env var first, then auto-detects from PATH.
+    """
+    env_cmd = os.environ.get("RELAMO_LLM_CMD")
+    if env_cmd:
+        parts = env_cmd.split()
+        if parts:
+            binary = parts[0]
+            args = parts[1:] if len(parts) > 1 else ["{prompt}"]
+            if "{prompt}" not in " ".join(args):
+                args.append("{prompt}")
+            return (binary, args)
+
+    for binary, args in _LLM_CLI_CANDIDATES:
+        if shutil.which(binary):
+            return (binary, args)
+
+    return None
 
 # Modules the sandboxed REPL is allowed to import
 ALLOWED_MODULES = frozenset({
@@ -186,15 +219,24 @@ def _make_search(context: str):
     return search
 
 
-def _make_llm_query(config: dict):
-    """Create llm_query() that calls claude -p."""
+def _build_llm_cmd(cli: tuple[str, list[str]], prompt: str) -> list[str]:
+    """Build the full command list, substituting {prompt} in the arg template."""
+    binary, arg_template = cli
+    return [binary] + [a.replace("{prompt}", prompt) for a in arg_template]
+
+
+def _make_llm_query(config: dict, cli: tuple[str, list[str]] | None):
+    """Create llm_query() using the detected LLM CLI."""
     def llm_query(prompt: str, max_tokens: int = 4096) -> str:
-        """Send a prompt to Claude and return the response."""
+        """Send a prompt to an LLM CLI and return the response."""
+        if cli is None:
+            return (
+                "[llm_query error] No LLM CLI found in PATH. "
+                "Install claude, gemini, or codex CLI, or set RELAMO_LLM_CMD."
+            )
         try:
             result = subprocess.run(
-                ["claude", "-p", prompt,
-                 "--no-session-persistence",
-                 "--output-format", "text"],
+                _build_llm_cmd(cli, prompt),
                 capture_output=True, text=True,
                 timeout=config["timeout_seconds"],
             )
@@ -204,7 +246,7 @@ def _make_llm_query(config: dict):
         except subprocess.TimeoutExpired:
             return f"[llm_query error] Timed out after {config['timeout_seconds']}s"
         except FileNotFoundError:
-            return "[llm_query error] claude CLI not found in PATH"
+            return f"[llm_query error] {cli[0]} CLI not found in PATH"
     return llm_query
 
 
@@ -216,19 +258,23 @@ def _make_llm_query_batched(llm_query_fn):
     return llm_query_batched
 
 
-def _make_recursive_llm(config: dict, system_prompt_path: str | None):
-    """Create recursive_llm() that spawns a child RLM via claude -p."""
+def _make_recursive_llm(config: dict, cli: tuple[str, list[str]] | None):
+    """Create recursive_llm() that spawns a child RLM via the detected LLM CLI."""
     def recursive_llm(query: str, sub_context: str, _depth: int = 0) -> str:
         """Spawn a child RLM instance to process a sub-query with its own context."""
+        if cli is None:
+            return (
+                "[recursive_llm error] No LLM CLI found in PATH. "
+                "Install claude, gemini, or codex CLI, or set RELAMO_LLM_CMD."
+            )
+
         if _depth >= config["recursion_limit"]:
             # Fall back to flat llm_query on truncated context
             truncated = sub_context[:50_000]
             prompt = f"Answer this question based ONLY on the context below.\n\nQuestion: {query}\n\nContext:\n{truncated}"
             try:
                 result = subprocess.run(
-                    ["claude", "-p", prompt,
-                     "--no-session-persistence",
-                     "--output-format", "text"],
+                    _build_llm_cmd(cli, prompt),
                     capture_output=True, text=True,
                     timeout=config["timeout_seconds"],
                 )
@@ -251,9 +297,7 @@ def _make_recursive_llm(config: dict, system_prompt_path: str | None):
             )
             full_prompt = f"{system_prompt}\n\nQuery: {query}"
             result = subprocess.run(
-                ["claude", "-p", full_prompt,
-                 "--no-session-persistence",
-                 "--output-format", "text"],
+                _build_llm_cmd(cli, full_prompt),
                 capture_output=True, text=True,
                 timeout=config["timeout_seconds"],
             )
@@ -383,12 +427,20 @@ def cmd_init(args: argparse.Namespace) -> None:
         if len(file_list) > 10:
             print(f"[relamo]   ... and {len(file_list) - 10} more")
     print()
+    cli = _detect_llm_cli()
+    if cli:
+        print(f"[relamo] LLM CLI: {cli[0]}")
+    else:
+        print("[relamo] LLM CLI: none detected (llm_query/recursive_llm will be unavailable)")
+        print("[relamo]   Install claude, gemini, or codex CLI, or set RELAMO_LLM_CMD")
+
     print("[relamo] Available in REPL:")
     print("  context          — full codebase as string")
     print("  list_files()     — all file paths in context")
     print("  extract_file(p)  — extract single file content")
     print("  search(pattern)  — regex search with context")
-    print("  llm_query(p)     — LLM completion via claude -p")
+    llm_label = f"LLM completion via {cli[0]}" if cli else "unavailable (no CLI)"
+    print(f"  llm_query(p)     — {llm_label}")
     print("  llm_query_batched(ps) — sequential LLM calls")
     print("  recursive_llm(q, ctx) — spawn child RLM")
     print("  FINAL(answer)    — emit final answer")
@@ -434,10 +486,11 @@ def cmd_execute(args: argparse.Namespace) -> None:
     namespace["list_files"] = _make_list_files(file_list)
     namespace["search"] = _make_search(context)
 
-    llm_query_fn = _make_llm_query(config)
+    cli = _detect_llm_cli()
+    llm_query_fn = _make_llm_query(config, cli)
     namespace["llm_query"] = llm_query_fn
     namespace["llm_query_batched"] = _make_llm_query_batched(llm_query_fn)
-    namespace["recursive_llm"] = _make_recursive_llm(config, None)
+    namespace["recursive_llm"] = _make_recursive_llm(config, cli)
     namespace["FINAL"] = _make_final(namespace)
     namespace["FINAL_VAR"] = _make_final_var(namespace)
 

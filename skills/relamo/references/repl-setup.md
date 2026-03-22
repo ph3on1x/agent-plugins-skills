@@ -81,7 +81,9 @@ Extracts a single file's content from the concatenated context using the `=== pa
 Searches the full context with a regex pattern. Returns a list of matching snippets with `context_chars` characters of surrounding context on each side. Useful for finding relevant code without knowing which file it's in.
 
 ### `llm_query(prompt: str, max_tokens: int = 4096) -> str`
-Sends a prompt to Claude via `claude -p --no-session-persistence --output-format text`. Returns the response text. On error or timeout, returns an error string (does not raise).
+Sends a prompt to an LLM CLI and returns the response text. On error or timeout, returns an error string (does not raise).
+
+Auto-detects the first available CLI in PATH: `claude`, `gemini`, `codex`. Override with the `RELAMO_LLM_CMD` environment variable (e.g. `RELAMO_LLM_CMD="gemini -p"`).
 
 **Timeout**: `config["timeout_seconds"]` (default 120s).
 
@@ -89,7 +91,7 @@ Sends a prompt to Claude via `claude -p --no-session-persistence --output-format
 Calls `llm_query` sequentially for each prompt. Returns a list of responses in order. Not truly parallel — sequential execution for simplicity.
 
 ### `recursive_llm(query: str, sub_context: str, _depth: int = 0) -> str`
-Spawns a child RLM instance via `claude -p` with a system prompt instructing it to read context from a temp file and answer the query. Respects `config["recursion_limit"]` — when depth exceeds the limit, falls back to a flat `llm_query` on truncated context (first 50K chars).
+Spawns a child RLM instance via the detected LLM CLI with a system prompt instructing it to read context from a temp file and answer the query. Respects `config["recursion_limit"]` — when depth exceeds the limit, falls back to a flat `llm_query` on truncated context (first 50K chars).
 
 ### `FINAL(answer: str) -> None`
 Prints the termination marker `__RELAMO_FINAL__: <answer>`. The skill instructions tell Claude to detect this marker and present the answer to the user.
