@@ -1,8 +1,99 @@
-# relamo
+<div align="center">
 
-Explore codebases too large for Claude's context window — via a persistent Python REPL that treats your entire codebase as a variable.
+# RELAMO
+
+**Recursive Language Model plugin for Claude Code — programmatic codebase exploration via persistent Python REPL**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
+[![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB.svg)](https://python.org)
+[![uv](https://img.shields.io/badge/uv-powered-blueviolet.svg)](https://docs.astral.sh/uv/)
+
+Ever hit a wall exploring large codebases with AI?<br>
+That's what happens when your tools can only read one file at a time.
+
+[Installation](#installation) • [Usage](#when-to-use-what) • [The Problem](#the-problem) • [How It Works](#how-it-works) • [Examples](#real-world-scenarios)
+
+</div>
 
 relamo is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that implements the **Recursive Language Model (RLM)** pattern. Instead of stuffing files into prompts, it concatenates your codebase into a Python variable and lets Claude write code to search, extract, and analyze it iteratively — with full state persistence across REPL iterations.
+
+## Installation
+
+<table>
+<tr>
+  <th width="200">Platform</th>
+  <th>How to install</th>
+</tr>
+<tr>
+  <td><strong>Claude Code</strong></td>
+  <td><code>claude plugin marketplace add ph3on1x/relamo</code><br><code>claude plugin install relamo@relamo</code></td>
+</tr>
+</table>
+
+> [!NOTE]
+> Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with `claude` CLI in PATH, Python 3.11+ (managed automatically by uv), and [uv](https://docs.astral.sh/uv/) (auto-installs the `dill` dependency).
+
+## When to Use What
+
+<table>
+<tr>
+  <th width="280">You're thinking...</th>
+  <th width="280">Use</th>
+  <th>What happens</th>
+</tr>
+<tr>
+  <td>"How does auth work in this 200-file project?"</td>
+  <td><code>/relamo "how does auth work?"</code></td>
+  <td>Gathers codebase, explores iteratively via REPL, returns structured answer with evidence</td>
+</tr>
+<tr>
+  <td>"Find all API endpoints and their handlers"</td>
+  <td><code>/relamo "find all API endpoints"</code></td>
+  <td>Regex searches, extracts files, maps routes to handlers across the entire codebase</td>
+</tr>
+<tr>
+  <td>"Compare error handling patterns across modules"</td>
+  <td><code>/relamo "compare error handling"</code></td>
+  <td>Batch-processes files, uses <code>llm_query()</code> for sub-analysis, synthesizes findings</td>
+</tr>
+<tr>
+  <td>"I need to analyze just one subdirectory"</td>
+  <td><code>/relamo "analyze auth" --context src/auth</code></td>
+  <td>Scopes the REPL context to just that directory</td>
+</tr>
+</table>
+
+### Arguments
+
+<table>
+<tr>
+  <th width="200">Argument</th>
+  <th width="120">Default</th>
+  <th>Description</th>
+</tr>
+<tr>
+  <td><code>&lt;query&gt;</code></td>
+  <td>required</td>
+  <td>The question or task to answer</td>
+</tr>
+<tr>
+  <td><code>--context &lt;path&gt;</code></td>
+  <td>current directory</td>
+  <td>Path to codebase directory or single file</td>
+</tr>
+<tr>
+  <td><code>--depth &lt;1-3&gt;</code></td>
+  <td>1</td>
+  <td>Max recursion depth for <code>recursive_llm()</code></td>
+</tr>
+<tr>
+  <td><code>--iterations &lt;max&gt;</code></td>
+  <td>15</td>
+  <td>Max REPL loop iterations</td>
+</tr>
+</table>
 
 ## The Problem
 
@@ -12,86 +103,53 @@ Claude Code is great at reading individual files. But when you need to understan
 - **No state between tool calls** — each Read/Grep starts from scratch
 - **No batch processing** — you can't programmatically map an operation across 50 files
 
-## How relamo Solves It
+## How It Works
 
-```
-          /relamo "find all auth flows"
-                    |
-                    v
-    +-------------------------------+
-    |  Init: gather codebase into   |
-    |  `context` Python variable    |
-    +-------------------------------+
-                    |
-                    v
-    +-------------------------------+
-    |  Assess: what do I know?      |<--+
-    |  what do I need to find out?  |   |
-    +-------------------------------+   |
-                    |                   |
-                    v                   |
-    +-------------------------------+   |
-    |  Write Python code targeting  |   |
-    |  the context variable         |   |
-    +-------------------------------+   |
-                    |                   |
-                    v                   |
-    +-------------------------------+   |
-    |  Execute in sandboxed REPL    |   |
-    |  (variables persist!)         |   |
-    +-------------------------------+   |
-                    |                   |
-                    v                   |
-    +-------------------------------+   |
-    |  Read output, decide:         |   |
-    |  need more? --> loop back     |---+
-    |  done? --> FINAL(answer)      |
-    +-------------------------------+
+```mermaid
+flowchart TD
+    A["/relamo 'find all auth flows'"] --> B["Init: gather codebase\ninto context variable"]
+    B --> C["Assess: what do I know?\nWhat do I need to find out?"]
+    C --> D["Write Python code\ntargeting the context variable"]
+    D --> E["Execute in sandboxed REPL\n(variables persist!)"]
+    E --> F{"Need more\ninfo?"}
+    F -- Yes --> C
+    F -- No --> G["FINAL(answer)"]
+
+    style A fill:#1a1a2e,stroke:#e94560,color:#fff
+    style G fill:#1a1a2e,stroke:#0f3460,color:#fff
+    style F fill:#16213e,stroke:#e94560,color:#fff
 ```
 
-The entire codebase lives outside the prompt as a Python string. Claude writes code to interact with it — `search()`, `extract_file()`, `llm_query()` — accumulating findings in variables across iterations. This is the pattern described in the [MIT RLM research](https://arxiv.org/abs/2307.00522), brought to Claude Code as a skill.
+The entire codebase lives outside the prompt as a Python string. Claude writes code to interact with it — `search()`, `extract_file()`, `llm_query()` — accumulating findings in variables across iterations. This is the [RLM pattern](https://arxiv.org/abs/2307.00522) brought to Claude Code as a plugin.
 
-## Quick Start
+The REPL engine (`scripts/repl.py`) is a [uv](https://docs.astral.sh/uv/) single-file script with [PEP 723](https://peps.python.org/pep-0723/) inline metadata. No manual dependency installation needed — `uv run` handles everything.
 
-Add the marketplace and install:
+1. **Init** — gathers your codebase via `git ls-files` (or directory walk), skips binaries and large files, concatenates everything with `=== path ===` delimiters
+2. **Execute** — runs Python code in a namespace where `context` and helpers are pre-loaded; state persists via [dill](https://github.com/uqfoundation/dill) serialization
+3. **Loop** — Claude assesses, writes code, executes, reads output, and decides whether to continue or call `FINAL()`
 
-```
-/plugin marketplace add ph3on1x/relamo
-/plugin install relamo@relamo
-```
+### Available Functions
 
-Run it:
+<table>
+<tr>
+  <th width="280">Function</th>
+  <th>Purpose</th>
+</tr>
+<tr><td><code>context</code></td><td>Full concatenated codebase as string</td></tr>
+<tr><td><code>list_files()</code></td><td>All file paths in context</td></tr>
+<tr><td><code>extract_file(path)</code></td><td>Extract single file content by path</td></tr>
+<tr><td><code>search(pattern, context_chars=200)</code></td><td>Regex search with surrounding context</td></tr>
+<tr><td><code>llm_query(prompt)</code></td><td>Claude completion via <code>claude -p</code></td></tr>
+<tr><td><code>llm_query_batched(prompts)</code></td><td>Sequential LLM calls on a list of prompts</td></tr>
+<tr><td><code>recursive_llm(query, sub_context)</code></td><td>Spawn child RLM instance</td></tr>
+<tr><td><code>FINAL(answer)</code></td><td>Emit final answer and terminate</td></tr>
+<tr><td><code>FINAL_VAR(var_name)</code></td><td>Emit a variable as the answer</td></tr>
+<tr><td><code>config</code></td><td>Mutable safety config dict</td></tr>
+</table>
 
-```
-/relamo "what design patterns does this project use?"
-```
+## Example Session
 
-That's it. relamo initializes a REPL with your codebase, explores iteratively, and returns a structured answer with evidence.
-
-## Features
-
-- **Persistent REPL** — variables survive across iterations; accumulate findings, not prompts
-- **Full codebase as a variable** — `context` holds your entire codebase as a searchable string
-- **Built-in helpers** — `extract_file()`, `search()`, `list_files()` for fast navigation
-- **LLM-in-the-loop** — `llm_query()` calls Claude from within the REPL for sub-analysis
-- **Recursive deep dives** — `recursive_llm()` spawns child RLM instances for focused sub-questions
-- **Sandboxed execution** — module whitelist, blocked `eval`/`exec`, filtered imports
-- **Configurable guardrails** — recursion depth, iteration limits, timeouts, output truncation
-
-## Usage
-
-```
-/relamo "<query>" [--context <path>] [--depth <1-3>] [--iterations <max>]
-```
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `<query>` | required | The question or task to answer |
-| `--context <path>` | current directory | Path to codebase directory or single file |
-| `--depth <1-3>` | 1 | Max recursion depth for `recursive_llm()` |
-| `--iterations <max>` | 15 | Max REPL loop iterations |
-
-### Example Session
+### Exploring authentication
 
 ```
 > /relamo "how does authentication work in this project?"
@@ -130,41 +188,56 @@ src/auth/providers.ts:42 — OAuth provider config
 ...
 ```
 
-## How It Works
+## Real-World Scenarios
 
-The REPL engine (`scripts/repl.py`) is a [uv](https://docs.astral.sh/uv/) single-file script with [PEP 723](https://peps.python.org/pep-0723/) inline metadata. No manual dependency installation needed — `uv run` handles everything.
+### Onboarding to a large codebase
 
-1. **Init** — gathers your codebase via `git ls-files` (or directory walk), skips binaries and large files, concatenates everything with `=== path ===` delimiters
-2. **Execute** — runs Python code in a namespace where `context` and helpers are pre-loaded; state persists via [dill](https://github.com/uqfoundation/dill) serialization
-3. **Loop** — Claude assesses, writes code, executes, reads output, and decides whether to continue or call `FINAL()`
+```
+> /relamo "give me a high-level architecture overview of this project"
 
-### Available Functions
+The REPL lists all files, groups them by directory, identifies key entry points,
+extracts package.json/config files, and uses llm_query() to summarize each layer.
+Returns a structured overview with the tech stack, data flow, and key patterns.
+```
 
-| Function | Purpose |
-|----------|---------|
-| `context` | Full concatenated codebase as string |
-| `list_files()` | All file paths in context |
-| `extract_file(path)` | Extract single file content by path |
-| `search(pattern, context_chars=200)` | Regex search with surrounding context |
-| `llm_query(prompt)` | Claude completion via `claude -p` |
-| `llm_query_batched(prompts)` | Sequential LLM calls on a list of prompts |
-| `recursive_llm(query, sub_context)` | Spawn child RLM instance |
-| `FINAL(answer)` | Emit final answer and terminate |
-| `FINAL_VAR(var_name)` | Emit a variable as the answer |
-| `config` | Mutable safety config dict |
+### Batch analysis across files
+
+```
+> /relamo "find all TODO and FIXME comments, categorize by priority and module"
+
+The REPL searches for TODO/FIXME patterns across every file, extracts surrounding
+context, uses llm_query() to classify each by priority, and returns a sorted report
+grouped by module — something that would take dozens of manual Grep calls.
+```
+
+### Deep dive with recursive LLM
+
+```
+> /relamo "how does data flow from API request to database write?" --depth 2
+
+The REPL identifies the API layer, then spawns recursive_llm() sub-instances to
+independently analyze the routing layer, validation layer, and database layer.
+Each child REPL gets a focused subset of the codebase. Results are merged into
+a complete data flow analysis with evidence from each layer.
+```
 
 ## Safety and Cost
 
 ### Guardrails
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `recursion_limit` | 1 | Max depth for `recursive_llm()` |
-| `max_iterations` | 15 | REPL loop cap |
-| `timeout_seconds` | 120 | Per LLM call timeout |
-| `max_output_chars` | 10,000 | Stdout truncation limit |
-| `max_file_size` | 1 MB | Skip individual files larger than this |
-| `max_context_bytes` | 50 MB | Total codebase size limit |
+<table>
+<tr>
+  <th width="200">Parameter</th>
+  <th width="120">Default</th>
+  <th>Description</th>
+</tr>
+<tr><td><code>recursion_limit</code></td><td>1</td><td>Max depth for <code>recursive_llm()</code></td></tr>
+<tr><td><code>max_iterations</code></td><td>15</td><td>REPL loop cap</td></tr>
+<tr><td><code>timeout_seconds</code></td><td>120</td><td>Per LLM call timeout</td></tr>
+<tr><td><code>max_output_chars</code></td><td>10,000</td><td>Stdout truncation limit</td></tr>
+<tr><td><code>max_file_size</code></td><td>1 MB</td><td>Skip individual files larger than this</td></tr>
+<tr><td><code>max_context_bytes</code></td><td>50 MB</td><td>Total codebase size limit</td></tr>
+</table>
 
 All values are adjustable at runtime via the `config` dict.
 
@@ -176,19 +249,23 @@ The REPL runs in a restricted environment:
 
 ### Cost Estimates
 
-Each `llm_query()` or `recursive_llm()` call uses the Claude API. Approximate costs:
+> [!IMPORTANT]
+> Each `llm_query()` or `recursive_llm()` call uses the Claude API. Monitor usage when running deep recursive analyses.
 
-| Operation | Estimated Cost |
-|-----------|---------------|
-| Single `llm_query()` | $0.01 -- $0.05 |
-| Batch of 20 chunks | $0.15 -- $1.00 |
-| Full session (15 iterations) | $0.50 -- $5.00 |
+<table>
+<tr>
+  <th width="280">Operation</th>
+  <th>Estimated Cost</th>
+</tr>
+<tr><td>Single <code>llm_query()</code></td><td>$0.01 – $0.05</td></tr>
+<tr><td>Batch of 20 chunks</td><td>$0.15 – $1.00</td></tr>
+<tr><td>Full session (15 iterations)</td><td>$0.50 – $5.00</td></tr>
+</table>
 
-## Requirements
+## Acknowledgments
 
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** with `claude` CLI in PATH
-- **Python 3.11+** (managed automatically by uv)
-- **[uv](https://docs.astral.sh/uv/)** (auto-installs the `dill` dependency)
+- **MIT CSAIL** — The [Recursive Language Model](https://arxiv.org/abs/2307.00522) research paper this plugin implements
+- **Anthropic** — [Claude Code](https://github.com/anthropics/claude-code) and the plugin system
 
 ## License
 
