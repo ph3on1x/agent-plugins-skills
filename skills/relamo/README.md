@@ -33,7 +33,7 @@ relamo uses the [Agent Skills open standard](https://agentskills.io) (`SKILL.md`
 </tr>
 <tr>
   <td><strong>Claude Code</strong></td>
-  <td><code>claude plugin marketplace add ph3on1x/relamo</code><br><code>claude plugin install relamo@relamo</code></td>
+  <td><code>claude plugin marketplace add ph3on1x/relamo</code><br><code>claude plugin install relamo</code></td>
 </tr>
 <tr>
   <td><strong>Gemini CLI</strong></td>
