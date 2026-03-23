@@ -1,88 +1,182 @@
+<div align="center">
+
 # claude-cmux-skill
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**Orchestrate AI coding agents in cmux — split panes, monitor subagents, automate browsers, coordinate parallel work**
 
-A comprehensive skill for integrating [cmux](https://github.com/manaflow-ai/cmux) terminal features into [Claude Code](https://claude.ai/code) agents.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
+[![cmux](https://img.shields.io/badge/cmux-Terminal-blue.svg)](https://github.com/manaflow-ai/cmux)
+[![macOS](https://img.shields.io/badge/macOS-14.0+-999999.svg)](https://www.apple.com/macos/)
 
-## What is cmux?
+Running multiple AI agents but can't see what they're doing?<br>
+That's what happens when your terminal wasn't built for agent orchestration.
 
-`cmux` is a native macOS terminal built specifically for AI coding agents. It provides:
-- **Split Panes & Subagent Orchestration**: Run multiple agents in isolated panes, monitor their output, coordinate with sync tokens.
-- **Terminal I/O**: Read screen output from any surface, pipe to commands, share data via buffers.
-- **Browser Automation**: Full scriptable browser with element refs, form filling, waiting, and state persistence.
-- **Sidebar Metadata**: Status pills, progress bars, and log entries for orchestration visibility.
-- **Notifications**: Context-aware in-app alerts and macOS system notifications.
+[Installation](#installation) • [Usage](#when-to-use-what) • [The Problem](#the-problem) • [How It Works](#how-it-works) • [Examples](#real-world-scenarios)
 
-## What's Included
+</div>
 
-This is a Claude Code plugin that teaches agents how to leverage `cmux` effectively, with a focus on multi-agent orchestration.
-
-```
-cmux-skill/
-├── .claude-plugin/
-│   ├── plugin.json         # Plugin metadata
-│   └── marketplace.json    # Marketplace catalog
-└── skills/
-    └── using-cmux/
-        ├── SKILL.md                          # Core skill (auto-triggers)
-        └── references/
-            ├── orchestration.md              # Multi-agent orchestration patterns
-            ├── browser-automation.md         # Full browser command reference
-            ├── notifications.md              # Notification systems & hooks
-            └── complete-cli.md              # Complete CLI command catalog
-```
-
-The skill uses **progressive disclosure** — core concepts load automatically when triggered, while detailed references load only when Claude needs them.
-
-## Key Features
-
-- **Subagent Orchestration** — Create panes, launch agents, monitor output via `read-screen`, coordinate with `wait-for`, track progress in sidebar.
-- **Terminal I/O** — Read terminal output from any surface, pipe through commands, share data between panes via buffers.
-- **Element-Ref Browser Control** — Snapshot-based browser automation with persistent element refs.
-- **Intelligent Notification Matrix** — Context-aware selection between `cmux notify` and `osascript`.
-- **Full CLI Coverage** — Complete reference for 100+ cmux commands across windows, workspaces, panes, surfaces, browser, notifications, and sidebar.
+This skill teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/cmux) — a native macOS terminal built for AI coding agents. It auto-triggers when running inside cmux and provides full coverage of pane splitting, subagent monitoring, browser automation, sidebar metadata, notifications, and inter-pane coordination.
 
 ## Installation
 
-### Prerequisites
+<table>
+<tr>
+  <th width="200">Platform</th>
+  <th>How to install</th>
+</tr>
+<tr>
+  <td><strong>Claude Code</strong></td>
+  <td><code>claude plugin marketplace add ph3on1x/claude-cmux-skill</code><br><code>claude plugin install claude-cmux-skill</code></td>
+</tr>
+</table>
 
-- [cmux](https://github.com/manaflow-ai/cmux) must be installed (macOS 14.0+).
-- [Claude Code](https://claude.ai/code) CLI must be installed.
+> [!NOTE]
+> Requires [cmux](https://github.com/manaflow-ai/cmux) (macOS 14.0+) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI. The skill auto-triggers when `CMUX_*` environment variables are detected — no slash command needed.
 
-### Plugin Install (Recommended)
+## When to Use What
 
-In Claude Code, run:
+<table>
+<tr>
+  <th width="280">You're thinking...</th>
+  <th width="280">Use</th>
+  <th>What happens</th>
+</tr>
+<tr>
+  <td>"I need three agents working in parallel"</td>
+  <td>Ask Claude to split panes and launch subagents</td>
+  <td>Creates split panes, launches Claude instances, monitors output via <code>read-screen</code>, coordinates with sync tokens</td>
+</tr>
+<tr>
+  <td>"What's my subagent doing?"</td>
+  <td>Ask Claude to check agent progress</td>
+  <td>Reads terminal output from any surface without switching to it, reports status</td>
+</tr>
+<tr>
+  <td>"I need to test this in a browser"</td>
+  <td>Ask Claude to open a browser pane</td>
+  <td>Opens browser surface, snapshots for element refs, interacts via <code>click</code>/<code>fill</code> — no CSS selectors</td>
+</tr>
+<tr>
+  <td>"Notify me when the build finishes"</td>
+  <td>Ask Claude to set up a notification</td>
+  <td>Uses <code>cmux notify</code> (in-app) or <code>osascript</code> (system-level) based on context</td>
+</tr>
+<tr>
+  <td>"I need agents to share data"</td>
+  <td>Ask Claude to use buffers or sync tokens</td>
+  <td>Stores results in named buffers, signals completion with <code>wait-for</code> tokens</td>
+</tr>
+</table>
+
+## The Problem
+
+AI coding agents are powerful individually. But when you need multiple agents working in parallel:
+
+- **No visibility** — you can't see what subagents are doing without switching panes manually
+- **No coordination** — agents can't signal completion or share results with each other
+- **No orchestration** — splitting work across panes, monitoring progress, and collecting results requires manual effort
+
+## How It Works
+
+The skill uses **progressive disclosure** — core concepts load automatically when triggered, while detailed references load only when Claude needs them.
 
 ```
-/plugin marketplace add ph3on1x/claude-cmux-skill
-/plugin install claude-cmux-skill@claude-cmux-skill
+claude-cmux-skill/
+├── .claude-plugin/
+│   ├── plugin.json              # Plugin metadata
+│   └── marketplace.json         # Marketplace catalog
+└── skills/
+    └── using-cmux/
+        ├── SKILL.md             # Core skill (auto-triggers)
+        └── references/
+            ├── orchestration.md       # Multi-agent patterns
+            ├── browser-automation.md  # Full browser API
+            ├── notifications.md       # Notification systems
+            └── complete-cli.md        # Complete CLI catalog
 ```
 
-### Alternative: Plugin Manager UI
+### Key Capabilities
 
-1. Run `/plugin` in Claude Code to open the plugin manager
-2. Navigate to **Discover** tab
-3. Search for "claude-cmux-skill" and install
+<table>
+<tr>
+  <th width="200">Capability</th>
+  <th>What Claude can do</th>
+</tr>
+<tr>
+  <td><strong>Subagent Orchestration</strong></td>
+  <td>Split panes, launch agents, monitor output via <code>read-screen</code>, coordinate with <code>wait-for</code> sync tokens, track progress in sidebar</td>
+</tr>
+<tr>
+  <td><strong>Terminal I/O</strong></td>
+  <td>Read terminal output from any surface, pipe through commands, share data between panes via named buffers</td>
+</tr>
+<tr>
+  <td><strong>Browser Automation</strong></td>
+  <td>Snapshot-based browser control with element refs — <code>click</code>, <code>fill</code>, <code>type</code> using refs like <code>e3</code> instead of CSS selectors</td>
+</tr>
+<tr>
+  <td><strong>Sidebar Metadata</strong></td>
+  <td>Status pills, progress bars, and log entries for real-time orchestration visibility</td>
+</tr>
+<tr>
+  <td><strong>Notifications</strong></td>
+  <td>Context-aware selection between in-app (<code>cmux notify</code>) and system-level (<code>osascript</code>) alerts</td>
+</tr>
+<tr>
+  <td><strong>Workspace Management</strong></td>
+  <td>Create, switch, rename, and close workspaces with optional startup commands</td>
+</tr>
+</table>
 
-## Usage
+## Real-World Scenarios
 
-Once installed, Claude Code automatically detects the skill when running inside a `cmux` environment (detected via `CMUX_*` environment variables). No slash command needed — the skill triggers automatically based on context.
-
-- **Automatic Usage**: Claude uses `cmux` features when tasks involve terminal management, parallel agents, or browser automation.
-- **Manual Invocation**: Explicitly ask Claude to "use the using-cmux skill" if needed.
-
-## Updating
+### Parallel feature implementation
 
 ```
-/plugin update claude-cmux-skill@claude-cmux-skill
+You: "Implement auth and payments modules in parallel"
+
+Claude splits two panes, launches a subagent in each:
+  surface:5 → "claude 'implement auth module'"
+  surface:6 → "claude 'implement payments module'"
+
+Claude monitors both via read-screen, updates sidebar progress,
+and collects results when agents finish.
 ```
 
-## Uninstallation
+### Browser testing with agent oversight
 
 ```
-/plugin uninstall claude-cmux-skill@claude-cmux-skill
+You: "Open the app in a browser and verify the login flow works"
+
+Claude opens a browser surface, navigates to localhost:3000,
+snapshots the page for element refs, fills the login form,
+clicks submit, waits for navigation, and re-snapshots to
+verify the dashboard loaded.
 ```
+
+### Multi-agent coordination with data sharing
+
+```
+You: "Research the API, then have another agent write tests based on findings"
+
+Agent 1 explores the API, stores findings in a named buffer:
+  cmux set-buffer --name "api-findings" "endpoints: /users, /orders..."
+
+Agent 1 signals completion:
+  cmux wait-for --signal api-research-done
+
+Agent 2 was waiting for the signal, retrieves the buffer,
+and writes tests based on the shared findings.
+```
+
+## Acknowledgments
+
+- **[cmux](https://github.com/manaflow-ai/cmux)** — The native macOS terminal for AI coding agents
+- **Anthropic** — [Claude Code](https://github.com/anthropics/claude-code) and the [Agent Skills standard](https://agentskills.io)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+[MIT](LICENSE)
