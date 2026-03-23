@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"$CMUX_SOCKET_PATH\" ]; then cmux claude-hook session-start; SREF=$(cmux identify --json 2>/dev/null | awk '/\"caller\"/{f=1} f && /\"surface_ref\"/{gsub(/[\" ,]/,\"\"); split($0,a,\":\"); print \"surface:\" a[3]; exit}'); [ -n \"$SREF\" ] && cmux set-status \"$SREF\" \"active\" --icon \"bolt.fill\" --color \"#4C8DFF\"; else exit 0; fi"
+            "command": "if [ -n \"$CMUX_SOCKET_PATH\" ]; then cmux claude-hook session-start; else exit 0; fi"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"$CMUX_SOCKET_PATH\" ]; then cmux claude-hook stop; SREF=$(cmux identify --json 2>/dev/null | awk '/\"caller\"/{f=1} f && /\"surface_ref\"/{gsub(/[\" ,]/,\"\"); split($0,a,\":\"); print \"surface:\" a[3]; exit}'); [ -n \"$SREF\" ] && cmux set-status \"$SREF\" \"done\" --icon \"checkmark.circle.fill\" --color \"#27ae60\"; else exit 0; fi"
+            "command": "if [ -n \"$CMUX_SOCKET_PATH\" ]; then cmux claude-hook stop; else exit 0; fi"
           }
         ]
       }

@@ -131,32 +131,30 @@ cmux pipe-pane --surface surface:5 --command "grep -c 'DONE'"
 
 ### Sidebar Status & Progress
 
-**IMPORTANT: Use the surface ref as the status key.** The SessionStart and Stop hooks automatically set `surface:N=active` and `surface:N=done` status pills. Using surface refs as keys keeps orchestrator status and hook-driven lifecycle updates in sync.
+Provide orchestration visibility in the sidebar:
 
 ```bash
-# Set status using surface ref as key (hooks will auto-update these on session start/stop)
-cmux set-status "surface:5" "researching" --icon "magnifyingglass" --color "#3498db"
-cmux set-status "surface:6" "testing" --icon "test" --color "#ffaa00"
+# Set a status pill (key is unique per tool)
+cmux set-status "agent-1" "researching" --icon "magnifyingglass" --color "#3498db"
+cmux set-status "agent-2" "testing" --icon "test" --color "#ffaa00"
 
 # Show progress bar (0.0 to 1.0)
 cmux set-progress 0.5 --label "2 of 4 agents complete"
 
 # Append log entries with severity levels
-cmux log "Agent in surface:5 finished auth module" --level success
-cmux log "Agent in surface:6 hit test failure" --level warning
+cmux log "Agent 1 finished auth module" --level success
+cmux log "Agent 2 hit test failure" --level warning
 cmux log --level error "Build failed in surface:6"
 
 # Read back all sidebar state
 cmux sidebar-state
 ```
 
-When an agent finishes, its Stop hook automatically updates `surface:N=done` with a green checkmark. To detect completion, check `cmux list-status` for `done` values, or use `cmux read-screen`.
-
 Clean up after orchestration:
 
 ```bash
-cmux clear-status "surface:5"
-cmux clear-status "surface:6"
+cmux clear-status "agent-1"
+cmux clear-status "agent-2"
 cmux clear-progress
 cmux clear-log
 ```
@@ -325,6 +323,7 @@ These hooks update sidebar metadata automatically — showing active/idle status
 | Not waiting after navigation | Use `wait --load-state complete` after page loads |
 | Not re-snapshotting after navigation | DOM changes invalidate refs — re-snapshot |
 | Using cmux notify for system alerts | Use `osascript` when user may be outside cmux |
+| `cmux pane create` or fabricated subcommands | No such command. Use `cmux new-split right\|down` then `cmux send --surface surface:N "cmd\n"` |
 | No visibility into orchestration | Use `set-status`, `set-progress`, `log` for sidebar updates |
 | Low-level input commands | Use high-level: `click`, `fill`, `type` instead of `input_*` |
 

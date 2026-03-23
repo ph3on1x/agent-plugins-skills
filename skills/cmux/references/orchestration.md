@@ -28,19 +28,19 @@ cmux new-pane --direction down --type browser      # Browser pane
 
 ### 2. Launch Agents with Labels
 
-Set sidebar status before launching each agent. **Use the surface ref as the status key** so the Stop hook automatically updates it to "done" when the agent finishes:
+Set sidebar status before launching each agent for visibility:
 
 ```bash
-# Label and launch agent 1 (key = surface ref from new-split output)
-cmux set-status "surface:3" "starting" --color "#3498db"
+# Label and launch agent 1
+cmux set-status "agent-1" "starting" --color "#3498db"
 cmux send --surface surface:3 "claude 'implement user authentication'\n"
 
 # Label and launch agent 2
-cmux set-status "surface:4" "starting" --color "#2ecc71"
+cmux set-status "agent-2" "starting" --color "#2ecc71"
 cmux send --surface surface:4 "claude 'write API integration tests'\n"
 
 # Label and launch agent 3
-cmux set-status "surface:5" "starting" --color "#e67e22"
+cmux set-status "agent-3" "starting" --color "#e67e22"
 cmux send --surface surface:5 "claude 'update database migrations'\n"
 
 # Set overall progress
@@ -65,7 +65,6 @@ cmux pipe-pane --surface surface:3 --command "grep -E '(error|complete|done|fail
 ```
 
 Indicators that a Claude Code agent has finished:
-- `cmux list-status` shows `surface:N=done` (auto-set by Stop hook)
 - The prompt has returned (look for `$` or `>` at the end)
 - Output contains completion messages
 - `surface-health` shows idle status
@@ -99,14 +98,15 @@ cmux set-buffer --name "agent-1-result" "$(cmux read-screen --surface surface:3 
 ### 6. Update Progress and Clean Up
 
 ```bash
-# Status pills auto-update to "done" via Stop hook — just update progress
+# Update sidebar as agents complete
+cmux set-status "agent-1" "done" --color "#27ae60"
 cmux set-progress 0.33 --label "1 of 3 agents complete"
 
-# After all agents finish, clean up
+# After all agents finish
 cmux clear-progress
-cmux clear-status "surface:3"
-cmux clear-status "surface:4"
-cmux clear-status "surface:5"
+cmux clear-status "agent-1"
+cmux clear-status "agent-2"
+cmux clear-status "agent-3"
 cmux log "All agents completed successfully" --level success
 
 # Close agent surfaces
@@ -190,7 +190,7 @@ cmux respawn-pane --surface surface:3
 cmux send --surface surface:3 "claude 'retry: implement auth module'\n"
 
 # Update sidebar status
-cmux set-status "surface:3" "retrying" --color "#e74c3c"
+cmux set-status "agent-1" "retrying" --color "#e74c3c"
 ```
 
 ### Emergency Stop All
@@ -213,7 +213,7 @@ cmux list-status
 ```
 
 Keys are unique per tool. Common patterns:
-- `"surface:N"` — per-agent tracking (auto-updated by SessionStart/Stop hooks)
+- `"agent-N"` — per-agent tracking
 - `"build"` — build status
 - `"tests"` — test run status
 
