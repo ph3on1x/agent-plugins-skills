@@ -2,7 +2,7 @@
 
 # claude-cmux-skill
 
-**Orchestrate AI coding agents in cmux — split panes, monitor subagents, automate browsers, coordinate parallel work**
+**Orchestrate independent Claude Code sessions in cmux — split panes, monitor agents, automate browsers, coordinate parallel work**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
@@ -18,7 +18,7 @@ That's what happens when your terminal wasn't built for agent orchestration.
 
 </div>
 
-This skill teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/cmux) — a native macOS terminal built for AI coding agents. It auto-triggers when running inside cmux and provides full coverage of pane splitting, subagent monitoring, browser automation, sidebar metadata, notifications, and inter-pane coordination.
+This skill teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/cmux) — a native macOS terminal built for AI coding agents. It auto-triggers when running inside cmux and provides full coverage of pane splitting, launching and monitoring independent Claude Code sessions, browser automation, sidebar metadata, notifications, and inter-pane coordination.
 
 ## Installation
 
@@ -46,11 +46,11 @@ This skill teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/
 </tr>
 <tr>
   <td>"I need three agents working in parallel"</td>
-  <td>Ask Claude to split panes and launch subagents</td>
-  <td>Creates split panes, launches Claude instances, monitors output via <code>read-screen</code>, coordinates with sync tokens</td>
+  <td>Ask Claude to split panes and launch agents</td>
+  <td>Creates split panes, launches independent Claude Code sessions, monitors output via <code>read-screen</code>, coordinates with sync tokens</td>
 </tr>
 <tr>
-  <td>"What's my subagent doing?"</td>
+  <td>"What's my other agent doing?"</td>
   <td>Ask Claude to check agent progress</td>
   <td>Reads terminal output from any surface without switching to it, reports status</td>
 </tr>
@@ -75,7 +75,7 @@ This skill teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/
 
 AI coding agents are powerful individually. But when you need multiple agents working in parallel:
 
-- **No visibility** — you can't see what subagents are doing without switching panes manually
+- **No visibility** — you can't see what other agents are doing without switching panes manually
 - **No coordination** — agents can't signal completion or share results with each other
 - **No orchestration** — splitting work across panes, monitoring progress, and collecting results requires manual effort
 
@@ -106,8 +106,8 @@ claude-cmux-skill/
   <th>What Claude can do</th>
 </tr>
 <tr>
-  <td><strong>Subagent Orchestration</strong></td>
-  <td>Split panes, launch agents, monitor output via <code>read-screen</code>, coordinate with <code>wait-for</code> sync tokens, track progress in sidebar</td>
+  <td><strong>Agent Orchestration</strong></td>
+  <td>Split panes, launch independent Claude Code sessions, monitor output via <code>read-screen</code>, coordinate with <code>wait-for</code> sync tokens, track progress in sidebar</td>
 </tr>
 <tr>
   <td><strong>Terminal I/O</strong></td>
@@ -138,12 +138,12 @@ claude-cmux-skill/
 ```
 You: "Implement auth and payments modules in parallel"
 
-Claude splits two panes, launches a subagent in each:
+Claude splits two panes, launches an independent session in each:
   surface:5 → "claude 'implement auth module'"
   surface:6 → "claude 'implement payments module'"
 
 Claude monitors both via read-screen, updates sidebar progress,
-and collects results when agents finish.
+and collects results when sessions finish.
 ```
 
 ### Browser testing with agent oversight
