@@ -1,6 +1,6 @@
 {
   "name": "claude-cmux-skill",
-  "description": "Comprehensive skill for orchestrating AI agents in cmux terminal — split panes, subagent monitoring, browser automation, sidebar metadata, notifications, and full CLI coverage.",
+  "description": "Skill for orchestrating independent Claude Code sessions in cmux terminal — split panes, agent monitoring, browser automation, sidebar metadata, notifications, and full CLI coverage.",
   "version": "1.0.0",
   "author": {
     "name": "Dennis Nasarov",
