@@ -10,7 +10,7 @@ description: >-
   - research, investigate, or gather information in parallel
   - run tasks concurrently, in parallel, or simultaneously
   - split pane, open new pane, or create terminal splits
-  - monitor subagent output, check agent progress, or read terminal output
+  - monitor agent output, check agent progress, or read terminal output
   - coordinate parallel work or orchestrate multi-agent workflows
   - automate browsers in cmux, open browser surfaces
   - manage notifications (cmux notify, system alerts)
@@ -18,7 +18,7 @@ description: >-
 
   TRIGGER PHRASES: "run agents in parallel", "create N agents", "spin up agents", "spawn agents",
   "research in parallel", "investigate simultaneously", "parallel research", "split pane",
-  "monitor subagent", "read terminal", "open browser in cmux", "notify me", "create workspace",
+  "monitor agent", "read terminal", "open browser in cmux", "notify me", "create workspace",
   "check surface health", any cmux terminal management task.
 
   PREREQUISITE: Check that CMUX_SOCKET_PATH environment variable is set before using cmux commands.
@@ -50,7 +50,7 @@ cmux tree --json        # Full hierarchy of windows/workspaces/panes/surfaces
 
 Commands default to the current workspace/surface when flags are omitted.
 
-## Subagent Orchestration
+## Agent Orchestration
 
 The core pattern for running multiple agents in parallel, each in its own pane.
 
@@ -59,17 +59,27 @@ The core pattern for running multiple agents in parallel, each in its own pane.
 ```bash
 cmux new-split right                    # Vertical split (creates new pane + surface)
 cmux new-split down                     # Horizontal split
+cmux new-split down --surface surface:5 # Split a specific pane (not just the focused one)
 cmux new-pane --direction right         # Alternative, supports --type terminal|browser
 ```
 
-After splitting, identify the new surface:
+Each `new-split` returns the created surface ref — **parse this to target subsequent commands**:
+
+```
+$ cmux new-split right
+OK surface:5 workspace:2
+```
+
+Use `surface:5` from the output in all subsequent `cmux send`, `cmux read-screen`, etc.
+
+After splitting, verify topology:
 
 ```bash
 cmux list-panes                         # List all panes with surface refs
 cmux tree --json                        # Full topology with all refs
 ```
 
-### Launching Subagents
+### Launching Agents
 
 Send commands to any surface by ref:
 
@@ -85,7 +95,21 @@ cmux send-key --surface surface:5 ctrl+c    # Interrupt a process
 cmux send-key --surface surface:5 enter      # Send Enter
 ```
 
-### Monitoring Subagent Output
+### Handling Permission Prompts
+
+Spawned Claude Code sessions have their own permission state. They will hit permission prompts for tools like WebSearch, Fetch, Write, etc.
+
+**Monitor and approve interactively:**
+
+```bash
+cmux read-screen --surface surface:5 --lines 10   # Check for permission prompts
+cmux send-key --surface surface:5 enter            # Approve (option 1: Yes)
+cmux send --surface surface:5 "2\n"                # Option 2: Yes, don't ask again
+```
+
+**Better: pre-configure permissions** in `.claude/settings.json` before launching agents so they don't need interactive approval. This avoids the orchestrator needing to babysit permission prompts.
+
+### Monitoring Agent Output
 
 Read terminal content from any surface without switching to it:
 
@@ -103,7 +127,7 @@ cmux read-screen --surface surface:5 --lines 50
 cmux pipe-pane --surface surface:5 --command "grep -c 'DONE'"
 ```
 
-`read-screen` (alias: `capture-pane`) is the primary tool for checking whether a subagent has finished, encountered errors, or produced results.
+`read-screen` (alias: `capture-pane`) is the primary tool for checking whether an agent has finished, encountered errors, or produced results.
 
 ### Sidebar Status & Progress
 
@@ -292,7 +316,7 @@ These hooks update sidebar metadata automatically — showing active/idle status
 | Mistake | Fix |
 |---------|-----|
 | Using UUIDs everywhere | Use short refs: `workspace:2`, `surface:7` |
-| No way to check subagent progress | Use `cmux read-screen --surface surface:N --lines 50` |
+| No way to check agent progress | Use `cmux read-screen --surface surface:N --lines 50` |
 | CSS selectors in browser | Use element refs from `snapshot --interactive`: `e3`, `e5` |
 | Forgetting `--interactive` on snapshot | Always use `--interactive` to get element refs |
 | Not waiting after navigation | Use `wait --load-state complete` after page loads |

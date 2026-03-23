@@ -7,6 +7,10 @@ Full catalog of cmux commands organized by category. Version 0.62.2+.
 - `--id-format uuids|both` — control output format (default: refs)
 - `--password <pw>` — socket auth (flag > `CMUX_SOCKET_PASSWORD` env > saved setting)
 - `--json` — JSON output (supported on select commands)
+- `--socket PATH` — custom socket path (overrides `CMUX_SOCKET_PATH`)
+- `--window ID` — target specific window
+- `--workspace ID` — target specific workspace
+- `--surface ID` — target specific surface
 
 Handles accept: UUIDs, short refs (`window:1`, `workspace:2`, `pane:3`, `surface:4`), or numeric indexes.
 

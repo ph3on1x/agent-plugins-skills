@@ -6,7 +6,7 @@ Advanced patterns for running and coordinating multiple agents using cmux panes.
 
 ### 1. Plan and Create Panes
 
-Create one pane per subagent task:
+Create one pane per agent task:
 
 ```bash
 # Create splits for 3 parallel agents
@@ -117,7 +117,7 @@ cmux close-surface --surface surface:5
 
 ## Workspace-Per-Project Pattern
 
-For large projects, isolate each subagent in its own workspace:
+For large projects, isolate each agent in its own workspace:
 
 ```bash
 # Create dedicated workspaces
@@ -181,8 +181,12 @@ cmux read-screen --surface surface:3 --lines 10
 # Interrupt the current process
 cmux send-key --surface surface:3 ctrl+c
 
-# Clear and restart
+# Option A: Clear and restart in the same shell
 cmux clear-history --surface surface:3
+cmux send --surface surface:3 "claude 'retry: implement auth module'\n"
+
+# Option B: Respawn the shell entirely (cleaner — kills process and starts fresh)
+cmux respawn-pane --surface surface:3
 cmux send --surface surface:3 "claude 'retry: implement auth module'\n"
 
 # Update sidebar status

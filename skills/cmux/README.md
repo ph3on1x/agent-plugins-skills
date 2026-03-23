@@ -5,7 +5,7 @@
 **Orchestrate independent Claude Code sessions in cmux — split panes, monitor agents, automate browsers, coordinate parallel work**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
 [![cmux](https://img.shields.io/badge/cmux-Terminal-blue.svg)](https://github.com/manaflow-ai/cmux)
@@ -88,6 +88,8 @@ claude-cmux-skill/
 ├── .claude-plugin/
 │   ├── plugin.json              # Plugin metadata
 │   └── marketplace.json         # Marketplace catalog
+├── hooks/
+│   └── hooks.json               # Agent tool blocking + lifecycle hooks
 └── skills/
     └── using-cmux/
         ├── SKILL.md             # Core skill (auto-triggers)
