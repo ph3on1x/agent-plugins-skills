@@ -131,29 +131,32 @@ cmux pipe-pane --surface surface:5 --command "grep -c 'DONE'"
 
 ### Sidebar Status & Progress
 
-Provide orchestration visibility in the sidebar:
+**IMPORTANT: Use the surface ref as the status key.** The SessionStart and Stop hooks automatically set `surface:N=active` and `surface:N=done` status pills. Using surface refs as keys keeps orchestrator status and hook-driven lifecycle updates in sync.
 
 ```bash
-# Set a status pill (key is unique per tool)
-cmux set-status "agent-1" "running" --icon "terminal" --color "#00ff00"
-cmux set-status "agent-2" "testing" --icon "test" --color "#ffaa00"
+# Set status using surface ref as key (hooks will auto-update these on session start/stop)
+cmux set-status "surface:5" "researching" --icon "magnifyingglass" --color "#3498db"
+cmux set-status "surface:6" "testing" --icon "test" --color "#ffaa00"
 
 # Show progress bar (0.0 to 1.0)
 cmux set-progress 0.5 --label "2 of 4 agents complete"
 
 # Append log entries with severity levels
-cmux log "Agent 1 finished auth module" --level success
-cmux log "Agent 2 hit test failure" --level warning
+cmux log "Agent in surface:5 finished auth module" --level success
+cmux log "Agent in surface:6 hit test failure" --level warning
 cmux log --level error "Build failed in surface:6"
 
 # Read back all sidebar state
 cmux sidebar-state
 ```
 
+When an agent finishes, its Stop hook automatically updates `surface:N=done` with a green checkmark. To detect completion, check `cmux list-status` for `done` values, or use `cmux read-screen`.
+
 Clean up after orchestration:
 
 ```bash
-cmux clear-status "agent-1"
+cmux clear-status "surface:5"
+cmux clear-status "surface:6"
 cmux clear-progress
 cmux clear-log
 ```
