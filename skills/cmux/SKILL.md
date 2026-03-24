@@ -56,23 +56,55 @@ The core pattern for running multiple agents in parallel, each in its own pane.
 
 **Default: panes, not workspaces.** Use `cmux new-split` to create splits within the current workspace. Only use `cmux new-workspace` when agents need completely separate project directories (e.g., monorepo subprojects with different `--cwd`).
 
-### Creating Panes
+### Creating Balanced Pane Layouts
+
+Each `new-split` returns the created surface ref — **always capture it** to target subsequent splits and commands:
 
 ```bash
-cmux new-split right                    # Vertical split (creates new pane + surface)
-cmux new-split down                     # Horizontal split
-cmux new-split down --surface surface:5 # Split a specific pane (not just the focused one)
-cmux new-pane --direction right         # Alternative, supports --type terminal|browser
+S1=$(cmux new-split right | awk '{print $2}')   # Capture "surface:N" from "OK surface:N workspace:N"
 ```
 
-Each `new-split` returns the created surface ref — **parse this to target subsequent commands**:
+**Critical rule: always use `--surface` to target which pane to split.** Without it, cmux splits whichever pane has focus — leading to recursive halving of one pane while others stay untouched.
 
-```
-$ cmux new-split right
-OK surface:5 workspace:2
+#### Layout recipes by agent count
+
+**1 agent** — single split:
+
+```bash
+S1=$(cmux new-split right | awk '{print $2}')
+# Layout: [orchestrator 50% | agent-1 50%]
 ```
 
-Use `surface:5` from the output in all subsequent `cmux send`, `cmux read-screen`, etc.
+**2 agents** — split right, then subdivide:
+
+```bash
+S1=$(cmux new-split right | awk '{print $2}')
+S2=$(cmux new-split down --surface $S1 | awk '{print $2}')
+# Layout: [orchestrator 50% | agent-1 25%]
+#                            | agent-2 25%]
+```
+
+**3 agents** — 2×2 grid (all panes equal):
+
+```bash
+ORIG=$(cmux identify --json | awk -F'"' '/"surface_ref"/{print $4}')
+S1=$(cmux new-split right | awk '{print $2}')
+S2=$(cmux new-split down --surface $S1 | awk '{print $2}')
+S3=$(cmux new-split down --surface $ORIG | awk '{print $2}')
+# Layout: [orchestrator 25% | agent-1 25%]
+#         [agent-3 25%      | agent-2 25%]
+```
+
+**4+ agents** — extend the 2×2 grid by splitting the largest agent pane:
+
+```bash
+# ... after creating the 2x2 grid above (S1, S2, S3) ...
+S4=$(cmux new-split right --surface $S2 | awk '{print $2}')
+# Layout: [orchestrator 25%   | agent-1 25%         ]
+#         [agent-3 25%        | agent-2 12% | agent-4 12%]
+```
+
+For 5+ agents, continue splitting the largest remaining pane. Alternate between `right` and `down` to keep proportions reasonable.
 
 After splitting, verify topology:
 
@@ -83,11 +115,19 @@ cmux tree --json                        # Full topology with all refs
 
 ### Launching Agents
 
-Send commands to any surface by ref:
+**Always use `claude -p 'prompt'`** to launch agents. The `-p` (print) flag runs non-interactively — the agent works on the task, then exits when done. Without `-p`, the session waits for interactive input and won't terminate.
 
 ```bash
-cmux send --surface surface:5 "claude 'implement auth module'\n"
-cmux send --surface surface:6 "claude 'write unit tests'\n"
+cmux send --surface $S1 "claude -p 'implement auth module'\n"
+cmux send --surface $S2 "claude -p 'write unit tests'\n"
+```
+
+**Never save prompts to temp files** (e.g., `/tmp/agent-1.md`, `/tmp/agent-1.sh`). Always pass the prompt inline with `-p`.
+
+For prompts containing single quotes, use escaped quotes:
+
+```bash
+cmux send --surface $S1 "claude -p 'implement the users'\''s auth module'\n"
 ```
 
 Use `send-key` for control sequences:
@@ -269,7 +309,7 @@ To detect whether a Claude Code agent has completed, read the last few lines and
 
 ```bash
 cmux new-workspace --cwd /path/to/project    # New workspace with working directory
-cmux new-workspace --cwd /proj --command "claude 'do task'\n"  # With startup command
+cmux new-workspace --cwd /proj --command "claude -p 'do task'\n"  # With startup command
 cmux select-workspace --workspace workspace:2 # Switch workspaces
 cmux close-workspace --workspace workspace:3  # Close workspace
 cmux list-workspaces                          # List all workspaces
@@ -327,6 +367,9 @@ These hooks update sidebar metadata automatically — showing active/idle status
 | Using cmux notify for system alerts | Use `osascript` when user may be outside cmux |
 | `cmux pane create` or fabricated subcommands | No such command. Use `cmux new-split right\|down` then `cmux send --surface surface:N "cmd\n"` |
 | Creating new workspaces for parallel agents | Use `cmux new-split right\|down` instead — workspaces are for separate project roots, not parallel tasks |
+| Splitting the focused pane recursively | Always use `--surface` to target which pane to split — see layout recipes above |
+| Using `claude 'prompt'` without `-p` flag | Always use `claude -p 'prompt'` for spawned agents — without `-p` the session waits for interactive input |
+| Saving prompts to temp files (`/tmp/agent-1.md`) | Always pass the prompt inline: `claude -p 'prompt text'` — never write to files first |
 | No visibility into orchestration | Use `set-status`, `set-progress`, `log` for sidebar updates |
 | Low-level input commands | Use high-level: `click`, `fill`, `type` instead of `input_*` |
 

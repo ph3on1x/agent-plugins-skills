@@ -4,44 +4,59 @@ Advanced patterns for running and coordinating multiple agents using cmux panes.
 
 ## Full Orchestration Lifecycle
 
-### 1. Plan and Create Panes
+### 1. Plan and Create Balanced Panes
 
-Create one pane per agent task:
+Create one pane per agent. **Always capture surface refs and use `--surface`** to target which pane to split — never rely on auto-focus.
 
 ```bash
-# Create splits for 3 parallel agents
-cmux new-split right      # pane for agent 1
-cmux new-split down       # pane for agent 2
-cmux focus-pane --pane pane:1
-cmux new-split down       # pane for agent 3
+# 3 agents → 2×2 grid (all panes equal size)
+ORIG=$(cmux identify --json | awk -F'"' '/"surface_ref"/{print $4}')
+S1=$(cmux new-split right | awk '{print $2}')
+S2=$(cmux new-split down --surface $S1 | awk '{print $2}')
+S3=$(cmux new-split down --surface $ORIG | awk '{print $2}')
+
+# Layout: [orchestrator 25% | agent-1 25%]
+#         [agent-3 25%      | agent-2 25%]
 
 # Verify topology
 cmux tree --json
 ```
 
-Alternatively, create panes with specific types:
+For fewer agents:
 
 ```bash
-cmux new-pane --direction right --type terminal    # Terminal pane
-cmux new-pane --direction down --type browser      # Browser pane
+# 1 agent — single split
+S1=$(cmux new-split right | awk '{print $2}')
+
+# 2 agents — split right, then subdivide
+S1=$(cmux new-split right | awk '{print $2}')
+S2=$(cmux new-split down --surface $S1 | awk '{print $2}')
+```
+
+For pane types other than terminal:
+
+```bash
+cmux new-pane --direction right --type browser      # Browser pane
 ```
 
 ### 2. Launch Agents with Labels
+
+**Always use `claude -p 'prompt'`** — the `-p` flag runs non-interactively (agent works, then exits). Never save prompts to temp files; always pass inline.
 
 Set sidebar status before launching each agent for visibility:
 
 ```bash
 # Label and launch agent 1
 cmux set-status "agent-1" "starting" --color "#3498db"
-cmux send --surface surface:3 "claude 'implement user authentication'\n"
+cmux send --surface $S1 "claude -p 'implement user authentication'\n"
 
 # Label and launch agent 2
 cmux set-status "agent-2" "starting" --color "#2ecc71"
-cmux send --surface surface:4 "claude 'write API integration tests'\n"
+cmux send --surface $S2 "claude -p 'write API integration tests'\n"
 
 # Label and launch agent 3
 cmux set-status "agent-3" "starting" --color "#e67e22"
-cmux send --surface surface:5 "claude 'update database migrations'\n"
+cmux send --surface $S3 "claude -p 'update database migrations'\n"
 
 # Set overall progress
 cmux set-progress 0.0 --label "0 of 3 agents complete"
@@ -79,7 +94,7 @@ Use named sync tokens when agents have dependencies:
 cmux send --surface surface:3 "cmux wait-for --signal auth-ready\n"
 
 # Agent 2 waits for auth before starting integration tests
-cmux send --surface surface:4 "cmux wait-for auth-ready --timeout 600 && claude 'run integration tests'\n"
+cmux send --surface surface:4 "cmux wait-for auth-ready --timeout 600 && claude -p 'run integration tests'\n"
 ```
 
 ### 5. Collect Results
@@ -123,9 +138,9 @@ For large projects, isolate each agent in its own workspace:
 
 ```bash
 # Create dedicated workspaces
-cmux new-workspace --cwd /project/frontend --command "claude 'rebuild React components'"
-cmux new-workspace --cwd /project/backend --command "claude 'optimize API endpoints'"
-cmux new-workspace --cwd /project/infra --command "claude 'update Terraform configs'"
+cmux new-workspace --cwd /project/frontend --command "claude -p 'rebuild React components'"
+cmux new-workspace --cwd /project/backend --command "claude -p 'optimize API endpoints'"
+cmux new-workspace --cwd /project/infra --command "claude -p 'update Terraform configs'"
 
 # Switch between them to check progress
 cmux select-workspace --workspace workspace:2
@@ -185,11 +200,11 @@ cmux send-key --surface surface:3 ctrl+c
 
 # Option A: Clear and restart in the same shell
 cmux clear-history --surface surface:3
-cmux send --surface surface:3 "claude 'retry: implement auth module'\n"
+cmux send --surface surface:3 "claude -p 'retry: implement auth module'\n"
 
 # Option B: Respawn the shell entirely (cleaner — kills process and starts fresh)
 cmux respawn-pane --surface surface:3
-cmux send --surface surface:3 "claude 'retry: implement auth module'\n"
+cmux send --surface surface:3 "claude -p 'retry: implement auth module'\n"
 
 # Update sidebar status
 cmux set-status "agent-1" "retrying" --color "#e74c3c"

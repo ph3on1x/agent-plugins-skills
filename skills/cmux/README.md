@@ -5,7 +5,7 @@
 **Orchestrate independent Claude Code sessions in cmux — split panes, monitor agents, automate browsers, coordinate parallel work**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.1-green.svg)]()
+[![Version](https://img.shields.io/badge/version-1.6.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
 [![cmux](https://img.shields.io/badge/cmux-Terminal-blue.svg)](https://github.com/manaflow-ai/cmux)
@@ -141,8 +141,8 @@ claude-cmux-skill/
 You: "Implement auth and payments modules in parallel"
 
 Claude splits two panes, launches an independent session in each:
-  surface:5 → "claude 'implement auth module'"
-  surface:6 → "claude 'implement payments module'"
+  surface:5 → "claude -p 'implement auth module'"
+  surface:6 → "claude -p 'implement payments module'"
 
 Claude monitors both via read-screen, updates sidebar progress,
 and collects results when sessions finish.
