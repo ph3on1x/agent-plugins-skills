@@ -41,11 +41,11 @@ cmux new-pane --direction right --type browser      # Browser pane
 
 ### 2. Launch Agents with Labels
 
-**Always use `claude -p`** — the `-p` flag runs non-interactively (agent works, then exits).
+**Always launch agents in interactive mode** (`claude 'prompt'`, NOT `claude -p`). Interactive mode shows real-time streaming output — you can watch agents think, call tools, and produce results. Print mode (`-p`) buffers all output and shows nothing until done. Agents don't auto-exit in interactive mode — the orchestrator closes panes via `close-surface` after detecting completion.
 
 **Always instruct agents to save output to `scratchpad/`** so results survive pane closure and the main agent can review them later.
 
-**For complex or multi-line prompts, write each prompt to a file first, then pass it via `$(cat)`.** Sending multi-line prompts inline via `cmux send` causes quoting corruption — `cmux send` interprets `\n` as Enter, which splits the prompt across shell lines and triggers `quote>` continuation. Note: `claude -p` requires the prompt as a command-line argument — piping (`cat file | claude -p`) does NOT work. For simple one-liner prompts, inline `claude -p 'prompt'\n` is fine.
+**For complex or multi-line prompts, write each prompt to a file first, then pass it via `$(cat)`.** Sending multi-line prompts inline via `cmux send` causes quoting corruption — `cmux send` interprets `\n` as Enter, which splits the prompt across shell lines and triggers `quote>` continuation. For simple one-liner prompts, inline `claude 'prompt'\n` is fine.
 
 Set sidebar status before launching each agent for visibility:
 
@@ -56,13 +56,13 @@ Set sidebar status before launching each agent for visibility:
 
 # 2. Label and launch agents
 cmux set-status "agent-1" "starting" --color "#3498db"
-cmux send --surface $S1 "claude -p \"\$(cat scratchpad/agent-1-prompt.md)\"\n"
+cmux send --surface $S1 "claude \"\$(cat scratchpad/agent-1-prompt.md)\"\n"
 
 cmux set-status "agent-2" "starting" --color "#2ecc71"
-cmux send --surface $S2 "claude -p \"\$(cat scratchpad/agent-2-prompt.md)\"\n"
+cmux send --surface $S2 "claude \"\$(cat scratchpad/agent-2-prompt.md)\"\n"
 
 cmux set-status "agent-3" "starting" --color "#e67e22"
-cmux send --surface $S3 "claude -p \"\$(cat scratchpad/agent-3-prompt.md)\"\n"
+cmux send --surface $S3 "claude \"\$(cat scratchpad/agent-3-prompt.md)\"\n"
 
 # Set overall progress
 cmux set-progress 0.0 --label "0 of 3 agents complete"
@@ -71,7 +71,7 @@ cmux set-progress 0.0 --label "0 of 3 agents complete"
 For simple one-liner prompts, inline is fine:
 
 ```bash
-cmux send --surface $S1 "claude -p 'implement auth module. Save summary to scratchpad/agent-1-auth.md'\n"
+cmux send --surface $S1 "claude 'implement auth module. Save summary to scratchpad/agent-1-auth.md'\n"
 ```
 
 ### 3. Monitor Agent Progress
@@ -106,7 +106,7 @@ Use named sync tokens when agents have dependencies:
 cmux send --surface surface:3 "cmux wait-for --signal auth-ready\n"
 
 # Agent 2 waits for auth before starting integration tests
-cmux send --surface surface:4 "cmux wait-for auth-ready --timeout 600 && claude -p 'run integration tests'\n"
+cmux send --surface surface:4 "cmux wait-for auth-ready --timeout 600 && claude 'run integration tests'\n"
 ```
 
 ### 5. Collect Results
@@ -159,9 +159,9 @@ For large projects, isolate each agent in its own workspace:
 
 ```bash
 # Create dedicated workspaces
-cmux new-workspace --cwd /project/frontend --command "claude -p 'rebuild React components'"
-cmux new-workspace --cwd /project/backend --command "claude -p 'optimize API endpoints'"
-cmux new-workspace --cwd /project/infra --command "claude -p 'update Terraform configs'"
+cmux new-workspace --cwd /project/frontend --command "claude 'rebuild React components'"
+cmux new-workspace --cwd /project/backend --command "claude 'optimize API endpoints'"
+cmux new-workspace --cwd /project/infra --command "claude 'update Terraform configs'"
 
 # Switch between them to check progress
 cmux select-workspace --workspace workspace:2
@@ -221,11 +221,11 @@ cmux send-key --surface surface:3 ctrl+c
 
 # Option A: Clear and restart in the same shell
 cmux clear-history --surface surface:3
-cmux send --surface surface:3 "claude -p 'retry: implement auth module'\n"
+cmux send --surface surface:3 "claude 'retry: implement auth module'\n"
 
 # Option B: Respawn the shell entirely (cleaner — kills process and starts fresh)
 cmux respawn-pane --surface surface:3
-cmux send --surface surface:3 "claude -p 'retry: implement auth module'\n"
+cmux send --surface surface:3 "claude 'retry: implement auth module'\n"
 
 # Update sidebar status
 cmux set-status "agent-1" "retrying" --color "#e74c3c"

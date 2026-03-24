@@ -115,7 +115,9 @@ cmux tree --json                        # Full topology with all refs
 
 ### Launching Agents
 
-**Always use `claude -p`** to launch agents. The `-p` (print) flag runs non-interactively — the agent works on the task, then exits when done. Without `-p`, the session waits for interactive input and won't terminate.
+**Always launch agents in interactive mode** (`claude 'prompt'`, NOT `claude -p`). Interactive mode shows real-time streaming output — you can watch agents think, call tools, and produce results. Print mode (`-p`) buffers all output and shows nothing until the agent finishes.
+
+Agents launched interactively don't auto-exit — they stay at the prompt after completing the task. The orchestrator detects completion via `read-screen` and closes the pane with `close-surface`.
 
 **Always instruct agents to save output to `scratchpad/`** so results survive pane closure and the main agent can review them later. Each agent should write a summary of its work to a unique file.
 
@@ -124,21 +126,21 @@ cmux tree --json                        # Full topology with all refs
 Pass the prompt inline with single quotes:
 
 ```bash
-cmux send --surface $S1 "claude -p 'implement auth module. When done, save a summary of changes to scratchpad/agent-auth.md'\n"
-cmux send --surface $S2 "claude -p 'write unit tests. When done, save a summary of results to scratchpad/agent-tests.md'\n"
+cmux send --surface $S1 "claude 'implement auth module. When done, save a summary of changes to scratchpad/agent-auth.md'\n"
+cmux send --surface $S2 "claude 'write unit tests. When done, save a summary of results to scratchpad/agent-tests.md'\n"
 ```
 
 #### Complex or multi-line prompts (preferred for detailed instructions)
 
-**Write the prompt to a file first, then pass it via `$(cat)`.** This avoids quoting/escaping corruption — `cmux send` interprets `\n` as Enter, which splits multi-line prompts across shell lines, causing `quote>` continuation and stuck input. Note: `claude -p` requires the prompt as a command-line argument — piping (`cat file | claude -p`) does NOT work.
+**Write the prompt to a file first, then pass it via `$(cat)`.** This avoids quoting/escaping corruption — `cmux send` interprets `\n` as Enter, which splits multi-line prompts across shell lines, causing `quote>` continuation and stuck input.
 
 ```bash
 # 1. Write each agent's prompt to a file (use the Write tool)
 #    e.g., scratchpad/agent-1-prompt.md, scratchpad/agent-2-prompt.md
 
 # 2. Send the command to each agent's pane:
-cmux send --surface $S1 "claude -p \"\$(cat scratchpad/agent-1-prompt.md)\"\n"
-cmux send --surface $S2 "claude -p \"\$(cat scratchpad/agent-2-prompt.md)\"\n"
+cmux send --surface $S1 "claude \"\$(cat scratchpad/agent-1-prompt.md)\"\n"
+cmux send --surface $S2 "claude \"\$(cat scratchpad/agent-2-prompt.md)\"\n"
 ```
 
 **Never save prompts to `/tmp/`** or write shell scripts. Use `scratchpad/` for prompt files. Avoid `$`, backticks, and unescaped `"` in prompt files — they get expanded by the shell during `$(cat)` substitution.
@@ -325,7 +327,7 @@ To detect whether a Claude Code agent has completed, read the last few lines and
 
 ```bash
 cmux new-workspace --cwd /path/to/project    # New workspace with working directory
-cmux new-workspace --cwd /proj --command "claude -p 'do task'\n"  # With startup command
+cmux new-workspace --cwd /proj --command "claude 'do task'\n"  # With startup command
 cmux select-workspace --workspace workspace:2 # Switch workspaces
 cmux close-workspace --workspace workspace:3  # Close workspace
 cmux list-workspaces                          # List all workspaces
@@ -384,9 +386,8 @@ These hooks update sidebar metadata automatically — showing active/idle status
 | `cmux pane create` or fabricated subcommands | No such command. Use `cmux new-split right\|down` then `cmux send --surface surface:N "cmd\n"` |
 | Creating new workspaces for parallel agents | Use `cmux new-split right\|down` instead — workspaces are for separate project roots, not parallel tasks |
 | Splitting the focused pane recursively | Always use `--surface` to target which pane to split — see layout recipes above |
-| Using `claude 'prompt'` without `-p` flag | Always use `claude -p 'prompt'` for spawned agents — without `-p` the session waits for interactive input |
-| Sending multi-line prompts inline via `cmux send` | Write prompt to `scratchpad/agent-N-prompt.md`, then `claude -p "\$(cat scratchpad/agent-N-prompt.md)"` |
-| Piping prompt to `claude -p` (`cat file \| claude -p`) | `claude -p` requires the prompt as an argument, not stdin. Use `claude -p "\$(cat file)"` instead |
+| Using `claude -p` for spawned agents | Use `claude` (interactive) — `-p` buffers all output and shows nothing until done. Interactive mode gives real-time streaming |
+| Sending multi-line prompts inline via `cmux send` | Write prompt to `scratchpad/agent-N-prompt.md`, then `claude "\$(cat scratchpad/agent-N-prompt.md)"` |
 | Saving prompts to `/tmp/` or writing shell scripts | Use `scratchpad/` for prompt files, never `/tmp/` |
 | Not persisting agent output | Include `save summary to scratchpad/agent-<name>.md` in every agent prompt |
 | Leaving finished agent panes open | Close each agent's pane as soon as it finishes and output is confirmed saved |
