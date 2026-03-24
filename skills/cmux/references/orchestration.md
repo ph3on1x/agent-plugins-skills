@@ -117,6 +117,8 @@ cmux close-surface --surface surface:5
 
 ## Workspace-Per-Project Pattern
 
+> **Special case only.** Use this pattern when agents need different `--cwd` project roots (e.g., separate monorepo packages). For parallel tasks within the same project, use `cmux new-split` to create panes instead — it's simpler, faster, and easier to monitor.
+
 For large projects, isolate each agent in its own workspace:
 
 ```bash

@@ -54,6 +54,8 @@ Commands default to the current workspace/surface when flags are omitted.
 
 The core pattern for running multiple agents in parallel, each in its own pane.
 
+**Default: panes, not workspaces.** Use `cmux new-split` to create splits within the current workspace. Only use `cmux new-workspace` when agents need completely separate project directories (e.g., monorepo subprojects with different `--cwd`).
+
 ### Creating Panes
 
 ```bash
@@ -324,6 +326,7 @@ These hooks update sidebar metadata automatically — showing active/idle status
 | Not re-snapshotting after navigation | DOM changes invalidate refs — re-snapshot |
 | Using cmux notify for system alerts | Use `osascript` when user may be outside cmux |
 | `cmux pane create` or fabricated subcommands | No such command. Use `cmux new-split right\|down` then `cmux send --surface surface:N "cmd\n"` |
+| Creating new workspaces for parallel agents | Use `cmux new-split right\|down` instead — workspaces are for separate project roots, not parallel tasks |
 | No visibility into orchestration | Use `set-status`, `set-progress`, `log` for sidebar updates |
 | Low-level input commands | Use high-level: `click`, `fill`, `type` instead of `input_*` |
 

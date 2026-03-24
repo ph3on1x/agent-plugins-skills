@@ -1,7 +1,7 @@
 {
   "name": "claude-cmux-skill",
   "description": "Skill for orchestrating independent Claude Code sessions in cmux terminal — split panes, agent monitoring, browser automation, sidebar metadata, notifications, and full CLI coverage.",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "author": {
     "name": "Dennis Nasarov",
     "url": "https://github.com/ph3on1x"
