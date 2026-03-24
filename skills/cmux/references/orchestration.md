@@ -45,7 +45,7 @@ cmux new-pane --direction right --type browser      # Browser pane
 
 **Always instruct agents to save output to `scratchpad/`** so results survive pane closure and the main agent can review them later.
 
-**For complex or multi-line prompts, write each prompt to a file first, then pipe it.** Sending multi-line prompts inline via `cmux send` causes quoting corruption — `cmux send` interprets `\n` as Enter, which splits the prompt across shell lines and triggers `quote>` continuation. For simple one-liner prompts, inline `claude -p 'prompt'\n` is fine.
+**For complex or multi-line prompts, write each prompt to a file first, then pass it via `$(cat)`.** Sending multi-line prompts inline via `cmux send` causes quoting corruption — `cmux send` interprets `\n` as Enter, which splits the prompt across shell lines and triggers `quote>` continuation. Note: `claude -p` requires the prompt as a command-line argument — piping (`cat file | claude -p`) does NOT work. For simple one-liner prompts, inline `claude -p 'prompt'\n` is fine.
 
 Set sidebar status before launching each agent for visibility:
 
@@ -56,13 +56,13 @@ Set sidebar status before launching each agent for visibility:
 
 # 2. Label and launch agents
 cmux set-status "agent-1" "starting" --color "#3498db"
-cmux send --surface $S1 "cat scratchpad/agent-1-prompt.md | claude -p\n"
+cmux send --surface $S1 "claude -p \"\$(cat scratchpad/agent-1-prompt.md)\"\n"
 
 cmux set-status "agent-2" "starting" --color "#2ecc71"
-cmux send --surface $S2 "cat scratchpad/agent-2-prompt.md | claude -p\n"
+cmux send --surface $S2 "claude -p \"\$(cat scratchpad/agent-2-prompt.md)\"\n"
 
 cmux set-status "agent-3" "starting" --color "#e67e22"
-cmux send --surface $S3 "cat scratchpad/agent-3-prompt.md | claude -p\n"
+cmux send --surface $S3 "claude -p \"\$(cat scratchpad/agent-3-prompt.md)\"\n"
 
 # Set overall progress
 cmux set-progress 0.0 --label "0 of 3 agents complete"
