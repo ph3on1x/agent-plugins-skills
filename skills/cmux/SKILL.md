@@ -117,9 +117,11 @@ cmux tree --json                        # Full topology with all refs
 
 **Always use `claude -p 'prompt'`** to launch agents. The `-p` (print) flag runs non-interactively — the agent works on the task, then exits when done. Without `-p`, the session waits for interactive input and won't terminate.
 
+**Always instruct agents to save output to `scratchpad/`** so results survive pane closure and the main agent can review them later. Each agent should write a summary of its work to a unique file.
+
 ```bash
-cmux send --surface $S1 "claude -p 'implement auth module'\n"
-cmux send --surface $S2 "claude -p 'write unit tests'\n"
+cmux send --surface $S1 "claude -p 'implement auth module. When done, save a summary of changes to scratchpad/agent-auth.md'\n"
+cmux send --surface $S2 "claude -p 'write unit tests. When done, save a summary of results to scratchpad/agent-tests.md'\n"
 ```
 
 **Never save prompts to temp files** (e.g., `/tmp/agent-1.md`, `/tmp/agent-1.sh`). Always pass the prompt inline with `-p`.
@@ -215,14 +217,17 @@ cmux wait-for auth-complete --timeout 300
 
 ### Cleanup
 
-Close individual surfaces when agents finish:
+Close each agent's pane as soon as it finishes — don't wait to batch-close at the end. Since agents save output to `scratchpad/`, results persist after pane closure.
 
 ```bash
-cmux close-surface --surface surface:5
-cmux close-surface --surface surface:6
+# After detecting agent-1 has finished:
+test -f scratchpad/agent-auth.md && cmux close-surface --surface $S1
+
+# After detecting agent-2 has finished:
+test -f scratchpad/agent-tests.md && cmux close-surface --surface $S2
 ```
 
-Check surface health before cleanup:
+Check surface health to verify agent state before closing:
 
 ```bash
 cmux surface-health                     # Health details for all surfaces in workspace
@@ -370,6 +375,8 @@ These hooks update sidebar metadata automatically — showing active/idle status
 | Splitting the focused pane recursively | Always use `--surface` to target which pane to split — see layout recipes above |
 | Using `claude 'prompt'` without `-p` flag | Always use `claude -p 'prompt'` for spawned agents — without `-p` the session waits for interactive input |
 | Saving prompts to temp files (`/tmp/agent-1.md`) | Always pass the prompt inline: `claude -p 'prompt text'` — never write to files first |
+| Not persisting agent output | Include `save summary to scratchpad/agent-<name>.md` in every agent prompt |
+| Leaving finished agent panes open | Close each agent's pane as soon as it finishes and output is confirmed saved |
 | No visibility into orchestration | Use `set-status`, `set-progress`, `log` for sidebar updates |
 | Low-level input commands | Use high-level: `click`, `fill`, `type` instead of `input_*` |
 

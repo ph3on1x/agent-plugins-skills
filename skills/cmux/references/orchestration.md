@@ -43,20 +43,22 @@ cmux new-pane --direction right --type browser      # Browser pane
 
 **Always use `claude -p 'prompt'`** — the `-p` flag runs non-interactively (agent works, then exits). Never save prompts to temp files; always pass inline.
 
+**Always instruct agents to save output to `scratchpad/`** so results survive pane closure and the main agent can review them later.
+
 Set sidebar status before launching each agent for visibility:
 
 ```bash
 # Label and launch agent 1
 cmux set-status "agent-1" "starting" --color "#3498db"
-cmux send --surface $S1 "claude -p 'implement user authentication'\n"
+cmux send --surface $S1 "claude -p 'implement user authentication. When done, save a summary of changes to scratchpad/agent-1-auth.md'\n"
 
 # Label and launch agent 2
 cmux set-status "agent-2" "starting" --color "#2ecc71"
-cmux send --surface $S2 "claude -p 'write API integration tests'\n"
+cmux send --surface $S2 "claude -p 'write API integration tests. When done, save a summary of results to scratchpad/agent-2-tests.md'\n"
 
 # Label and launch agent 3
 cmux set-status "agent-3" "starting" --color "#e67e22"
-cmux send --surface $S3 "claude -p 'update database migrations'\n"
+cmux send --surface $S3 "claude -p 'update database migrations. When done, save a summary of changes to scratchpad/agent-3-migrations.md'\n"
 
 # Set overall progress
 cmux set-progress 0.0 --label "0 of 3 agents complete"
@@ -99,35 +101,44 @@ cmux send --surface surface:4 "cmux wait-for auth-ready --timeout 600 && claude 
 
 ### 5. Collect Results
 
-Read final output from each agent:
+Read persisted output from `scratchpad/` files. Since agents save their summaries there, results survive pane closure:
 
 ```bash
-# Capture full scrollback for review
-cmux read-screen --surface surface:3 --scrollback > /tmp/agent-1-output.txt
-cmux read-screen --surface surface:4 --scrollback > /tmp/agent-2-output.txt
+# Primary: read persisted output (use Read tool in Claude Code)
+cat scratchpad/agent-1-auth.md
+cat scratchpad/agent-2-tests.md
+cat scratchpad/agent-3-migrations.md
 
-# Or use buffers for structured data passing
-cmux set-buffer --name "agent-1-result" "$(cmux read-screen --surface surface:3 --lines 10)"
+# Fallback: read screen if scratchpad file missing (only works while pane is open)
+cmux read-screen --surface surface:3 --scrollback
 ```
 
 ### 6. Update Progress and Clean Up
 
+Close each agent's pane as soon as it finishes — don't wait to batch-close at the end. Since agents save output to `scratchpad/`, results persist after pane closure.
+
 ```bash
-# Update sidebar as agents complete
+# When agent-1 finishes:
 cmux set-status "agent-1" "done" --color "#27ae60"
 cmux set-progress 0.33 --label "1 of 3 agents complete"
+cmux close-surface --surface $S1      # Close immediately — output is in scratchpad/
 
-# After all agents finish
+# When agent-2 finishes:
+cmux set-status "agent-2" "done" --color "#27ae60"
+cmux set-progress 0.66 --label "2 of 3 agents complete"
+cmux close-surface --surface $S2
+
+# When agent-3 finishes:
+cmux set-status "agent-3" "done" --color "#27ae60"
+cmux set-progress 1.0 --label "3 of 3 agents complete"
+cmux close-surface --surface $S3
+
+# After ALL agents finish — clean up sidebar
 cmux clear-progress
 cmux clear-status "agent-1"
 cmux clear-status "agent-2"
 cmux clear-status "agent-3"
-cmux log "All agents completed successfully" --level success
-
-# Close agent surfaces
-cmux close-surface --surface surface:3
-cmux close-surface --surface surface:4
-cmux close-surface --surface surface:5
+cmux log "All agents completed — results in scratchpad/" --level success
 ```
 
 ## Workspace-Per-Project Pattern
