@@ -41,27 +41,37 @@ cmux new-pane --direction right --type browser      # Browser pane
 
 ### 2. Launch Agents with Labels
 
-**Always use `claude -p 'prompt'`** — the `-p` flag runs non-interactively (agent works, then exits). Never save prompts to temp files; always pass inline.
+**Always use `claude -p`** — the `-p` flag runs non-interactively (agent works, then exits).
 
 **Always instruct agents to save output to `scratchpad/`** so results survive pane closure and the main agent can review them later.
+
+**For complex or multi-line prompts, write each prompt to a file first, then pipe it.** Sending multi-line prompts inline via `cmux send` causes quoting corruption — `cmux send` interprets `\n` as Enter, which splits the prompt across shell lines and triggers `quote>` continuation. For simple one-liner prompts, inline `claude -p 'prompt'\n` is fine.
 
 Set sidebar status before launching each agent for visibility:
 
 ```bash
-# Label and launch agent 1
+# 1. Write each agent's prompt to a file (use the Write tool):
+#    scratchpad/agent-1-prompt.md, scratchpad/agent-2-prompt.md, scratchpad/agent-3-prompt.md
+#    Include the save-to-scratchpad instruction in each prompt file.
+
+# 2. Label and launch agents
 cmux set-status "agent-1" "starting" --color "#3498db"
-cmux send --surface $S1 "claude -p 'implement user authentication. When done, save a summary of changes to scratchpad/agent-1-auth.md'\n"
+cmux send --surface $S1 "cat scratchpad/agent-1-prompt.md | claude -p\n"
 
-# Label and launch agent 2
 cmux set-status "agent-2" "starting" --color "#2ecc71"
-cmux send --surface $S2 "claude -p 'write API integration tests. When done, save a summary of results to scratchpad/agent-2-tests.md'\n"
+cmux send --surface $S2 "cat scratchpad/agent-2-prompt.md | claude -p\n"
 
-# Label and launch agent 3
 cmux set-status "agent-3" "starting" --color "#e67e22"
-cmux send --surface $S3 "claude -p 'update database migrations. When done, save a summary of changes to scratchpad/agent-3-migrations.md'\n"
+cmux send --surface $S3 "cat scratchpad/agent-3-prompt.md | claude -p\n"
 
 # Set overall progress
 cmux set-progress 0.0 --label "0 of 3 agents complete"
+```
+
+For simple one-liner prompts, inline is fine:
+
+```bash
+cmux send --surface $S1 "claude -p 'implement auth module. Save summary to scratchpad/agent-1-auth.md'\n"
 ```
 
 ### 3. Monitor Agent Progress
