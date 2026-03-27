@@ -46,27 +46,27 @@ This plugin teaches Claude Code how to use [cmux](https://github.com/manaflow-ai
 </tr>
 <tr>
   <td>"I need three agents working in parallel"</td>
-  <td>Ask Claude to split panes and launch agents</td>
+  <td><code>/cmux</code> Spin up 3 agents to research X, Y, Z</td>
   <td>Creates split panes, launches independent Claude Code sessions, monitors output via <code>read-screen</code>, coordinates with sync tokens</td>
 </tr>
 <tr>
   <td>"What's my other agent doing?"</td>
-  <td>Ask Claude to check agent progress</td>
+  <td><code>/cmux</code> Check agent progress in surface:5</td>
   <td>Reads terminal output from any surface without switching to it, reports status</td>
 </tr>
 <tr>
   <td>"I need to test this in a browser"</td>
-  <td>Ask Claude to open a browser pane</td>
+  <td><code>/cmux</code> Open browser and test the login flow</td>
   <td>Opens browser surface, snapshots for element refs, interacts via <code>click</code>/<code>fill</code> — no CSS selectors</td>
 </tr>
 <tr>
   <td>"Notify me when the build finishes"</td>
-  <td>Ask Claude to set up a notification</td>
+  <td><code>/cmux</code> Notify me when the build finishes</td>
   <td>Uses <code>cmux notify</code> (in-app) or <code>osascript</code> (system-level) based on context</td>
 </tr>
 <tr>
   <td>"I need agents to share data"</td>
-  <td>Ask Claude to use buffers or sync tokens</td>
+  <td><code>/cmux</code> Share API findings with the test agent</td>
   <td>Stores results in named buffers, signals completion with <code>wait-for</code> tokens</td>
 </tr>
 </table>
@@ -81,7 +81,7 @@ AI coding agents are powerful individually. But when you need multiple agents wo
 
 ## How It Works
 
-The skill uses **progressive disclosure** — core concepts load automatically when triggered, while detailed references load only when Claude needs them.
+Invoke with `/cmux` inside a cmux terminal. The skill uses **progressive disclosure** — core concepts load when `/cmux` is invoked, while detailed references load only when Claude needs them.
 
 ```
 claude-cmux-skill/
@@ -138,7 +138,7 @@ claude-cmux-skill/
 ### Parallel feature implementation
 
 ```
-You: "Implement auth and payments modules in parallel"
+You: /cmux Implement auth and payments modules in parallel
 
 Claude splits two panes, launches an independent session in each:
   surface:5 → "claude 'implement auth module'"
@@ -151,7 +151,7 @@ and collects results when sessions finish.
 ### Browser testing with agent oversight
 
 ```
-You: "Open the app in a browser and verify the login flow works"
+You: /cmux Open the app in a browser and verify the login flow works
 
 Claude opens a browser surface, navigates to localhost:3000,
 snapshots the page for element refs, fills the login form,
@@ -162,7 +162,7 @@ verify the dashboard loaded.
 ### Multi-agent coordination with data sharing
 
 ```
-You: "Research the API, then have another agent write tests based on findings"
+You: /cmux Research the API, then have another agent write tests based on findings
 
 Agent 1 explores the API, stores findings in a named buffer:
   cmux set-buffer --name "api-findings" "endpoints: /users, /orders..."
