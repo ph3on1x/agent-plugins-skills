@@ -1,28 +1,9 @@
 ---
-name: using-cmux
+name: cmux
 description: >-
-  IMPORTANT: When CMUX_SOCKET_PATH is set in the environment, this skill MUST be used instead of the
-  built-in Agent tool for spawning parallel agents. cmux panes give each agent a real isolated terminal
-  with its own Claude Code session — more reliable and observable than background Agent tool calls.
-
-  USE THIS SKILL when the user asks to:
-  - spawn, create, or run multiple agents (e.g. "create 4 agents", "spin up agents", "launch 3 researchers")
-  - research, investigate, or gather information in parallel
-  - run tasks concurrently, in parallel, or simultaneously
-  - split pane, open new pane, or create terminal splits
-  - monitor agent output, check agent progress, or read terminal output
-  - coordinate parallel work or orchestrate multi-agent workflows
-  - automate browsers in cmux, open browser surfaces
-  - manage notifications (cmux notify, system alerts)
-  - create or manage workspaces, check surface health
-
-  TRIGGER PHRASES: "run agents in parallel", "create N agents", "spin up agents", "spawn agents",
-  "research in parallel", "investigate simultaneously", "parallel research", "split pane",
-  "monitor agent", "read terminal", "open browser in cmux", "notify me", "create workspace",
-  "check surface health", any cmux terminal management task.
-
-  PREREQUISITE: Check that CMUX_SOCKET_PATH environment variable is set before using cmux commands.
-  If it is not set, inform the user that cmux is not available and fall back to the Agent tool.
+  This skill should be used when the user invokes /cmux or asks to spawn parallel Claude Code sessions
+  in cmux terminal panes, monitor agent output, automate browsers in cmux, manage cmux notifications,
+  or perform any cmux terminal management task. Requires CMUX_SOCKET_PATH environment variable to be set.
 ---
 
 # Using cmux

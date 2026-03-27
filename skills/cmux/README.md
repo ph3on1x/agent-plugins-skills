@@ -5,7 +5,7 @@
 **Orchestrate independent Claude Code sessions in cmux — split panes, monitor agents, automate browsers, coordinate parallel work**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.9.0-green.svg)]()
+[![Version](https://img.shields.io/badge/version-2.0.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
 [![cmux](https://img.shields.io/badge/cmux-Terminal-blue.svg)](https://github.com/manaflow-ai/cmux)
@@ -18,7 +18,7 @@ That's what happens when your terminal wasn't built for agent orchestration.
 
 </div>
 
-This skill teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/cmux) — a native macOS terminal built for AI coding agents. It auto-triggers when running inside cmux and provides full coverage of pane splitting, launching and monitoring independent Claude Code sessions, browser automation, sidebar metadata, notifications, and inter-pane coordination.
+This plugin teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/cmux) — a native macOS terminal built for AI coding agents. Use `/cmux` to spawn parallel Claude Code sessions in split panes, monitor agent output, automate browsers, manage notifications, and coordinate multi-agent workflows.
 
 ## Installation
 
@@ -34,7 +34,7 @@ This skill teaches Claude Code how to use [cmux](https://github.com/manaflow-ai/
 </table>
 
 > [!NOTE]
-> Requires [cmux](https://github.com/manaflow-ai/cmux) (macOS 14.0+) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI. The skill auto-triggers when `CMUX_*` environment variables are detected — no slash command needed.
+> Requires [cmux](https://github.com/manaflow-ai/cmux) (macOS 14.0+) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI. Use `/cmux` to invoke the skill inside a cmux terminal.
 
 ## When to Use What
 
@@ -89,10 +89,10 @@ claude-cmux-skill/
 │   ├── plugin.json              # Plugin metadata
 │   └── marketplace.json         # Marketplace catalog
 ├── hooks/
-│   └── hooks.json               # Agent tool blocking + lifecycle hooks
+│   └── hooks.json               # Lifecycle hooks (SessionStart, Stop, Notification)
 └── skills/
-    └── using-cmux/
-        ├── SKILL.md             # Core skill (auto-triggers)
+    └── cmux/
+        ├── SKILL.md             # /cmux skill
         └── references/
             ├── orchestration.md       # Multi-agent patterns
             ├── browser-automation.md  # Full browser API
