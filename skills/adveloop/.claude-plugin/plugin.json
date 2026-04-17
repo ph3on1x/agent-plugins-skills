@@ -1,6 +1,6 @@
 {
   "name": "adveloop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Adversarial dev loop — Planner sequentially drives a Generator and Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable.",
   "author": {
     "name": "Dennis Nasarov",
