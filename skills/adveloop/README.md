@@ -7,8 +7,6 @@ A Claude Code plugin that runs an adversarial development loop:
 - **Evaluator** examines the work in a fresh pane and returns pass/fail + notes.
 - Feedback loops back to the Generator on failure (default: up to 3 retries, then Planner asks you).
 
-Inspired by [adversarial-dev](https://github.com/coleam00/adversarial-dev) — instead of a generator-vs-evaluator contract negotiation, you (via the Planner) define the deliverables directly.
-
 ## Prerequisites
 
 - **cmux** — `/adveloop` must run inside a cmux session (`CMUX_SOCKET_PATH` set).
@@ -82,6 +80,3 @@ Env: `DISABLE_AUTOUPDATER=1`, `DISABLE_COST_WARNINGS=1` — no mid-run pauses.
 
 Deliberately NOT passed: `--model` (inherits parent), `-p` (cmux requires interactive mode), `-c` / `--resume` (fresh session per retry).
 
-## Credits
-
-- Original three-agent harness: [coleam00/adversarial-dev](https://github.com/coleam00/adversarial-dev)
