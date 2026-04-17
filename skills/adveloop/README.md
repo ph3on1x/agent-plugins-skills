@@ -3,9 +3,11 @@
 A Claude Code plugin that runs an adversarial development loop:
 
 - **Planner** (your interactive session) collaborates with you to define deliverables, then drives a Generator and Evaluator through each one.
-- **Generator** builds the deliverable in a fresh cmux pane.
+- **Generator** builds or fixes the deliverable in a fresh cmux pane.
 - **Evaluator** examines the work in a fresh pane and returns pass/fail + notes.
 - Feedback loops back to the Generator on failure (default: up to 3 retries, then Planner asks you).
+
+Each deliverable can start from either end of that loop. Build new code with `Mode: build` (Generator first); audit or fix existing code with `Mode: review` (Evaluator first — if it passes the initial review, the Generator never runs).
 
 ## Prerequisites
 
@@ -31,16 +33,44 @@ The first pair installs the required `/cmux` skill; the second installs adveloop
 ## Usage
 
 ```
-/adveloop [short product description]
+/adveloop [short product description or review scope]
 ```
+
+Examples:
+
+- `/adveloop "minimal URL shortener with SQLite"` — build from scratch (Planner drafts build-mode deliverables by default).
+- `/adveloop "review /login for XSS and input validation and fix any issues found"` — review existing code; the Evaluator runs first against the codebase, then the Generator fixes what the Evaluator flagged.
+- Mixed runs are fine: one description can produce both `build` and `review` deliverables, and the Planner runs them in order.
 
 The Planner will:
 
-1. Work with you to define 3–8 deliverables — concrete, testable outcomes. Iterate via AskUserQuestion until you approve.
-2. For each deliverable: spawn the Generator in a cmux pane, wait for it to finish, spawn the Evaluator, wait for its verdict.
-3. On pass → advance. On fail → feedback goes into the next Generator round. After 3 fails, the Planner asks whether to retry more, edit the deliverable, skip, or abort.
+1. Work with you to define 3–8 deliverables — concrete, testable outcomes. Each one carries a `Mode` (`build` or `review`) the Planner infers from intent and shows in the approval screen. Iterate via AskUserQuestion until you approve.
+2. For each deliverable, run the loop appropriate to its mode:
+   - **`build`**: spawn the Generator, wait for it, spawn the Evaluator, wait for its verdict.
+   - **`review`**: spawn the Evaluator first against the existing codebase. If it passes, deliverable done — zero Generator runs. If it fails, the verdict becomes the first feedback round and the Generator is spawned to fix the issues, then the Evaluator re-checks.
+3. On pass → advance. On fail → feedback goes into the next Generator round. After 3 failed Gen→Eval rounds, the Planner asks whether to retry more, edit the deliverable, skip, or abort. (The free initial review in review mode doesn't consume a retry slot — review deliverables still get 3 fix attempts.)
 
-If `.adveloop/deliverables.md` already exists when you re-run `/adveloop`, you'll be offered continue / rewrite / abort.
+If `.adveloop/deliverables.md` already exists when you re-run `/adveloop`, you'll be offered continue / rewrite / abort. If you hand-edited the file between runs (especially `Mode` fields), prefer rewrite — the Planner only inspects artifacts, not semantic changes.
+
+## Deliverable modes
+
+| Mode | Starting point | Use for |
+|---|---|---|
+| `build` (default) | Generator runs first, Evaluator verifies | Greenfield features, new endpoints, new modules |
+| `review` | Evaluator runs first against existing code | Audits, hardening passes, bug hunts, fixing/polishing existing code |
+
+Mode is recorded per deliverable in `.adveloop/deliverables.md`:
+
+```
+## 1. Harden /login against XSS
+Mode: review
+
+The /login handler must reject unsafe input, escape all rendered user data, and
+return 400 with a structured error on malformed payloads. Evaluator confirms by
+exercising the endpoint with sample XSS payloads.
+```
+
+A deliverable missing the `Mode:` line is treated as `build` for backward compatibility with older `.adveloop/` directories.
 
 ## Files adveloop owns
 
@@ -53,7 +83,7 @@ If `.adveloop/deliverables.md` already exists when you re-run `/adveloop`, you'l
         ├── gen-result.md      # Generator's summary
         ├── eval-task.md       # deliverable + Generator summary + signal name
         ├── eval-result.json   # {"passed": bool, "notes": string}
-        └── feedback-<R>.json  # evaluator verdict from failed round R
+        └── feedback-<R>.json  # evaluator verdict from failed round R (in review mode, feedback-0.json is the initial review's verdict)
 ```
 
 Generated application code goes to your project root directly. Add `.adveloop/` to your `.gitignore` if you don't want the metadata tracked — `/adveloop` offers to do this on first run.

@@ -26,16 +26,29 @@ User input: `$ARGUMENTS` (may be empty).
 
 ## 2. Define deliverables
 
-If `.adveloop/deliverables.md` already exists, read it and scan `.adveloop/tasks/<N>/` for every deliverable in the file. For each `<N>`, classify its state as:
+Each deliverable carries a **mode** that decides its starting point in Phase 3:
+
+- `Mode: build` (default) — Generator runs first, then Evaluator. Use for greenfield work.
+- `Mode: review` — Evaluator runs first against the existing codebase with no Generator claim to challenge. If the initial review passes, the deliverable is done with zero Generator runs. If it fails, the loop enters the normal Gen→Eval cycle using the review's verdict as the first feedback round. Use for auditing, hardening, or fixing existing code.
+
+If `.adveloop/deliverables.md` already exists, read it and scan `.adveloop/tasks/<N>/` for every deliverable in the file. Parse each deliverable's `Mode:` line (case-insensitive); treat a missing field as `build` for backward compatibility. Classify each `<N>`'s state as:
 
 - **passed** — `eval-result.json` exists, parses, has `passed: true` and a non-empty `evidence` field.
 - **failed-retrying** — `eval-result.json` exists with `passed: false`, or one or more `feedback-<R>.json` files exist without a later clean pass.
-- **partial** — `gen-result.md` exists but `eval-result.json` does not (Generator finished, Evaluator didn't run or was interrupted).
+- **partial** — `gen-result.md` exists but `eval-result.json` does not (Generator finished, Evaluator didn't run or was interrupted). Applies only to build mode — review deliverables never produce `gen-result.md` in round 0.
 - **pending** — none of the above.
 
-Show the user a one-line summary per deliverable (`N. <name> — <state>`) and AskUserQuestion: **Resume** / **Rewrite from scratch** / **Abort**.
+Show the user a one-line summary per deliverable (`N. <name> [<mode>] — <state>`) and AskUserQuestion: **Resume** / **Rewrite from scratch** / **Abort**. Mention in the question body: *"If you edited `deliverables.md` by hand since the last run — especially Mode fields — prefer Rewrite; the Planner only re-scans artifacts, not the semantics of changes."*
 
-On **Resume**: proceed to Phase 3. For each `<N>` whose state is **passed**, record the pass and advance without spawning. For **partial**, skip Generator steps 2a–d and jump to step 2e (write `eval-task.md` from the existing `gen-result.md`) with `retry = (count of feedback-<R>.json files)`. For **failed-retrying** and **pending**, run the full loop from step 2a with `retry = (count of feedback-<R>.json files)`.
+On **Resume**: proceed to Phase 3. For each `<N>` whose state is **passed**, record the pass and advance without spawning. Otherwise:
+
+- **build mode**:
+  - **partial** → skip Generator steps 2a–d and jump to step 2e (write `eval-task.md` from the existing `gen-result.md`) with `retry = (count of feedback-<R>.json files)`.
+  - **failed-retrying** / **pending** → run the full loop from step 2a with `retry = (count of feedback-<R>.json files)`.
+- **review mode**:
+  - **pending** (no `eval-result.json`) → re-enter Phase 3 at the initial-review sub-procedure (step R1 below).
+  - **failed-retrying** (`eval-result.json` shows `passed: false`, `gen-result.md` absent) → this is an interrupted review round 0. If `feedback-0.json` is missing, promote `eval-result.json` into `feedback-0.json` first. Then enter the Gen→Eval loop at step 2a with `retry = 1`.
+  - If `gen-result.md` exists, the deliverable has already passed round 0's review and proceeded into the Gen→Eval loop — resume using the build-mode rules above with `retry = (count of feedback-<R>.json files)`.
 
 On **Rewrite**: archive the old `.adveloop/` into `.adveloop/runs/<old-run_id>-<timestamp>/` (read `run_id` from the old deliverables header comment if present; otherwise use the current time) and continue below.
 
@@ -44,11 +57,20 @@ Otherwise:
 1. If `$ARGUMENTS` is empty, AskUserQuestion for the product description (freeform via Other).
 2. Draft a flat list of **3–8 deliverables**. Each deliverable has:
    - A short name.
+   - A **mode** (`build` or `review`). Infer from intent: verbs like *build / implement / add / create* → `build`; verbs like *review / audit / find issues / harden / fix / patch existing X* → `review`. When ambiguous, default to `build`.
    - One paragraph describing what "done" looks like — concrete, testable outcomes (features working, specific endpoints/files present, error cases handled).
 
-   A deliverable is a self-contained unit of work the Generator can build and the Evaluator can verify. It is NOT a sprint or phase. Avoid hierarchy.
-3. Show the list. AskUserQuestion: **Approve** / **Revise** (freeform — user describes changes, you redraft and re-show) / **Rewrite from scratch**. Iterate until approved.
-4. Create `.adveloop/` if it doesn't exist. Write the approved list to `.adveloop/deliverables.md` with a leading HTML comment `<!-- run_id: <run_id> -->`.
+   A deliverable is a self-contained unit of work the Generator can build (build mode) or the Evaluator can check against existing code (review mode). It is NOT a sprint or phase. Avoid hierarchy.
+3. Show the list with each deliverable's mode clearly marked (e.g. `1. <name> [build]` or `3. <name> [review]`). AskUserQuestion: **Approve** / **Revise** (freeform — user describes changes including mode swaps; redraft and re-show) / **Rewrite from scratch**. Iterate until approved.
+4. Create `.adveloop/` if it doesn't exist. Write the approved list to `.adveloop/deliverables.md` with a leading HTML comment `<!-- run_id: <run_id> -->`. Write each entry in this shape:
+
+   ```
+   ## <N>. <name>
+   Mode: <build|review>
+
+   <description paragraph>
+   ```
+
 5. On first-ever run in this project (no prior `.adveloop/` history), check whether `.adveloop/` is in `.gitignore`. If not, AskUserQuestion whether to append it (Yes / No / Skip).
 
 ---
@@ -59,12 +81,36 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
 
 1. Create `.adveloop/tasks/<N>/` for this deliverable's artifacts.
 
-2. Initialize `retry = 0`. Loop:
+2. Branch on this deliverable's mode:
+
+   - **`mode: build`** → go straight to step **2a** below with `retry = 0`.
+   - **`mode: review`** → run the initial review sub-procedure (**R1–R4**) first. If it passes, advance to the next deliverable. If it fails, enter the loop at step **2a** with `retry = 1`.
+
+   **Initial review sub-procedure (review mode only):**
+
+   **R1. Evaluator task file** — write `.adveloop/tasks/<N>/eval-task.md` containing:
+   - `## Deliverable` — this deliverable's name + description (verbatim from `deliverables.md`).
+   - `## Mode: review`
+   - `## Completion signal` — the literal signal name: `adveloop-<run_id>-eval-done-<N>-0`.
+
+   (No `## Generator summary` section — there is nothing to claim yet.)
+
+   **R2. Spawn the Evaluator pane** via the `/cmux` skill. Same command shape as step **f** below; substitute `<retry> = 0`.
+
+   **R3. Wait on `adveloop-<run_id>-eval-done-<N>-0`** via `/cmux`. Same observation and intervention rules as step **c**.
+
+   **R4. On signal** — read `.adveloop/tasks/<N>/eval-result.json`. Validate shape (non-empty `evidence`; if missing/malformed, AskUserQuestion **Retry this round** / **Abort** as in step **h**). Close the pane.
+   - `passed: true` → record the pass and advance to the next deliverable.
+   - `passed: false` → write the verdict to `.adveloop/tasks/<N>/feedback-0.json`, set `retry = 1`, and fall through to the Gen→Eval loop below starting at step **a**.
+
+   The `retry` counter counts failed Gen→Eval pairs, *not* Evaluator invocations. This initial review round does not consume a retry slot; review deliverables still get up to 3 Gen→Eval fix attempts before the 3-fail escalation in step **k**.
+
+   Loop:
 
    **a. Generator task file** — write `.adveloop/tasks/<N>/gen-task.md` containing:
    - `## Deliverable` — this deliverable's name + description (verbatim from `deliverables.md`).
    - `## Project context` — optional: paths, tech-stack notes the user supplied, or leave empty.
-   - `## Prior evaluator feedback` — only when `retry > 0`: contents of `.adveloop/tasks/<N>/feedback-<retry-1>.json`.
+   - `## Prior evaluator feedback` — only when `retry > 0`: contents of `.adveloop/tasks/<N>/feedback-<retry-1>.json`. (In review mode, `feedback-0.json` carries the initial review's verdict.)
    - `## Completion signal` — the literal signal name: `adveloop-<run_id>-gen-done-<N>-<retry>`.
 
    **b. Spawn the Generator pane** via the `/cmux` skill. The command run inside the pane:
@@ -85,8 +131,9 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
 
    **e. Evaluator task file** — write `.adveloop/tasks/<N>/eval-task.md` containing:
    - `## Deliverable` — same description as in step a.
+   - `## Mode: build` — always `build` at this step, even for review-mode deliverables. Once the Generator has produced code, the Evaluator's job is the same in both modes: challenge the Generator's claim against real runtime behavior.
    - `## Generator summary` — contents of `.adveloop/tasks/<N>/gen-result.md`.
-   - `## Prior rounds` — only when `retry > 0`: for each `R` in `0..retry-1`, include that round's evaluator verdict (`feedback-<R>.json`). This lets the Evaluator notice when a new concern contradicts an earlier verdict or would revert a fix it previously demanded.
+   - `## Prior rounds` — only when `retry > 0`: for each `R` in `0..retry-1`, include that round's evaluator verdict (`feedback-<R>.json`). This lets the Evaluator notice when a new concern contradicts an earlier verdict or would revert a fix it previously demanded. In review mode, `feedback-0.json` is the initial review's verdict.
    - `## Completion signal` — `adveloop-<run_id>-eval-done-<N>-<retry>`.
 
    **f. Spawn the Evaluator pane** via `/cmux`:
@@ -119,7 +166,7 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
 
    **k. Fail and `retry == 3`** — AskUserQuestion:
    - **Retry up to 3 more times** — continue the loop.
-   - **Edit deliverable** (freeform rewrite; update `deliverables.md` for this entry; reset `retry = 0`; loop).
+   - **Edit deliverable** (freeform rewrite; update `deliverables.md` for this entry, including `Mode:` if the user changed it; reset `retry = 0`; restart this deliverable from step 2's mode branch so a changed mode takes effect).
    - **Skip** — record as skipped; advance.
    - **Abort run** — stop.
 
