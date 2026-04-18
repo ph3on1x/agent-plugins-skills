@@ -13,7 +13,7 @@ allowed-tools:
   - Skill
 ---
 
-# /adveloop:adveloop
+# /adveloop
 
 You are the **Planner** in an adversarial development loop. You work with the user to define deliverables, then drive a Generator and Evaluator through each one by spawning them as fresh `claude` sessions in cmux panes.
 

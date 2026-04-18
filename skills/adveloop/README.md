@@ -39,7 +39,7 @@ adveloop runs a three-role adversarial loop for every deliverable you approve. A
 ## Usage
 
 ```
-/adveloop:adveloop [product brief, or path to a spec file; empty to resume]
+/adveloop [product brief, or path to a spec file; empty to resume]
 ```
 
 The argument can be an inline brief, a path to a spec file (`.md`, `.txt`, etc.) whose contents become the brief, or empty to resume an existing run.
@@ -54,22 +54,22 @@ The argument can be an inline brief, a path to a spec file (`.md`, `.txt`, etc.)
 </tr>
 <tr>
   <td>"Build this new feature and actually test it"</td>
-  <td><code>/adveloop:adveloop "minimal URL shortener with SQLite"</code></td>
+  <td><code>/adveloop "minimal URL shortener with SQLite"</code></td>
   <td>Planner drafts build-mode deliverables; Generator writes code in a fresh pane; Evaluator exercises each result and returns pass/fail with evidence</td>
 </tr>
 <tr>
   <td>"Audit this existing code and fix what's broken"</td>
-  <td><code>/adveloop:adveloop "review /login for XSS and fix issues found"</code></td>
+  <td><code>/adveloop "review /login for XSS and fix issues found"</code></td>
   <td>Evaluator runs first against your code. If it passes, no Generator runs. If it fails, the verdict becomes the Generator's first feedback round.</td>
 </tr>
 <tr>
   <td>"I have a longer spec already written up"</td>
-  <td><code>/adveloop:adveloop docs/specs/checkout-flow.md</code></td>
+  <td><code>/adveloop docs/specs/checkout-flow.md</code></td>
   <td>Planner reads the file, drafts deliverables from it, asks you to approve</td>
 </tr>
 <tr>
   <td>"Pick up where I left off"</td>
-  <td><code>/adveloop:adveloop</code></td>
+  <td><code>/adveloop</code></td>
   <td>Reads <code>.adveloop/deliverables.md</code>, reports state per deliverable, offers Resume / Rewrite / Abort</td>
 </tr>
 </table>
@@ -100,7 +100,7 @@ The Planner infers the mode per deliverable from verbs in your brief. When a mod
 
 ```mermaid
 flowchart TD
-    A["/adveloop:adveloop [brief]"] --> B["Planner drafts<br>3–8 deliverables"]
+    A["/adveloop [brief]"] --> B["Planner drafts<br>3–8 deliverables"]
     B --> C{"Mode per<br>deliverable"}
     C -- build --> D["Generator pane<br>(fresh claude)"]
     C -- review --> E["Evaluator pane<br>(audit existing code)"]
@@ -154,7 +154,7 @@ Both panes operate under an opinionated quality bar — these are failure condit
 ### Build a new feature with actual verification
 
 ```
-> /adveloop:adveloop "minimal URL shortener with SQLite"
+> /adveloop "minimal URL shortener with SQLite"
 
 Planner drafts 5 build-mode deliverables and shows them for approval.
 You approve. For each deliverable:
@@ -173,7 +173,7 @@ Pass → advance to the next deliverable.
 ### Audit existing code before shipping
 
 ```
-> /adveloop:adveloop "review /login for XSS and input validation; fix issues"
+> /adveloop "review /login for XSS and input validation; fix issues"
 
 Planner drafts a review-mode deliverable.
 
@@ -193,7 +193,7 @@ Evaluator spawns again, re-exercises, confirms pass — deliverable done.
 ### Resume after a crash
 
 ```
-> /adveloop:adveloop
+> /adveloop
 
 Planner reads .adveloop/deliverables.md and scans .adveloop/tasks/:
   1. Persist layer       [build]  — passed
