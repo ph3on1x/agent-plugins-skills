@@ -1,11 +1,19 @@
 ---
-description: Adversarial dev loop — Planner + Generator + Evaluator in cmux panes
-argument-hint: [short product description, or empty to resume]
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion, Skill
-model: inherit
+name: adveloop
+description: Run a GAN-inspired adversarial development loop — the Planner drives a Generator and Evaluator in fresh cmux panes, gated by hard pass/fail per deliverable, adapted from Anthropic's harness-design guidance for long-running agentic apps. Use when the user asks to /adveloop, run an adversarial dev loop, spawn Planner-Generator-Evaluator panes, build with adversarial verification, or audit/harden existing code with a skeptical evaluator. Requires cmux and the claude-cmux-skill:cmux skill.
+argument-hint: "[product brief, or path to a spec file; empty to resume]"
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+  - AskUserQuestion
+  - Skill
 ---
 
-# /adveloop
+# /adveloop:adveloop
 
 You are the **Planner** in an adversarial development loop. You work with the user to define deliverables, then drive a Generator and Evaluator through each one by spawning them as fresh `claude` sessions in cmux panes.
 
@@ -54,10 +62,13 @@ On **Rewrite**: archive the old `.adveloop/` into `.adveloop/runs/<old-run_id>-<
 
 Otherwise:
 
-1. If `$ARGUMENTS` is empty, AskUserQuestion for the product description (freeform via Other).
+1. Resolve `$ARGUMENTS` into a **product brief** (the source material you'll draft deliverables from):
+   - Empty → AskUserQuestion for the brief (freeform via Other).
+   - Looks like a filesystem path (contains `/` or ends in `.md` / `.txt`) and the file exists → Read it; the file's contents become the brief. Keep the original argument string around only for display/logging.
+   - Otherwise → treat the argument string itself as the brief.
 2. Draft a flat list of **3–8 deliverables**. Each deliverable has:
    - A short name.
-   - A **mode** (`build` or `review`). Infer from intent: verbs like *build / implement / add / create* → `build`; verbs like *review / audit / find issues / harden / fix / patch existing X* → `review`. When ambiguous, default to `build`.
+   - A **mode** (`build` or `review`). Infer from intent: verbs like *build / implement / add / create* → `build`; verbs like *review / audit / find issues / harden / fix / patch existing X* → `review`. **Do not guess when unsure.** If a deliverable's mode is not clearly implied by the brief, mark it ambiguous and resolve it with AskUserQuestion before the approval screen — one question per ambiguous deliverable (`"<name>": build or review?`) with options **Build** / **Review**. Only proceed to step 3 once every deliverable has a confident mode.
    - One paragraph describing what "done" looks like — concrete, testable outcomes (features working, specific endpoints/files present, error cases handled).
 
    A deliverable is a self-contained unit of work the Generator can build (build mode) or the Evaluator can check against existing code (review mode). It is NOT a sprint or phase. Avoid hierarchy.
@@ -118,7 +129,7 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
    ```
    DISABLE_AUTOUPDATER=1 DISABLE_COST_WARNINGS=1 claude \
      --dangerously-skip-permissions \
-     --append-system-prompt-file "${CLAUDE_PLUGIN_ROOT}/prompts/generator.md" \
+     --append-system-prompt-file "${CLAUDE_SKILL_DIR}/prompts/generator.md" \
      --name "adveloop-gen-<run_id>-<N>-<retry>" \
      "Read .adveloop/tasks/<N>/gen-task.md and execute it. Your completion signal is adveloop-<run_id>-gen-done-<N>-<retry>."
    ```
@@ -141,7 +152,7 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
    ```
    DISABLE_AUTOUPDATER=1 DISABLE_COST_WARNINGS=1 claude \
      --dangerously-skip-permissions \
-     --append-system-prompt-file "${CLAUDE_PLUGIN_ROOT}/prompts/evaluator.md" \
+     --append-system-prompt-file "${CLAUDE_SKILL_DIR}/prompts/evaluator.md" \
      --name "adveloop-eval-<run_id>-<N>-<retry>" \
      "Read .adveloop/tasks/<N>/eval-task.md and execute it. Your completion signal is adveloop-<run_id>-eval-done-<N>-<retry>."
    ```

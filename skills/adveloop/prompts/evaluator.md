@@ -24,6 +24,28 @@ The current working directory IS the project root. The application code lives th
 5. Check edge cases, not just the happy path. Missing resources, bad input, failed dependencies.
 6. **Background processes** — if you start a server, dev server, or worker (`uvicorn`, `npm run dev`, etc.), you MUST kill it before finishing. Use `kill %1`, `kill $(lsof -t -i:PORT)`, or `pkill -f <name>`. Leaving processes running will stall the next deliverable.
 
+# Documentation & research
+
+When checking how the code uses a third-party library, framework, SDK, API, or CLI tool, **use context7 to pull current documentation** and verify the code against it. This is mandatory. Deprecated API shapes, wrong parameter names, or usage patterns that changed since the model's training cutoff are real failures — catch them.
+
+For questions beyond library docs (framework idioms, project conventions, expected behavior of an edge case), use Claude Code's native research path:
+
+- **WebSearch** for open questions without a clear codebase answer.
+- **Agent** tool with an Explore subagent (codebase) or general-purpose subagent (wider research).
+
+Do not approve code you could not verify because you did not investigate. "I read the code and it looks right" is disqualifying whether the concern is behavior or API correctness.
+
+# Quality bar — native patterns
+
+Hold the code to a native-pattern standard. This applies equally in build mode (auditing the Generator's output) and review mode (auditing existing project code).
+
+- **Hacks, workarounds, monkey-patches, or suppressed errors/warnings** → `passed: false`. Call out the specific offense in `notes` with file:line.
+- **Hand-rolled reimplementations of functionality the framework already provides** (routing, validation, config, migrations, test harness, logging, etc.) → `passed: false`. Point to the native mechanism that should have been used.
+- **Code that "works" only because errors are swallowed or types are widened** to `any`/`unknown` or similar escape hatches → `passed: false`.
+- **Deviation from the project's existing style** when no good reason exists → flag in `notes`; fail if it's load-bearing.
+
+A deliverable that meets its functional criteria but violates native patterns is still a failure. Say so plainly.
+
 # Output
 
 Write your verdict to `.adveloop/tasks/<N>/eval-result.json` using the Write tool. Valid JSON only — no prose, no code fences. Shape:

@@ -21,6 +21,28 @@ The `.adveloop/` directory at the project root holds harness metadata. Do not re
 3. If prior evaluator feedback is present in the task file, read it carefully and address each specific issue. Do not skip items.
 4. When you believe the deliverable is complete, follow **Final step** below exactly.
 
+# Documentation & research
+
+Before you write code that touches a third-party library, framework, SDK, API, or CLI tool — even well-known ones — **use context7 to pull current documentation**. This is mandatory, not optional. Your training data may be stale; current docs are the source of truth for API shapes, config, and idioms.
+
+For anything else you're unsure about (codebase layout, unfamiliar concepts, design trade-offs), use Claude Code's native research path:
+
+- **WebSearch** for open questions with no clear codebase answer.
+- **Agent** tool with an Explore subagent to investigate how the existing codebase already does something, or a general-purpose subagent for broader research that spans sources.
+
+Do not guess. Do not proceed on partial understanding. If you don't know, look it up.
+
+# Code quality & native patterns
+
+Write native, idiomatic code — no hacks, no workarounds.
+
+- **Follow framework-native patterns.** Every framework in the stack has its own conventions for routing, validation, state, config, migrations, testing, logging. Use them. Do not hand-roll a parallel mechanism or reach for a third-party shim when the framework already provides one.
+- **Match the project's existing style.** If an adjacent module handles a similar concern, mirror its layout and naming.
+- **No workarounds, no monkey-patches, no suppression.** Don't silence type-checker errors, lint warnings, or exceptions to "make it pass". If the native path doesn't work, investigate the root cause and fix that instead of routing around it.
+- **Simple, concise, robust.** Less code is better when it's correct. Prefer the obvious solution.
+
+If you catch yourself writing something that feels like a workaround, stop — the native approach almost always exists and you haven't found it yet.
+
 # Final step (MUST do — skipping this hangs the Planner)
 
 1. Write a brief summary to `.adveloop/tasks/<N>/gen-result.md` covering: what you built, files changed (paths), how to run/verify it, and any known limitations.
