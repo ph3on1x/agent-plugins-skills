@@ -39,24 +39,27 @@ Each deliverable carries a **mode** that decides its starting point in Phase 3:
 - `Mode: build` (default) — Generator runs first, then Evaluator. Use for greenfield work.
 - `Mode: review` — Evaluator runs first against the existing codebase with no Generator claim to challenge. If the initial review passes, the deliverable is done with zero Generator runs. If it fails, the loop enters the normal Gen→Eval cycle using the review's verdict as the first feedback round. Use for auditing, hardening, or fixing existing code.
 
-If `.adveloop/deliverables.md` already exists, read it and scan `.adveloop/tasks/<N>/` for every deliverable in the file. Parse each deliverable's `Mode:` line (case-insensitive); treat a missing field as `build` for backward compatibility. Classify each `<N>`'s state as:
+If `.adveloop/deliverables.md` already exists, read it and scan `.adveloop/tasks/<N>/` for every deliverable in the file. Parse each deliverable's `Mode:` line (case-insensitive); treat a missing field as `build` for backward compatibility. For each `<N>`, let `R_max` be the highest integer `R` such that `eval-result-<R>.json` exists and parses. Classify state as:
 
-- **passed** — `eval-result.json` exists, parses, has `passed: true` and a non-empty `evidence` field.
-- **failed-retrying** — `eval-result.json` exists with `passed: false`, or one or more `feedback-<R>.json` files exist without a later clean pass.
-- **partial** — `gen-result.md` exists but `eval-result.json` does not (Generator finished, Evaluator didn't run or was interrupted). Applies only to build mode — review deliverables never produce `gen-result.md` in round 0.
-- **pending** — none of the above.
+- **passed** — `eval-result-<R_max>.json` has `passed: true` and a non-empty `evidence` field.
+- **failed-retrying** — `eval-result-<R_max>.json` has `passed: false`.
+- **partial** — `gen-result-<R>.md` exists for some `R` with no matching `eval-result-<R>.json` (Generator finished, Evaluator didn't run or was interrupted). Review-mode deliverables never produce `gen-result-<0>.md` in round 0.
+- **pending** — no numbered artifacts at all.
+
+If `.adveloop/tasks/<N>/` contains un-numbered legacy files (`eval-result.json`, `gen-result.md`, `feedback-<R>.json`) from a run that predates the per-round naming convention, treat the task as **pending** and default the user's resume offer to **Rewrite from scratch**.
 
 Show the user a one-line summary per deliverable (`N. <name> [<mode>] — <state>`) and AskUserQuestion: **Resume** / **Rewrite from scratch** / **Abort**. Mention in the question body: *"If you edited `deliverables.md` by hand since the last run — especially Mode fields — prefer Rewrite; the Planner only re-scans artifacts, not the semantics of changes."*
 
 On **Resume**: proceed to Phase 3. For each `<N>` whose state is **passed**, record the pass and advance without spawning. Otherwise:
 
 - **build mode**:
-  - **partial** → skip Generator steps 2a–d and jump to step 2e (write `eval-task.md` from the existing `gen-result.md`) with `retry = (count of feedback-<R>.json files)`.
-  - **failed-retrying** / **pending** → run the full loop from step 2a with `retry = (count of feedback-<R>.json files)`.
+  - **partial** → let `R` be the round with a `gen-result-<R>.md` but no matching `eval-result-<R>.json`. Skip Generator steps 2a–d and jump to step 2e for round `R` with `retry = R`.
+  - **failed-retrying** → run the full loop from step 2a with `retry = R_max + 1`.
+  - **pending** → run the full loop from step 2a with `retry = 0`.
 - **review mode**:
-  - **pending** (no `eval-result.json`) → re-enter Phase 3 at the initial-review sub-procedure (step R1 below).
-  - **failed-retrying** (`eval-result.json` shows `passed: false`, `gen-result.md` absent) → this is an interrupted review round 0. If `feedback-0.json` is missing, promote `eval-result.json` into `feedback-0.json` first. Then enter the Gen→Eval loop at step 2a with `retry = 1`.
-  - If `gen-result.md` exists, the deliverable has already passed round 0's review and proceeded into the Gen→Eval loop — resume using the build-mode rules above with `retry = (count of feedback-<R>.json files)`.
+  - **pending** → re-enter Phase 3 at the initial-review sub-procedure (step R1 below).
+  - `eval-result-0.json` has `passed: false` and no `gen-result-<R>.md` exists — this is an interrupted round 0 review. Enter the Gen→Eval loop at step 2a with `retry = 1`.
+  - Otherwise (a `gen-result-<R>.md` exists for some `R ≥ 1`) — the deliverable has already passed round 0's review and proceeded into the Gen→Eval loop. Resume using the build-mode rules above.
 
 On **Rewrite**: archive the old `.adveloop/` into `.adveloop/runs/<old-run_id>-<timestamp>/` (read `run_id` from the old deliverables header comment if present; otherwise use the current time) and continue below.
 
@@ -99,7 +102,7 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
 
    **Initial review sub-procedure (review mode only):**
 
-   **R1. Evaluator task file** — write `.adveloop/tasks/<N>/eval-task.md` containing:
+   **R1. Evaluator task file** — write `.adveloop/tasks/<N>/eval-task-0.md` containing:
    - `## Deliverable` — this deliverable's name + description (verbatim from `deliverables.md`).
    - `## Mode: review`
    - `## Completion signal` — the literal signal name: `adveloop-<run_id>-eval-done-<N>-0`.
@@ -110,18 +113,18 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
 
    **R3. Wait on `adveloop-<run_id>-eval-done-<N>-0`** via `/cmux`. Same observation and intervention rules as step **c**.
 
-   **R4. On signal** — read `.adveloop/tasks/<N>/eval-result.json`. Validate shape (non-empty `evidence`; if missing/malformed, AskUserQuestion **Retry this round** / **Abort** as in step **h**). Close the pane.
+   **R4. On signal** — read `.adveloop/tasks/<N>/eval-result-0.json`. Validate shape (non-empty `evidence`; if missing/malformed, AskUserQuestion **Retry this round** / **Abort** as in step **h**). Close the pane.
    - `passed: true` → record the pass and advance to the next deliverable.
-   - `passed: false` → write the verdict to `.adveloop/tasks/<N>/feedback-0.json`, set `retry = 1`, and fall through to the Gen→Eval loop below starting at step **a**.
+   - `passed: false` → set `retry = 1` and fall through to the Gen→Eval loop below starting at step **a**. No file copy is needed: `eval-result-0.json` is already the round-1 Generator's prior-feedback input.
 
    The `retry` counter counts failed Gen→Eval pairs, *not* Evaluator invocations. This initial review round does not consume a retry slot; review deliverables still get up to 3 Gen→Eval fix attempts before the 3-fail escalation in step **k**.
 
    Loop:
 
-   **a. Generator task file** — write `.adveloop/tasks/<N>/gen-task.md` containing:
+   **a. Generator task file** — write `.adveloop/tasks/<N>/gen-task-<retry>.md` containing:
    - `## Deliverable` — this deliverable's name + description (verbatim from `deliverables.md`).
    - `## Project context` — optional: paths, tech-stack notes the user supplied, or leave empty.
-   - `## Prior evaluator feedback` — only when `retry > 0`: contents of `.adveloop/tasks/<N>/feedback-<retry-1>.json`. (In review mode, `feedback-0.json` carries the initial review's verdict.)
+   - `## Prior evaluator feedback` — only when `retry > 0`: contents of `.adveloop/tasks/<N>/eval-result-<retry-1>.json`. (In review mode, `eval-result-0.json` carries the initial review's verdict.)
    - `## Completion signal` — the literal signal name: `adveloop-<run_id>-gen-done-<N>-<retry>`.
 
    **b. Spawn the Generator pane** via the `/cmux` skill. The command run inside the pane:
@@ -131,20 +134,20 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
      --dangerously-skip-permissions \
      --append-system-prompt-file "${CLAUDE_SKILL_DIR}/prompts/generator.md" \
      --name "adveloop-gen-<run_id>-<N>-<retry>" \
-     "Read .adveloop/tasks/<N>/gen-task.md and execute it. Your completion signal is adveloop-<run_id>-gen-done-<N>-<retry>."
+     "Read .adveloop/tasks/<N>/gen-task-<retry>.md and execute it. Your completion signal is adveloop-<run_id>-gen-done-<N>-<retry>."
    ```
 
    Only the short bootstrap prompt crosses the shell; the role file is read by `claude` itself; dynamic content is loaded via Read. Substitute `<run_id>`, `<N>`, `<retry>` with actual values.
 
    **c. Wait on `adveloop-<run_id>-gen-done-<N>-<retry>`** via the `/cmux` skill. No fixed timeout. Sample the pane's output every ~60s for observation. If you judge the pane stuck (repeating errors, no new output for several minutes, fatal exit without the signal), pause and AskUserQuestion: **Keep waiting** / **Intervene** (user describes the issue; it becomes feedback for the next round) / **Abort run**.
 
-   **d. On signal** — read `.adveloop/tasks/<N>/gen-result.md` for the Generator's summary. Close the pane.
+   **d. On signal** — read `.adveloop/tasks/<N>/gen-result-<retry>.md` for the Generator's summary. Close the pane.
 
-   **e. Evaluator task file** — write `.adveloop/tasks/<N>/eval-task.md` containing:
+   **e. Evaluator task file** — write `.adveloop/tasks/<N>/eval-task-<retry>.md` containing:
    - `## Deliverable` — same description as in step a.
    - `## Mode: build` — always `build` at this step, even for review-mode deliverables. Once the Generator has produced code, the Evaluator's job is the same in both modes: challenge the Generator's claim against real runtime behavior.
-   - `## Generator summary` — contents of `.adveloop/tasks/<N>/gen-result.md`.
-   - `## Prior rounds` — only when `retry > 0`: for each `R` in `0..retry-1`, include that round's evaluator verdict (`feedback-<R>.json`). This lets the Evaluator notice when a new concern contradicts an earlier verdict or would revert a fix it previously demanded. In review mode, `feedback-0.json` is the initial review's verdict.
+   - `## Generator summary` — contents of `.adveloop/tasks/<N>/gen-result-<retry>.md`.
+   - `## Prior rounds` — only when `retry > 0`: for each `R` in `0..retry-1`, include that round's evaluator verdict (`eval-result-<R>.json`). This lets the Evaluator notice when a new concern contradicts an earlier verdict or would revert a fix it previously demanded. In review mode, `eval-result-0.json` is the initial review's verdict.
    - `## Completion signal` — `adveloop-<run_id>-eval-done-<N>-<retry>`.
 
    **f. Spawn the Evaluator pane** via `/cmux`:
@@ -154,12 +157,12 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
      --dangerously-skip-permissions \
      --append-system-prompt-file "${CLAUDE_SKILL_DIR}/prompts/evaluator.md" \
      --name "adveloop-eval-<run_id>-<N>-<retry>" \
-     "Read .adveloop/tasks/<N>/eval-task.md and execute it. Your completion signal is adveloop-<run_id>-eval-done-<N>-<retry>."
+     "Read .adveloop/tasks/<N>/eval-task-<retry>.md and execute it. Your completion signal is adveloop-<run_id>-eval-done-<N>-<retry>."
    ```
 
    **g. Wait** on `adveloop-<run_id>-eval-done-<N>-<retry>`. Same observation + intervention rules as step c.
 
-   **h. On signal** — read `.adveloop/tasks/<N>/eval-result.json`. Close the pane. Shape:
+   **h. On signal** — read `.adveloop/tasks/<N>/eval-result-<retry>.json`. Close the pane. Shape:
 
    ```json
    {
@@ -173,7 +176,7 @@ For each deliverable in `deliverables.md` in order, with `N = 1..K`:
 
    **i. Pass** (`passed == true`) — record it in a scratch log line; advance to the next deliverable.
 
-   **j. Fail and `retry < 3`** — write the evaluator's verdict to `.adveloop/tasks/<N>/feedback-<retry>.json`; `retry++`; loop back to step a.
+   **j. Fail and `retry < 3`** — `retry++`; loop back to step a. The round's verdict is already persisted as `eval-result-<retry>.json`; no copy is needed.
 
    **k. Fail and `retry == 3`** — AskUserQuestion:
    - **Retry up to 3 more times** — continue the loop.
