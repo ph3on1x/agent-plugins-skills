@@ -54,9 +54,17 @@ demands it.
      instruct against fabrication.
 
 6. **Confirm.** Show the assembled prompt in a fenced code block, then ask via
-   `AskUserQuestion`: *Looks good — run it* / *Edit a section* / *Start over*.
-   On "Edit", collect the change and re-assemble. On "Start over", return to
-   step 2.
+   `AskUserQuestion`. `AskUserQuestion` allows at most four options plus an
+   automatic "Other", so present these four and let "Other" carry *Start over*:
+   - **Run it** *(Recommended)* → go to step 7 and execute now.
+   - **Run in /plan mode** → enter plan mode (`EnterPlanMode`) first, then carry
+     out the refined prompt as a planning task — research and propose a plan for
+     approval before making any changes.
+   - **Copy** → output the final prompt in a fenced code block for the user to
+     copy and stop. Do not execute it.
+   - **Edit a section** → collect the change, re-assemble (step 5), re-confirm.
+
+   If the user picks "Other" and asks to *start over*, return to step 2.
 
 7. **Execute.** Once approved, treat the refined prompt as the active
    instruction and carry out the task here in this session.

@@ -50,7 +50,9 @@ example live in [`references/frameworks.md`](references/frameworks.md).
 4. **Interview** — asks only the gaps via `AskUserQuestion` (batched, with
    sensible default options). Skips entirely if nothing is missing.
 5. **Assemble** an XML-tagged prompt with success criteria and output format.
-6. **Confirm** — shows the prompt; you approve, edit, or restart.
+6. **Confirm** — shows the prompt; you choose **Run it**, **Run in /plan mode**,
+   **Copy** (hand back the prompt without running), **Edit a section**, or start
+   over.
 7. **Execute** the approved prompt in this session.
 
 ## Install
