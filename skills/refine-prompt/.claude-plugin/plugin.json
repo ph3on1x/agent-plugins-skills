@@ -1,6 +1,6 @@
 {
   "name": "refine-prompt",
   "description": "Interview-style prompt refiner that picks a framework, fills gaps via AskUserQuestion, assembles a structured XML prompt, confirms, then executes it.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": { "name": "Dennis Nasarov" }
 }
