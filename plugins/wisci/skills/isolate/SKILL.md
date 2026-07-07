@@ -1,92 +1,69 @@
 ---
 name: isolate
-description: This skill should be used when the user asks to "research", "explore codebase", "investigate", "compare approaches", or needs deep exploration without polluting the main context. Delegates research to subagents with isolated context windows.
-argument-hint: task description for subagent research
-allowed-tools:
-  - Read
-  - Glob
-  - Grep
-  - Agent
-  - Bash(git *)
+description: Delegates research and exploration to subagents with isolated context windows, then synthesizes findings inline and persists durable results to .wisci/context/ via the write skill. Use for investigating a codebase area, researching external docs or best practices, or comparing approaches without polluting the main context.
+argument-hint: "task description ('deep' widens the sweep; 'save'/'nosave' force persistence)"
+allowed-tools: Read Glob Grep Agent Bash(git *) Bash(python3 *)
+compatibility: Requires git and python3 (bundled wisci.py script). Subagent spawning needs an Agent tool; without one, run the research sequentially inline.
 ---
 
 # /isolate — Subagent Research Delegator
 
-Delegate research and exploration to subagents operating in isolated context windows. The main context stays clean while subagents do the heavy lifting — reading files, searching code, exploring documentation, and synthesizing findings.
+Research happens in subagent context windows; only synthesized findings enter the main context. Durable findings are then persisted to the store so no future session repeats the work.
+
+## Store pre-flight
+
+Existing store state:
+!`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py" scan`
+
+> If the scan shows an error or unexpanded variable, run the bundled script manually: [scripts/wisci.py](scripts/wisci.py) relative to this skill's directory.
+
+Before spawning anything, check the scan for a `.wisci/context/` file covering the research topic:
+- **Fresh match:** load it. Narrow the research to what it does not answer — or skip research entirely and present the stored knowledge.
+- **Stale match:** research anyway; in the synthesis, reconcile against the stored file ("what changed since this was written").
+- **No match:** research from scratch.
 
 ## Execution Flow
 
-1. **Parse task.** Read `$ARGUMENTS` to understand the research task and its scope.
+1. **Parse task.** Read `$ARGUMENTS`. Note override words: `deep`/`thorough` (wider sweep), `save` (force persist), `nosave` (inline only).
 
-2. **Plan decomposition.** Autonomously decide how to split the work across subagents. Do not present the plan for approval — execute directly. Consider:
-   - **Decomposability:** Can the research split into independent subtasks? If the task is tightly coupled, use 1 agent.
-   - **Scope:** Each subagent should have a focused, achievable goal. Avoid giving one agent too broad a mandate.
-   - **Count:** Use 1-3 subagents based on task scope:
-     - **1 agent** — focused, single-area research (e.g., "how does auth work")
-     - **2 agents** — natural split into two domains (e.g., "compare library A vs B")
-     - **3 agents** — broad investigation across multiple areas (e.g., "understand the full payment flow: handler, models, and external API")
+2. **Plan decomposition.** Decide autonomously — no approval step. For each subtask pick the agent type:
+   - **Codebase questions** → `subagent_type: "Explore"` (read-only)
+   - **External questions** (library docs, best practices, comparisons) → `subagent_type: "general-purpose"` with instructions to use web search/fetch
+   - Hybrid tasks mix both.
 
-3. **Spawn subagents.** Use the Agent tool to launch subagents. When spawning multiple agents, launch them all in a single message for parallel execution. Each agent gets:
-   - A `description` (3-5 words summarizing the subtask)
-   - A detailed `prompt` with:
-     - The specific investigation task
-     - What files, patterns, or areas to explore
-     - The output format to follow (structured markdown with headings)
-     - Instruction to be thorough but focused
-   - `subagent_type: "Explore"` for read-only research tasks, or omit for tasks requiring broader tool access
+   Agent count: 1 for focused single-area research, 2-3 for natural splits, up to 5 only when `$ARGUMENTS` says `deep`/`thorough`. When multiple agents cover one topic, give each a **distinct lens** (code structure, git history, docs/web) rather than redundant copies of the same search.
 
-4. **Collect results.** Wait for all subagents to complete and return their findings.
+3. **Spawn all agents in a single message** (parallel). Each prompt contains: the specific investigation task, focus areas, and the required output shape — structured markdown with exact file paths, line numbers, function names, and error messages. Vague summaries are not acceptable subagent output.
 
-5. **Synthesize.** Combine the subagent results into a coherent summary:
-   - Highlight key findings from each agent
-   - Identify patterns, contradictions, or connections across results
-   - Form actionable recommendations or conclusions
-   - Note any gaps where further investigation may be needed
+4. **Collect and handle failures.** An agent that returns nothing or dies: retry it once; still nothing → report the coverage gap explicitly in the synthesis. Never present partial coverage as complete.
 
-6. **Present inline.** Output the synthesized results directly in the conversation using the output format below. Do not write results to a file.
+5. **Synthesize inline** using the output format below: key findings per agent, patterns and contradictions across them, actionable conclusions, remaining gaps.
+
+6. **Persist durable findings.** Judge what the research produced:
+   - **Durable** (architecture maps, integration research, comparisons, external docs findings — anything a future session would otherwise re-discover): invoke the `write` skill with the topic so it lands in `.wisci/context/` with a References manifest. On platforms without skill invocation, follow the write skill's procedure directly. This skill contains no write logic of its own.
+   - **Ephemeral** (a quick lookup answered in a paragraph): inline only — a trivial store entry is rot, not memory.
+   - `save`/`nosave` in `$ARGUMENTS` overrides this judgment.
 
 ## Output Format
-
-Present results inline in the conversation:
 
 ```markdown
 ## /isolate Results: <task summary>
 
-### Agent 1: <subtask name>
-<Structured findings with file paths, code references, and specifics>
+### <Agent/lens 1 name>
+<Structured findings with file paths and specifics>
 
-### Agent 2: <subtask name>
-<Structured findings>
-
-### Agent N: <subtask name>
-<Structured findings>
+### <Agent/lens N name>
+...
 
 ### Synthesis
-<Combined insights, patterns across agents, contradictions found, and recommendations>
+<Combined insights, contradictions, recommendations, gaps>
 ```
 
-## Subagent Prompt Template
-
-When crafting prompts for each subagent, follow this structure:
-
-```
-Investigate: <specific subtask description>
-
-Focus areas:
-- <area 1 to explore>
-- <area 2 to explore>
-
-Report your findings as structured markdown with:
-- File paths and line numbers for all referenced code
-- Key function/class names and their purposes
-- How components connect or interact
-- Any issues, edge cases, or concerns discovered
-```
+End with: `~N tokens entered context. Persisted: .wisci/context/<topic>.md` (or "not persisted — ephemeral").
 
 ## Key Constraints
 
-- **Results are inline only.** Findings appear in the main context window, not written to a file. If the user wants to persist results, they follow up with `/write`.
-- **No approval step.** The decomposition plan executes immediately. The user sees results, not the plan.
-- **Parallel execution.** When using 2-3 agents, spawn them all in a single tool-use message so they run concurrently.
-- **Preserve specifics.** Subagent prompts must request exact file paths, line numbers, function names, and error messages — not vague summaries.
-- **This skill runs inline** (not as a forked subagent). It must be able to spawn multiple child agents from within the main context.
+- **Findings are presented inline first**, persistence second — the user reads results now either way.
+- **No approval step** for decomposition; the user sees results, not plans.
+- **Parallel execution**: multiple agents always spawn in one message.
+- **Runs inline** (not forked) — it must spawn children and load results into the main window.

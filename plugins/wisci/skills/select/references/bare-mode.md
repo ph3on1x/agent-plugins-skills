@@ -1,77 +1,81 @@
-# Bare Mode — Codebase Primer
+# Bare Mode — Codebase Primer + Store Inventory
 
-When `/select` is invoked with no arguments, produce a comprehensive codebase overview and list all available scratchpad context files with staleness status.
+Produce a codebase overview and an inventory of stored context. The scan output in SKILL.md already classified every store file — do not rescan.
 
-## Procedure
+## Step 1: Primer — cached or derived
 
-### Step 1: Analyze project structure
+Check the scan for `.wisci/primer.md`:
 
-Use Glob to scan the project root and identify the directory layout. Focus on top-level directories and key structural patterns. Produce an annotated directory tree (depth 2-3 levels, omit `node_modules/`, `.git/`, and other dependency/build directories).
+- **Fresh:** Read it and present its content as the primer. Done — skip Step 2.
+- **Stale, broken, or absent:** derive a new primer (Step 2). The scan's `changed` list tells you what invalidated it (`<repo structure>` means the directory layout shifted).
 
-### Step 2: Identify tech stack
+## Step 2: Derive and cache the primer (only when not fresh)
 
-Use Read to check configuration files for language, framework, and dependency information:
-- `package.json` — Node.js dependencies and scripts
-- `tsconfig.json` / `jsconfig.json` — TypeScript/JavaScript config
-- `pyproject.toml` / `requirements.txt` — Python dependencies
-- `Cargo.toml` — Rust dependencies
-- `go.mod` — Go dependencies
-- Other language-specific config files found in Step 1
+1. **Structure:** scan the project root (Glob, depth 2-3, skip dependency/build dirs). Produce an annotated directory tree.
+2. **Tech stack:** Read manifest files (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, tsconfig, etc.). Report language, framework, key dependencies.
+3. **Conventions:** Read project docs (`README.md`, `CLAUDE.md`, `AGENTS.md`, `docs/`, `CONTRIBUTING.md`). Extract coding patterns, architecture style, testing setup.
+4. **Cache it:** get the current structure hash (`python3 <wisci.py> structure-hash`) and write `.wisci/primer.md`:
 
-Report the primary language, framework, and key dependencies.
+```markdown
+---
+structure_hash: <hash>
+updated: <YYYY-MM-DD>
+---
 
-### Step 3: Check project documentation
+# Project Primer
 
-Use Glob to look for documentation files:
-- `README.md` or `README.*`
-- `CLAUDE.md` or `.claude/CLAUDE.md`
-- `AGENTS.md` — Codex CLI / cross-platform instructions
-- `GEMINI.md` — Gemini CLI instructions
-- `.cursor/rules/` — Cursor project rules
-- `docs/` directory contents
-- `CONTRIBUTING.md`, `ARCHITECTURE.md`
+## Structure
+<annotated tree>
 
-Read and summarize key project documentation that would help understand the codebase.
+## Tech Stack
+<languages, frameworks, key dependencies>
 
-### Step 4: Identify conventions
+## Conventions
+<patterns, architecture, testing>
 
-From the files read in Steps 2-3, extract:
-- Coding patterns and style (functional vs OOP, naming conventions)
-- Architecture style (monolith, microservices, monorepo)
-- Testing patterns (framework, file organization)
-- Build and deployment setup
+## References
+- `package.json` — dependency and script source
+- `README.md` — project documentation
+<every file read while deriving this primer, one line each>
+```
 
-### Step 5: Scan scratchpad
+The `## References` manifest plus `structure_hash` is what lets future sessions load this primer instantly instead of re-exploring.
 
-Use Glob to list all files in `scratchpad/`. If the directory does not exist, report "No scratchpad/ directory found — no WISCI context files available."
+## Step 3: Handoff streams
 
-### Step 6: Run staleness detection
+From the scan's `streams` list:
 
-For each file in `scratchpad/`, run the staleness detection procedure from `${CLAUDE_SKILL_DIR}/references/staleness-detection.md`. Classify each file as fresh, stale, or broken.
+- **0 streams:** skip this section.
+- **1 stream:** Read the single leaf (apply staleness rules from SKILL.md) and present it.
+- **2+ streams:** Read `.wisci/handoff.md` (the index) only. Present it — the user picks a stream with `/select <stream>` if they want one loaded. Load a leaf now only if exactly one stream is `active` and it is fresh.
 
-### Step 7: Present overview
+## Step 4: Available context listing
 
-Assemble findings into the bare mode output format:
+From the scan's `files`, list every `.wisci/context/` file with status:
+
+```
+- auth-research.md          fresh
+- payment-integration.md    stale (src/payments/webhook.ts changed)
+- old-notes.md              broken (src/old-module.ts no longer exists) — not loaded
+```
+
+Do NOT load context files in bare mode — this is an inventory, not a bulk load. Surface any scan `warnings` (untracked files, gitignored store) to the user.
+
+## Step 5: Present
 
 ```markdown
 ## Project Overview
 
-### Structure
-<Annotated directory tree from Step 1>
+### Structure / Tech Stack / Conventions
+<primer content — cached or freshly derived>
 
-### Tech Stack
-<Languages, frameworks, key dependencies from Step 2>
-
-### Conventions
-<Patterns and style from Step 4>
+### Handoff
+<index, single leaf, or "none">
 
 ### Available Context
-<List each scratchpad file with staleness status>
+<listing from Step 4>
 ```
 
-For the Available Context listing:
-- **Fresh files:** `filename.md          fresh`
-- **Stale files:** `filename.md          stale (N sections affected; <path> changed <when>)`
-- **Broken files:** `filename.md          broken (<path> no longer exists) — not loaded`
+If `.wisci/` does not exist: derive the primer and write it to `.wisci/primer.md` to seed the store, then note: "No stored context yet. Use /write to create it."
 
-If no scratchpad files exist, report: "No context files in scratchpad/. Use /write to create them."
+End with the load report from SKILL.md's Output Contract.

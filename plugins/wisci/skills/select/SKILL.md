@@ -1,108 +1,60 @@
 ---
 name: select
-description: This skill should be used when the user asks to "load context", "prime session", "what's in scratchpad", "show project overview", or needs to load relevant context into the current window. Bare invocation gives codebase overview; with arguments gives targeted deep dive.
+description: Loads validated project context into the session — bare invocation gives a codebase primer plus an inventory of stored context and handoffs; with arguments it runs a targeted deep dive on one topic. Use when starting or resuming a session, orienting in a project, or loading stored context for a task.
 argument-hint: "[topic] (optional — omit for codebase primer)"
-allowed-tools:
-  - Read
-  - Glob
-  - Grep
-  - Agent
-  - Bash(git *)
+allowed-tools: Read Glob Grep Agent Bash(git *) Bash(python3 *)
+compatibility: Requires git and python3 (bundled wisci.py script)
 ---
 
 # /select — Context Loader
 
-Load relevant context into the current window. This is the "load from disk" operation — retrieve exactly the information needed for the current task.
+Load exactly the context the current task needs. Every stored file is validated by staleness detection before it enters the window — outdated content is stripped, never loaded.
+
+## Store state
+
+!`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py" scan`
+
+> If the scan above shows an error or an unexpanded variable, run the bundled script manually: it is at [scripts/wisci.py](scripts/wisci.py) relative to this skill's directory. Run `python3 <that path> scan` with Bash.
+
+The scan classifies every file in `.wisci/` (`fresh` / `stale` / `broken`), lists what changed, and enumerates handoff streams. Trust it — do not re-derive staleness with your own git commands.
 
 ## Mode Detection
 
 Check `$ARGUMENTS`:
-- **Empty or blank:** execute **bare mode** — read and follow `${CLAUDE_SKILL_DIR}/references/bare-mode.md`
-- **Has content:** execute **targeted mode** — read and follow `${CLAUDE_SKILL_DIR}/references/targeted-mode.md`
+- **Empty or blank:** execute **bare mode** — read and follow [references/bare-mode.md](references/bare-mode.md)
+- **Has content:** execute **targeted mode** — read and follow [references/targeted-mode.md](references/targeted-mode.md)
 
-## Staleness Detection
+## Staleness Action Rules
 
-Both modes use staleness detection to validate context files before loading or listing them. For the full procedure, read `${CLAUDE_SKILL_DIR}/references/staleness-detection.md`.
+Apply to every context file before loading:
 
-### Staleness Action Rules
-
-After running staleness detection, apply these rules:
-
-**When loading context files (targeted mode):**
-
-- **Fresh files:** load as-is into the context
-- **Stale files:** load with stale sections stripped. A section "depends on" a reference if that reference's file path appears in the section body.
-  - Strip sections whose dependent references have changed
-  - If a stale reference only appears in `## References` and not in any section body, do not strip any section — instead prepend this warning to the file:
+- **Fresh:** load as-is.
+- **Stale:** load with stale sections stripped. A section "depends on" a reference if that reference's path appears in the section body.
+  - Strip sections whose dependent references appear in the scan's `changed` list.
+  - If a changed reference appears only in `## References` and in no section body, strip nothing — prepend instead:
     ```
     > **Note:** Referenced file <path> has changed since this context was written.
     ```
-  - When sections are stripped, prepend this note:
+  - When sections are stripped, prepend:
     ```
-    > **Note:** N sections were stripped because their referenced files have changed. Consider /write <topic> to refresh this file.
+    > **Note:** N sections stripped — their referenced files changed. Consider /write <topic> to refresh.
     ```
-- **Broken files:** do not load. Report to the user:
-  ```
-  "<filename> references code that no longer exists. Delete it or refresh with /write."
-  ```
+- **Broken:** do not load. Report: "<filename> references code that no longer exists. Delete it or refresh with /write."
+- **Handoff leaves older than 7 days** (scan `age_days`): warn before loading — "handoff is N days old; its next steps may be outdated."
+- Files without a `## References` manifest have no trackable references — treat as fresh.
 
-**When listing context files (bare mode):**
+## Output Contract
 
-- Report all files with staleness status: `fresh`, `stale`, or `broken`
-- For stale files: list which referenced files changed, when, and how many sections are affected
-- For broken files: list which referenced files no longer exist
+End every invocation with a load report:
 
-## Output Formats
-
-### Bare Mode Output
-
-```markdown
-## Project Overview
-
-### Structure
-<Directory tree with annotations>
-
-### Tech Stack
-<Languages, frameworks, key dependencies>
-
-### Conventions
-<Coding patterns, naming conventions, architecture style>
-
-### Available Context
-- auth-research.md          fresh
-- payment-integration.md    stale (2 sections stripped; src/payments/webhook.ts changed 2 days ago)
-- handoff.md                broken (src/old-module.ts no longer exists) — not loaded
+```
+Loaded: <n> files (~<k> tokens). Stripped: <n> stale sections. Skipped: <files, reason>.
 ```
 
-### Targeted Mode Output
-
-```markdown
-## Selected Context: <topic>
-
-### Relevant Code
-<Key files, functions, and their relationships>
-
-### History
-<Relevant git changes and their context>
-
-### Documentation
-<Related docs, comments, or previously written context>
-
-### Summary
-<How these pieces fit together for the current task>
-```
+Estimate tokens as total loaded bytes / 4. The point: the user sees what this load cost their context window.
 
 ## Key Constraints
 
-- **This skill runs inline** (not as a forked subagent). Targeted mode may spawn child agents via the Agent tool for deep exploration.
-- Stale content stripping is automatic — never load outdated information into the context window.
-- `scratchpad/` files use `## References` as their staleness manifest. Files without this section are treated as having no trackable references (always classified as fresh).
-
-## Additional Resources
-
-### Reference Files
-
-For mode-specific procedures and staleness detection, consult:
-- **`references/bare-mode.md`** — Full codebase primer procedure
-- **`references/targeted-mode.md`** — Targeted exploration procedure
-- **`references/staleness-detection.md`** — 4-step staleness detection using git
+- **Runs inline** (not forked) — loaded context must land in the main window. Targeted mode may spawn child agents for exploration.
+- Never load stale or broken content; the stripping rules are not optional.
+- The handoff index (`.wisci/handoff.md`) is script-generated — read it for routing, never edit it.

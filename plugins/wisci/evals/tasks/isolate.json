@@ -1,0 +1,12 @@
+{
+  "skill": "isolate",
+  "tasks": [
+    {
+      "name": "store-preflight-uses-fresh-context",
+      "prompt": "/wisci:isolate how does authentication work in this codebase",
+      "assertions": [
+        {"type": "output_contains", "needle": "src/auth/middleware.ts"}
+      ]
+    }
+  ]
+}

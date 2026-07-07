@@ -1,0 +1,23 @@
+{
+  "skill": "isolate",
+  "should_trigger": [
+    {"prompt": "research how authentication works in this codebase without cluttering our context", "split": "train"},
+    {"prompt": "investigate the full payment flow end to end", "split": "train"},
+    {"prompt": "explore the structure of this repo and report back", "split": "train"},
+    {"prompt": "compare React Query and SWR for this project", "split": "train"},
+    {"prompt": "research best practices for Express middleware testing", "split": "train"},
+    {"prompt": "dig into how sessions are stored and expired here", "split": "validation"},
+    {"prompt": "do a deep dive into the API layer", "split": "validation"},
+    {"prompt": "find out how the webhook retry logic behaves across the codebase", "split": "validation"}
+  ],
+  "should_not_trigger": [
+    {"prompt": "isolate the bug in the login handler and fix it", "split": "train"},
+    {"prompt": "run only the failing test in isolation", "split": "train"},
+    {"prompt": "explain the CSS isolation property", "split": "train"},
+    {"prompt": "isolate x in the equation 2x + 3 = 9", "split": "train"},
+    {"prompt": "how does docker container isolation work?", "split": "train"},
+    {"prompt": "quarantine the flaky tests in CI", "split": "validation"},
+    {"prompt": "what is process isolation in operating systems?", "split": "validation"},
+    {"prompt": "rename this variable across the file", "split": "validation"}
+  ]
+}

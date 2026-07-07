@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status && echo 'Context was just compacted — run /compress to snapshot session state to .wisci/ before continuing.'"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "auto|manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Preserve verbatim in the summary: file paths, decisions with their rationale, error messages, next steps, and the current state of .wisci/ files.'"
+          }
+        ]
+      }
+    ]
+  }
+}

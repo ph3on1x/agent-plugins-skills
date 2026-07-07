@@ -1,0 +1,23 @@
+{
+  "skill": "compress",
+  "should_trigger": [
+    {"prompt": "wrap up this session and save our progress", "split": "train"},
+    {"prompt": "create a handoff, I need to stop for today", "split": "train"},
+    {"prompt": "snapshot where we are so tomorrow's session can continue", "split": "train"},
+    {"prompt": "save the session state before I close this", "split": "train"},
+    {"prompt": "we're done for now — make sure nothing is lost for next time", "split": "train"},
+    {"prompt": "prepare a handoff for my teammate to pick this up", "split": "validation"},
+    {"prompt": "context is getting full, save our working state", "split": "validation"},
+    {"prompt": "end the session but keep the next steps somewhere", "split": "validation"}
+  ],
+  "should_not_trigger": [
+    {"prompt": "compress this image to under 100kb", "split": "train"},
+    {"prompt": "gzip the log files older than a week", "split": "train"},
+    {"prompt": "minify the js bundle for production", "split": "train"},
+    {"prompt": "compress the video with ffmpeg", "split": "train"},
+    {"prompt": "reduce the size of this JSON payload", "split": "train"},
+    {"prompt": "zip the dist folder for release", "split": "validation"},
+    {"prompt": "compact the sqlite database", "split": "validation"},
+    {"prompt": "shorten this paragraph to two sentences", "split": "validation"}
+  ]
+}
