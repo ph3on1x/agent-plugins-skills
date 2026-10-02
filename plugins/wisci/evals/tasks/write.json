@@ -1,0 +1,15 @@
+{
+  "skill": "write",
+  "tasks": [
+    {
+      "name": "create-context-file-with-manifest",
+      "prompt": "We just finished researching rate limiting for this app. Key findings: the API needs a token bucket limiter at 100 req/min per user; the natural place is a new middleware in src/api/limiter.ts wired before auth in src/auth/middleware.ts; we decided against nginx-level limiting because we need per-user state. /wisci:write rate limiting research",
+      "assertions": [
+        {"type": "glob_min", "pattern": ".wisci/context/*rate*", "min": 1},
+        {"type": "glob_contains", "pattern": ".wisci/context/*rate*", "needle": "## References"},
+        {"type": "glob_contains", "pattern": ".wisci/context/*rate*", "needle": "token bucket"},
+        {"type": "glob_contains", "pattern": ".wisci/context/*rate*", "needle": "src/api/limiter.ts"}
+      ]
+    }
+  ]
+}

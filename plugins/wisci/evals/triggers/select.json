@@ -1,0 +1,23 @@
+{
+  "skill": "select",
+  "should_trigger": [
+    {"prompt": "load the context for this project", "split": "train"},
+    {"prompt": "give me an overview of this codebase before we start", "split": "train"},
+    {"prompt": "prime this session with what we know so far", "split": "train"},
+    {"prompt": "what context do we have stored about the payment flow?", "split": "train"},
+    {"prompt": "catch me up on this project, I've been away a week", "split": "train"},
+    {"prompt": "load everything relevant to the auth work", "split": "validation"},
+    {"prompt": "resume where the last session left off", "split": "validation"},
+    {"prompt": "what handoffs and notes are available in this repo?", "split": "validation"}
+  ],
+  "should_not_trigger": [
+    {"prompt": "select all rows from the users table where age > 30", "split": "train"},
+    {"prompt": "how do I select an element by class in CSS?", "split": "train"},
+    {"prompt": "load this CSV into a pandas dataframe", "split": "train"},
+    {"prompt": "what does this function do?", "split": "train"},
+    {"prompt": "help me select the best date library for this project", "split": "train"},
+    {"prompt": "set up load testing for the API", "split": "validation"},
+    {"prompt": "explain context managers in python", "split": "validation"},
+    {"prompt": "use git log to show me recent commits", "split": "validation"}
+  ]
+}

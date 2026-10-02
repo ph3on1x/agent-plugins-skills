@@ -1,0 +1,23 @@
+{
+  "skill": "commit",
+  "tasks": [
+    {
+      "name": "context-trailer-for-ai-layer-changes",
+      "setup": [
+        "sh -c \"printf '\\n## Update\\nRefresh hook planned.\\n' >> .wisci/context/auth-research.md\""
+      ],
+      "prompt": "/wisci:commit",
+      "assertions": [
+        {"type": "git_log_contains", "needle": "Context:"},
+        {"type": "git_log_contains", "needle": "auth-research"}
+      ]
+    },
+    {
+      "name": "no-trailer-for-app-only-changes",
+      "prompt": "/wisci:commit",
+      "assertions": [
+        {"type": "git_log_not_contains", "needle": "Context:"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "skill": "select",
+  "tasks": [
+    {
+      "name": "targeted-load-strips-stale-section",
+      "prompt": "/wisci:select payment integration",
+      "assertions": [
+        {"type": "output_contains", "needle": "stale"},
+        {"type": "output_not_contains", "needle": "dispatched by type"},
+        {"type": "output_contains", "needle": "retry"}
+      ]
+    },
+    {
+      "name": "bare-mode-inventory-and-primer",
+      "prompt": "/wisci:select",
+      "assertions": [
+        {"type": "file_exists", "path": ".wisci/primer.md"},
+        {"type": "file_contains", "path": ".wisci/primer.md", "needle": "structure_hash"},
+        {"type": "output_contains", "needle": "auth-research"},
+        {"type": "output_contains", "needle": "broken"}
+      ]
+    }
+  ]
+}

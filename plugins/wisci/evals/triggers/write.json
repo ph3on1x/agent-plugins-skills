@@ -1,0 +1,23 @@
+{
+  "skill": "write",
+  "should_trigger": [
+    {"prompt": "save this research so we don't lose it", "split": "train"},
+    {"prompt": "persist these findings about the auth flow for future sessions", "split": "train"},
+    {"prompt": "externalize what we just learned about the webhook retries", "split": "train"},
+    {"prompt": "write down these architecture decisions somewhere permanent", "split": "train"},
+    {"prompt": "keep notes on the payment integration for later", "split": "train"},
+    {"prompt": "record what we discovered before we move on", "split": "validation"},
+    {"prompt": "store this comparison of the two libraries in the project notes", "split": "validation"},
+    {"prompt": "make sure the next session knows about these API quirks", "split": "validation"}
+  ],
+  "should_not_trigger": [
+    {"prompt": "write a function that sorts users by signup date", "split": "train"},
+    {"prompt": "write tests for the session module", "split": "train"},
+    {"prompt": "how do I write to a file in python?", "split": "train"},
+    {"prompt": "write a README for this repo", "split": "train"},
+    {"prompt": "save the user model to the database after validation", "split": "train"},
+    {"prompt": "write a blog post about context windows", "split": "validation"},
+    {"prompt": "add a write endpoint to the REST API", "split": "validation"},
+    {"prompt": "fix the file write race condition in the logger", "split": "validation"}
+  ]
+}

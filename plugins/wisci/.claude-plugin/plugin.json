@@ -1,0 +1,13 @@
+{
+  "name": "wisci",
+  "description": "WISCI context engineering framework — Write, Isolate, Select, Compress, Iterate. Staleness-tracked context store (.wisci/), per-stream handoffs with a derived index, proactive session hooks, and context-enriched commits.",
+  "version": "2.0.0",
+  "author": {
+    "name": "Dennis Nasarov"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ph3on1x/wisci",
+  "homepage": "https://github.com/ph3on1x/wisci#readme",
+  "keywords": ["context-engineering", "wisci", "context-store", "session-management", "handoff"],
+  "hooks": "./hooks/hooks.json"
+}
