@@ -554,7 +554,7 @@ test("setup reports readiness, missing auth, and conflicting /agy plugins", () =
   const repo = makeRepo();
   const home = tempDir();
   mkdirSync(join(home, ".claude", "plugins"), { recursive: true });
-  writeFileSync(join(home, ".claude", "plugins", "installed_plugins.json"), JSON.stringify({ plugins: { "agy@antigravity-cc": [], "agy@ph3on1x-skills": [] } }));
+  writeFileSync(join(home, ".claude", "plugins", "installed_plugins.json"), JSON.stringify({ plugins: { "agy@antigravity-cc": [], "agy@ph3on1x": [] } }));
   const ready = JSON.parse(companion(repo, ["setup", "--json"], { ...fakeEnv("task"), HOME: home }).stdout) as { ready: boolean; conflicts: string[] };
   assert.equal(ready.ready, true);
   assert.deepEqual(ready.conflicts, ["agy@antigravity-cc"]);

@@ -20,8 +20,8 @@ Rescue tasks can edit your code. Long runs go to the background, and you check o
 ## Install
 
 ```text
-/plugin marketplace add ph3on1x/skills
-/plugin install agy@ph3on1x-skills
+/plugin marketplace add ph3on1x/agent-plugins-skills
+/plugin install agy@ph3on1x
 /reload-plugins
 /agy:setup
 ```
@@ -144,7 +144,7 @@ Differences from Codex:
 ## Tests
 
 ```bash
-node --test skills/agy/scripts/agy.test.mts   # fake agy binary, no network, no quota
+node --test plugins/agy/scripts/agy.test.mts   # fake agy binary, no network, no quota
 ```
 
 ## Credits

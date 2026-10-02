@@ -32,7 +32,7 @@ import { asReviewOutput, renderInvalidReview, renderJobDetail, renderJobTable, r
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SELF = fileURLToPath(import.meta.url);
-const PLUGIN_ID = "agy@ph3on1x-skills";
+const PLUGIN_ID = "agy@ph3on1x";
 // The Stop hook itself is killed at 900s (hooks.json); agy's deadline must land first.
 const STOP_GATE_PRINT_TIMEOUT = "780s";
 const DEFAULT_CONTINUE_PROMPT =

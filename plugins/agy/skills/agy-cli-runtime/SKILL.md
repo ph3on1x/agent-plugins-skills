@@ -2,6 +2,8 @@
 name: agy-cli-runtime
 description: Internal helper contract for calling the agy-companion runtime from Claude Code
 user-invocable: false
+metadata:
+  internal: true
 ---
 
 # agy runtime

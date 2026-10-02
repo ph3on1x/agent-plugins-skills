@@ -2,6 +2,8 @@
 name: gemini-prompting
 description: Internal guidance for shaping task prompts sent to Google Antigravity (Gemini models) by the agy rescue subagent
 user-invocable: false
+metadata:
+  internal: true
 ---
 
 # Prompting Gemini through agy

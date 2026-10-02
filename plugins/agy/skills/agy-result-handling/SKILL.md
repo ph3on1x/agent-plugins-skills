@@ -2,6 +2,8 @@
 name: agy-result-handling
 description: Internal guidance for presenting agy helper output back to the user
 user-invocable: false
+metadata:
+  internal: true
 ---
 
 # agy result handling
