@@ -1,4 +1,6 @@
 /** Plain-text/markdown rendering of companion results. Pure functions only. */
+import { isAbsolute, relative, resolve, sep } from "node:path";
+
 import type { Job } from "./jobs.mts";
 
 export type Finding = {
@@ -72,11 +74,22 @@ export function renderInvalidReview(meta: { readonly label: string; readonly tar
   return [`# agy ${meta.label}`, "", `Target: ${meta.target}`, "agy did not return the structured review shape.", "", "Raw response:", "", "```text", raw.trim() || "(empty)", "```", ""].join("\n");
 }
 
+/** Judged on resolved paths, so `/repo/../etc` is outside and a relative path counts from the root. */
+const isOutside = (file: string, repoRoot: string): boolean => {
+  const rel = relative(repoRoot, resolve(repoRoot, file));
+  return rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel);
+};
+
+/** Warning lines for edited files outside the repository; none when every edit stayed inside. */
+export function outsideWarning(touchedFiles: readonly string[], repoRoot: string): string[] {
+  const outside = touchedFiles.filter((f) => isOutside(f, repoRoot));
+  return outside.length > 0 ? ["", `WARNING: agy edited files outside the repository (${repoRoot}): ${outside.join(", ")}`] : [];
+}
+
 export function renderTask(response: string, meta: { readonly touchedFiles: readonly string[]; readonly conversationId: string; readonly repoRoot: string }): string {
   const lines = [response.trimEnd()];
   if (meta.touchedFiles.length > 0) lines.push("", "Files edited by agy:", ...meta.touchedFiles.map((f) => `- ${f}`));
-  const outside = meta.touchedFiles.filter((f) => f !== meta.repoRoot && !f.startsWith(`${meta.repoRoot}/`));
-  if (outside.length > 0) lines.push("", `WARNING: agy edited files outside the repository (${meta.repoRoot}): ${outside.join(", ")}`);
+  lines.push(...outsideWarning(meta.touchedFiles, meta.repoRoot));
   lines.push("", `agy conversation: ${meta.conversationId} (resume in the CLI: agy --conversation ${meta.conversationId})`);
   return `${lines.join("\n").trimEnd()}\n`;
 }

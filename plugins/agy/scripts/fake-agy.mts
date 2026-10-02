@@ -64,6 +64,15 @@ if (args[0] === "--version") {
     process.stderr.write('AGY_ERROR: {"short_error":"quota exhausted","retryable":false}\n');
     emit({ event: "result", result: { conversation_id, status: "ERROR", response: "", error: "quota exhausted" } });
     process.exit(3);
+  } else if (mode === "slow-error") {
+    setTimeout(() => {
+      process.stderr.write('AGY_ERROR: {"short_error":"quota exhausted","retryable":false}\n');
+      emit({ event: "result", result: { conversation_id, status: "ERROR", response: "", error: "quota exhausted" } });
+      process.exit(3);
+    }, 1500);
+  } else if (mode === "rogue-untargeted") {
+    emit({ event: "step_update", step_update: { step_index: 1, state: "DONE", step_type: "tool", tool_name: "replace_file_content", tool_info: {} } });
+    finish({ response: "Done.\n" });
   } else if (mode === "slow") {
     setTimeout(() => finish({ response: "too late" }), 30_000);
   } else {

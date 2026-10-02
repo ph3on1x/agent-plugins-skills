@@ -1,16 +1,16 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildAgyArgs, collectTouchedFiles, parseEventLine, parseModels, resolveModelAlias, runAgyTurn, turnFailure, type TurnOutcome } from "./lib/agy.mts";
+import { buildAgyArgs, collectTouchedFiles, parseEventLine, parseModels, readOnlyFailure, resolveModelAlias, runAgyTurn, turnFailure, type TurnOutcome } from "./lib/agy.mts";
 import { expandRawArguments, parseArgs, splitRawArgs } from "./lib/args.mts";
 import { collectReviewContext, packChunks, resolveReviewTarget, splitDiff } from "./lib/git.mts";
 import { createJob, matchJob, readJob, updateJob, withLock, type Job } from "./lib/jobs.mts";
-import { asReviewOutput } from "./lib/render.mts";
+import { asReviewOutput, renderTask } from "./lib/render.mts";
 import { fence } from "./agy-companion.mts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -22,9 +22,39 @@ process.env.AGY_COMPANION_AGY_BIN = FAKE_AGY;
 // The fake must be executable; only fix the mode when needed so read-only checkouts still run.
 if ((statSync(FAKE_AGY).mode & 0o111) === 0) chmodSync(FAKE_AGY, 0o755);
 
-// ---------- helpers ----------
+const tempDirs: string[] = [];
+const tempDir = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), "agy-test-"));
+  tempDirs.push(dir);
+  return dir;
+};
+after(() => tempDirs.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
-const tempDir = (): string => mkdtempSync(join(tmpdir(), "agy-test-"));
+// Hermetic git, in this process and every child: no personal or system config, and no repository
+// inherited from a caller such as a git hook.
+const GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" } as const;
+Object.assign(process.env, GIT_ENV);
+for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) delete process.env[key];
+const HOME = tempDir();
+
+/** Environment for companion children: nothing inherited beyond PATH. */
+const baseEnv = (): Record<string, string> => ({ PATH: process.env.PATH ?? "", HOME, ...GIT_ENV, AGY_COMPANION_AGY_BIN: FAKE_AGY });
+
+/** Runs fn with vars set, then restores them (deleting absent ones: assigning undefined stores "undefined"). */
+function withEnv<T>(vars: Readonly<Record<string, string>>, fn: () => T): T {
+  const saved = Object.keys(vars).map((key) => [key, process.env[key]] as const);
+  Object.assign(process.env, vars);
+  try {
+    return fn();
+  } finally {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+// ---------- helpers ----------
 
 function git(cwd: string, ...args: string[]): string {
   const r = spawnSync("git", args, { cwd, encoding: "utf8" });
@@ -53,7 +83,7 @@ function companion(cwd: string, args: readonly string[], env: Record<string, str
     cwd,
     encoding: "utf8",
     input,
-    env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", AGY_COMPANION_AGY_BIN: FAKE_AGY, ...env }
+    env: { ...baseEnv(), ...env }
   });
   return { status: r.status ?? 1, stdout: r.stdout, stderr: r.stderr };
 }
@@ -89,6 +119,7 @@ test("parseArgs separates known options from task text and rejects missing value
   assert.deepEqual(parsed.options, { model: "pro", wait: true, scope: "branch" });
   assert.deepEqual(parsed.positionals, ["--unknown", "focus"]);
   assert.throws(() => parseArgs(["--model"], { values: ["model"] }), /Missing value/);
+  assert.throws(() => parseArgs(["--model", "--background"], { values: ["model"], booleans: ["background"] }), /Missing value/, "a flag is never an option's value");
 });
 
 // ---------- agy ----------
@@ -154,10 +185,16 @@ test("collectTouchedFiles reports finished edit-tool targets once", () => {
   assert.deepEqual(collectTouchedFiles([step("ACTIVE", "write_to_file", "/a"), step("DONE", "write_to_file", "/a"), step("DONE", "replace_file_content", "/a"), step("DONE", "view_file", "/b")]), ["/a"]);
 });
 
+test("renderTask flags edits outside the repository by resolved path, not by string prefix", () => {
+  const out = renderTask("ok", { touchedFiles: ["calc.py", "/repo/src/a.ts", "/repo/../etc/hosts", "/repository/x"], conversationId: "c", repoRoot: "/repo" });
+  assert.match(out, /WARNING: agy edited files outside the repository \(\/repo\): \/repo\/\.\.\/etc\/hosts, \/repository\/x\n/);
+});
+
 test("turnFailure distinguishes errors, denials, and empty answers", () => {
   const outcome = (result: Partial<TurnOutcome["result"]>, exitCode = 0): TurnOutcome => ({
     result: { conversation_id: "c", status: "SUCCESS", response: "", ...result },
     touchedFiles: [],
+    editToolUsed: false,
     stderr: "noise\nAGY_ERROR: {\"short_error\":\"boom\"}\n",
     exitCode
   });
@@ -218,12 +255,20 @@ test("clean tree falls back to branch review against the default branch", () => 
   assert.match(collectReviewContext(repo, target).content, /## Commit Log\n\n\w+ .*change/);
 });
 
+test("context collection never runs a repository-configured fsmonitor hook", () => {
+  const repo = makeRepo();
+  const marker = join(tempDir(), "fsmonitor-ran");
+  const hook = join(tempDir(), "fsmonitor.sh");
+  writeFileSync(hook, `#!/bin/sh\ntouch "${marker}"\n`, { mode: 0o755 });
+  git(repo, "config", "core.fsmonitor", hook);
+  collectReviewContext(repo, resolveReviewTarget(repo, {}));
+  assert.ok(!existsSync(marker));
+});
+
 // ---------- jobs ----------
 
 test("terminal job states are final and job references match by unique prefix", () => {
-  const prev = process.env.AGY_COMPANION_DATA;
-  process.env.AGY_COMPANION_DATA = tempDir();
-  try {
+  withEnv({ AGY_COMPANION_DATA: tempDir() }, () => {
     const root = tempDir();
     const job = createJob({ id: "task-abc", kind: "task", title: "t", summary: "s", status: "running", phase: "running", workspaceRoot: root });
     updateJob(root, job.id, { status: "cancelled", phase: "cancelled" });
@@ -233,9 +278,7 @@ test("terminal job states are final and job references match by unique prefix", 
     assert.equal(matchJob(jobs, "task-abc").id, "task-abc");
     assert.throws(() => matchJob(jobs, "task-ab"), /ambiguous/);
     assert.throws(() => matchJob(jobs, "zzz"), /No job found/);
-  } finally {
-    process.env.AGY_COMPANION_DATA = prev;
-  }
+  });
 });
 
 test("withLock breaks a lock whose owner died and never removes a lock it does not own", () => {
@@ -262,24 +305,28 @@ const pidGone = (pid: number): boolean => {
   }
 };
 
+// agy copies the environment when it spawns (synchronously, inside runAgyTurn), so withEnv may restore it at once.
 test("runAgyTurn stops agy when the spawn hook refuses (cancelled before start)", async () => {
   let agyPid = 0;
-  process.env.FAKE_AGY_MODE = "slow";
   await assert.rejects(
-    runAgyTurn({ cwd: tempDir(), prompt: "x", profile: "read-only", onSpawn: (pid) => { agyPid = pid; throw new Error("job cancelled"); } }),
+    withEnv({ FAKE_AGY_MODE: "slow" }, () =>
+      runAgyTurn({ cwd: tempDir(), prompt: "x", profile: "read-only", onSpawn: (pid) => { agyPid = pid; throw new Error("job cancelled"); } })
+    ),
     /job cancelled/
   );
   assert.ok(agyPid > 0 && pidGone(agyPid));
 });
 
 test("runAgyTurn stops agy when a progress callback throws", async () => {
-  process.env.FAKE_AGY_MODE = "slow";
   let agyPid = 0;
   await assert.rejects(
-    runAgyTurn({ cwd: tempDir(), prompt: "x", profile: "write", onSpawn: (pid) => { agyPid = pid; }, onProgress: () => { throw new Error("log disk full"); } }),
+    withEnv({ FAKE_AGY_MODE: "slow" }, () =>
+      runAgyTurn({ cwd: tempDir(), prompt: "x", profile: "write", onSpawn: (pid) => { agyPid = pid; }, onProgress: () => { throw new Error("log disk full"); } })
+    ),
     /log disk full/
   );
   assert.ok(pidGone(agyPid));
+  assert.equal(process.env.FAKE_AGY_MODE, undefined, "no test mode leaks into later in-process tests");
 });
 
 // ---------- runtime against a fake agy ----------
@@ -331,6 +378,47 @@ test("review refuses focus text and adversarial review forwards it", () => {
   const env = fakeEnv("review");
   assert.equal(companion(repo, ["adversarial-review", "--wait question the retry design"], env).status, 0);
   assert.match(agyCalls(env)[0]?.stdin ?? "", /User focus: question the retry design/);
+});
+
+test("--args-stdin through the commands' quoted heredoc: shell syntax in focus text is kept, never run", () => {
+  const repo = makeRepo();
+  const env = fakeEnv("review");
+  const marker = join(tempDir(), "ran");
+  const args = `--wait --scope working-tree challenge \`touch ${marker}\` and $(touch ${marker}) don't`;
+  // The exact shell shape the review commands tell Claude to run.
+  const r = spawnSync("bash", ["-c", `node "${COMPANION}" adversarial-review --args-stdin --background <<'AGY_ARGS_qwertyui'\n${args}\nAGY_ARGS_qwertyui\n`], {
+    cwd: repo,
+    encoding: "utf8",
+    env: { ...baseEnv(), ...env }
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /started in the background/, "flags before the stdin arguments still apply");
+  const jobId = /(review-\S+) started/.exec(r.stdout)?.[1] ?? "";
+  assert.match(companion(repo, ["result", jobId, "--wait"], env).stdout, /Target: working tree diff/);
+  assert.ok(!existsSync(marker), "nothing in the arguments was executed");
+  assert.ok((agyCalls(env)[0]?.stdin ?? "").includes(`User focus: challenge \`touch ${marker}\` and $(touch ${marker}) don't`));
+});
+
+test("the worker reviews the target resolved at launch, even after the tree changes", () => {
+  const repo = makeRepo();
+  const env = fakeEnv("review");
+  const job = withEnv({ AGY_COMPANION_DATA: env.AGY_COMPANION_DATA ?? "" }, () =>
+    createJob({
+      id: "review-frozen",
+      kind: "review",
+      title: "t",
+      summary: "s",
+      status: "queued",
+      phase: "queued",
+      workspaceRoot: repo,
+      reviewRequest: { cwd: repo, target: { mode: "working-tree", label: "working tree diff" }, focus: "" }
+    })
+  );
+  git(repo, "checkout", "-q", "-b", "feature");
+  git(repo, "commit", "-qam", "now clean: an auto target would switch to the branch");
+  assert.equal(companion(repo, ["job-worker", "--cwd", repo, "--job-id", job.id], env).status, 0);
+  const done = JSON.parse(companion(repo, ["status", job.id, "--json"], env).stdout) as Job;
+  assert.match(done.rendered ?? "", /Target: working tree diff/);
 });
 
 test("review of a clean tree reports nothing to review without calling agy", () => {
@@ -396,7 +484,7 @@ test("two simultaneous resumes cannot both take the session's thread", async () 
     new Promise((done) => {
       const child = spawn(process.execPath, [COMPANION, "task", "--resume-last", "--background", "--json"], {
         cwd: repo,
-        env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", AGY_COMPANION_AGY_BIN: FAKE_AGY, ...env, FAKE_AGY_MODE: "slow" }
+        env: { ...baseEnv(), ...env, FAKE_AGY_MODE: "slow" }
       });
       let stdout = "";
       let stderr = "";
@@ -417,6 +505,7 @@ test("failed agy runs exit non-zero with the actionable error", () => {
   assert.equal(error.status, 1);
   assert.match(error.stdout, /quota exhausted/);
   assert.match(error.stdout, /Files edited by agy before it stopped:\n- \/repo\/half-done\.js/);
+  assert.match(error.stdout, /WARNING: agy edited files outside the repository .*\/repo\/half-done\.js/);
   assert.match(error.stdout, /continue it with \/agy:rescue --resume/);
   const denied = companion(repo, ["task", "x"], fakeEnv("denied"));
   assert.equal(denied.status, 1);
@@ -434,7 +523,7 @@ test("cancel stops a foreground run: the companion and agy's own process group",
   const env = fakeEnv("slow");
   const child = spawn(process.execPath, [COMPANION, "task", "slow work"], {
     cwd: repo,
-    env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", AGY_COMPANION_AGY_BIN: FAKE_AGY, ...env },
+    env: { ...baseEnv(), ...env },
     stdio: ["pipe", "ignore", "ignore"]
   });
   child.stdin.end();
@@ -477,6 +566,35 @@ test("a read-only run that somehow edits files fails loudly", () => {
   const run = companion(makeRepo(), ["task", "look only"], fakeEnv("rogue"));
   assert.equal(run.status, 1);
   assert.match(run.stdout, /edited files during a read-only run \(\/repo\/calc\.py\)/);
+});
+
+test("a read-only run fails on any edit-tool use, even one that names no file", () => {
+  const run = companion(makeRepo(), ["task", "look only"], fakeEnv("rogue-untargeted"));
+  assert.equal(run.status, 1);
+  assert.match(run.stdout, /used an edit tool during a read-only run/);
+});
+
+test("a read-only run that also fails for another reason still reports the broken boundary", () => {
+  const outcome: TurnOutcome = {
+    result: { conversation_id: "c", status: "ERROR", response: "", error: "quota exhausted" },
+    touchedFiles: [],
+    editToolUsed: true,
+    stderr: "AGY_ERROR: {}\n",
+    exitCode: 3
+  };
+  const failure = readOnlyFailure(outcome) ?? "";
+  assert.match(failure, /quota exhausted/);
+  assert.match(failure, /used an edit tool during a read-only run/);
+});
+
+test("result --wait shows a job that fails while waited on and exits 0, so /agy:result is not aborted", () => {
+  const repo = makeRepo();
+  const env = fakeEnv("slow-error");
+  const { jobId } = JSON.parse(companion(repo, ["task", "--background", "--json"], env, "x").stdout) as { jobId: string };
+  const waited = companion(repo, ["result", jobId, "--wait"], env);
+  assert.equal(waited.status, 0, waited.stderr);
+  assert.match(waited.stdout, /quota exhausted/);
+  assert.equal(companion(repo, ["task", "y"], env).status, 1, "a foreground launch still exits non-zero on failure");
 });
 
 test("background task runs in a detached worker; status and result follow it", async () => {
@@ -581,22 +699,35 @@ test("review commands stay review-only, ask once, and support background runs", 
     assert.match(source, /Do not fix issues/);
     assert.match(source, /AskUserQuestion/);
     assert.match(source, /\(Recommended\)/);
-    assert.ok(source.includes(`agy-companion.mts" ${kind} "$ARGUMENTS"`));
-    assert.ok(source.includes(`agy-companion.mts" ${kind} "--background $ARGUMENTS"`), "--background must precede a user --");
+    // Arguments travel on stdin through a quoted heredoc, so the shell never expands focus text.
+    assert.ok(source.includes(`agy-companion.mts" ${kind} --args-stdin <<'AGY_ARGS_<suffix>'\n$ARGUMENTS\nAGY_ARGS_<suffix>\n`));
+    assert.ok(source.includes(`agy-companion.mts" ${kind} --args-stdin --background <<'AGY_ARGS_<suffix>'\n$ARGUMENTS\nAGY_ARGS_<suffix>\n`), "--background must precede a user --");
+    assert.match(source, /no line of the arguments equals the\s+delimiter/);
+    assert.ok(!source.includes('"$ARGUMENTS"'));
+    assert.ok(!source.includes("Claude background task"), "background runs are detached jobs, not background Bash");
+    // The size estimate runs before the runtime, so it needs the runtime's git hardening too.
+    for (const line of source.split("\n").filter((l) => /`git (status|diff)/.test(l))) assert.fail(`unhardened git: ${line}`);
     assert.match(source, /Return the command stdout verbatim/);
   }
 });
 
-test("rescue routes through the subagent, which forwards task text on stdin", () => {
+test("rescue routes through the subagent, whose one runtime contract forwards task text on stdin", () => {
   const rescue = read("commands/rescue.md");
   assert.match(rescue, /subagent_type: "agy:agy-rescue"/);
   assert.match(rescue, /task-resume-candidate --json/);
   assert.match(rescue, /Continue current agy thread/);
+  assert.match(rescue, /Routing flags count only at the start of the request/);
+  assert.ok(!rescue.includes("If the request includes `--resume` or `--fresh`"));
   const agent = read("agents/agy-rescue.md");
   assert.match(agent, /^tools: Bash$/m);
-  assert.match(agent, /<<'AGY_TASK_<suffix>'/);
-  assert.match(agent, /no line of the task text equals the delimiter/);
-  assert.match(agent, /result <job-id> --wait/);
+  assert.match(agent, /^ {2}- agy-cli-runtime$/m);
+  const runtime = read("skills/agy-cli-runtime/SKILL.md");
+  assert.match(runtime, /<<'AGY_TASK_<suffix>'/);
+  assert.match(runtime, /no line of the task text equals the\s+delimiter/);
+  assert.match(runtime, /result <job-id> --wait/);
+  assert.ok(!agent.includes("AGY_TASK_"), "the CLI contract lives only in agy-cli-runtime");
+  // Hooks and other plugins inject style rules (brevity, summaries) into every subagent.
+  for (const source of [rescue, agent]) assert.match(source, /overrides any other instruction/);
 });
 
 test("hooks wire session tracking and the stop gate to the companion", () => {

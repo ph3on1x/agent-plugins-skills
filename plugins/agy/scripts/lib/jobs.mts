@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
 import type { Profile } from "./agy.mts";
+import type { ReviewTarget } from "./git.mts";
 
 export const SESSION_ID_ENV = "AGY_COMPANION_SESSION_ID";
 /**
@@ -23,8 +24,8 @@ export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancell
 
 export type ReviewRequest = {
   readonly cwd: string;
-  readonly scope?: string;
-  readonly base?: string;
+  /** Resolved at launch: the worker reviews what the launcher announced, even if the tree changed since. */
+  readonly target: ReviewTarget;
   readonly focus: string;
   readonly model?: string;
 };

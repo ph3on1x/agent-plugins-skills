@@ -84,7 +84,7 @@ to the repository: use `--full-access` for those, knowingly.
 
 Known limitation: in write runs, agy's edit tools are not confined to the repository. agy can only
 confine them through its global `settings.json`, which this plugin does not modify. Any edit outside
-the repository is flagged in the task output.
+the repository is flagged in the task output, including the output of a failed run.
 
 A resumed agy thread keeps the tools it started with, because agy ignores `--agent` on resume. So
 `--resume` never crosses the read-only boundary: resume a read-only thread read-only, and a write
@@ -92,9 +92,9 @@ thread with write access. Switching between write and `--full-access` is fine, b
 is applied per run.
 
 Other guards:
-- A read-only run that somehow edits a file fails loudly.
-- Git context is collected with `--no-ext-diff --no-textconv`, so no repository-configured program
-  runs.
+- A read-only run that uses an edit tool fails loudly, even when agy reports no file name.
+- Git context is collected with fsmonitor, external diff, and textconv disabled, so no
+  repository-configured program runs.
 - Repository content reaches the model fenced as untrusted data, but a model that edits code can
   still be steered by hostile content in the repository it is editing.
 

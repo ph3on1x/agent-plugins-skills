@@ -33,5 +33,5 @@ If agy is already installed or `brew` is unavailable:
 
 Output rules:
 - Present the final setup result to the user as a short readable report (status, agy version, auth, review gate, warnings).
-- If agy is installed but not signed in, tell the user to run `!agy` once to complete the browser sign-in, or to export `GEMINI_API_KEY`.
+- If agy is installed but not signed in, tell the user to run `!agy` once to complete the browser sign-in. For an API key instead, they set `"modelProvider": "gemini"` in `~/.gemini/antigravity-cli/settings.json` and export `GEMINI_API_KEY`; the variable alone has no effect.
 - If the output lists a conflicting plugin that also uses the `/agy:` namespace, show that warning prominently.

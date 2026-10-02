@@ -89,7 +89,8 @@ export function parseArgs(tokens: readonly string[], spec: ParseSpec): Parsed {
       options[key] = inline === undefined ? true : inline !== "false";
     } else if (values.has(key)) {
       const value = inline ?? tokens[i + 1];
-      if (value === undefined || value === "") {
+      // `--model --background` is a missing model, not a model named "--background".
+      if (value === undefined || value === "" || (inline === undefined && value.startsWith("-"))) {
         throw new Error(`Missing value for ${token}`);
       }
       options[key] = value;

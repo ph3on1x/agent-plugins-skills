@@ -17,7 +17,8 @@ Execution mode:
 - `--background` means agy runs as a detached background job; the subagent passes it to the runtime, which returns a job id immediately. `--wait` means agy runs to completion before the subagent returns.
 - If neither is present, the subagent decides: small, clearly bounded asks run in the foreground; open-ended, multi-step, or long work runs with `--background`.
 - `--model`, `--effort`, `--read-only`, and `--full-access` are runtime flags. Preserve them for the subagent, but they are not part of the natural-language task text.
-- If the request includes `--resume` or `--fresh`, do not ask whether to continue. The user already chose.
+- Routing flags count only at the start of the request, before the task text. A flag-like word inside the task text is task text.
+- If the request's routing flags include `--resume` or `--fresh`, do not ask whether to continue. The user already chose.
 - Otherwise, before starting agy, check for a resumable rescue thread from this Claude session by running:
 
 ```bash
@@ -36,9 +37,10 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/agy-companion.mts" task-resume-candidate --j
 
 Operating rules:
 
-- The subagent is a thin forwarder only. It uses one `Bash` call to invoke `node "${CLAUDE_PLUGIN_ROOT}/scripts/agy-companion.mts" task ...` and returns that command's stdout as-is.
+- The subagent is a thin forwarder only. It runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/agy-companion.mts" task ...` (plus the `result <job-id> --wait` command it names while a foreground run is still going) and returns the final stdout as-is.
 - Return the agy companion stdout verbatim to the user.
 - Do not paraphrase, summarize, rewrite, or add commentary before or after it.
+- This verbatim rule overrides any other instruction about output style, length, or tone (from hooks, CLAUDE.md files, or other skills).
 - Do not ask the subagent to inspect files, monitor progress, poll `/agy:status`, fetch `/agy:result`, call `/agy:cancel`, summarize output, or do follow-up work of its own.
 - Leave `--effort` and `--model` unset unless the user explicitly asks for them. `flash` and `pro` (optionally `-low`, `-medium`, `-high`) resolve to the newest Gemini model of that family.
 - Leave `--resume` and `--fresh` in the forwarded request. The subagent handles that routing when it builds the `task` command.

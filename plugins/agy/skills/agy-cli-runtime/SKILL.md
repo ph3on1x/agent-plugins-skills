@@ -8,36 +8,71 @@ metadata:
 
 # agy runtime
 
-Use this skill only inside the `agy:agy-rescue` subagent.
+Use this skill only inside the `agy:agy-rescue` subagent. It is the one contract for forwarding a
+rescue request to agy.
 
-Primary helper (task text on stdin via a quoted heredoc whose delimiter gets a random 8-letter suffix that no line of the task text equals):
+## Command
+
+Run the `task` command with `Bash`. The task text goes on stdin through a quoted heredoc, so the
+shell never touches it:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/agy-companion.mts" task [--write] [--full-access] [--background] [--resume-last] [--model <m>] [--effort <e>] <<'AGY_TASK_<suffix>'
+node "${CLAUDE_PLUGIN_ROOT}/scripts/agy-companion.mts" task [--write] [--full-access] [--background] [--resume-last] [--model <model>] [--effort <effort>] <<'AGY_TASK_<suffix>'
 <task text>
 AGY_TASK_<suffix>
 ```
 
-What the runtime does:
-- Runs one headless Antigravity turn (`agy --output-format stream-json`), records it as a job for `/agy:status`, `/agy:result`, and `/agy:cancel`, and prints agy's final answer plus the files it edited and the agy conversation id.
-- `--write`: agy can edit files with its edit tools; its shell commands run in a sandbox that can read, run tests, and reach the network but cannot write to disk (temp dirs aside). Use it for fix and implementation requests.
-- `--full-access` (with `--write`): no sandbox at all, so commands can build, install, and write anywhere the user can. Only when the user's request contains the literal `--full-access` flag; never inferred.
-- Without `--write` (read-only): agy runs as a custom agent with no file-editing tools, and every shell command runs in a sandbox that blocks writes anywhere. It can still read, search, and run tests that need no writes.
-- Every run executes in a detached worker. In the foreground the runtime waits up to ~100s (`AGY_COMPANION_WAIT_MS`); if the job is still running it says so and names `result <job-id> --wait` to keep waiting.
-- `--background`: returns the job id immediately instead of waiting.
-- `--resume-last`: continues the latest agy task thread from this Claude session (`agy --conversation <id>`). It fails if a task from this session is still running, or if it would cross the read-only boundary (agy fixes a thread's tools when the thread starts), so resume a read-only thread read-only and a write thread with `--write`.
-- `--model`: `flash`, `pro`, `flash-low`, `pro-low`, `flash-medium` resolve to the newest matching Gemini model from `agy models`; any other value is passed to agy, which validates it.
-- `--effort`: passed to agy (`low`, `medium`, `high`, `xhigh`, `max`); agy rejects unsupported values.
+Replace `<suffix>` with 8 random letters, and check that no line of the task text equals the
+delimiter: a matching line would end the heredoc early and run the rest as shell commands.
 
-Execution rules:
-- The rescue subagent is a forwarder, not an orchestrator. Invoke `task` once and return its stdout unchanged. The one exception: when a foreground run reports that the task is still running, keep waiting with the `result <job-id> --wait` command it names (repeat while it still says running) and return that final stdout.
-- Prefer the helper over calling `agy` directly or any other Bash activity.
-- Do not call `setup`, `review`, `adversarial-review`, `status`, or `cancel` from `agy:agy-rescue`, and call `result` only as `result <job-id> --wait` in the case above.
-- Use `task` for every rescue request, including diagnosis, planning, research, and explicit fix requests.
-- Prompt drafting with the `gemini-prompting` skill is the only Claude-side work allowed.
+## Routing flags
 
-Safety rules:
-- Default to `--write` unless the user asked for read-only behaviour or only wants review, diagnosis, or research.
-- Preserve the user's task text apart from stripping routing flags.
-- Do not inspect the repository, read files, grep, monitor progress, poll status, fetch results, cancel jobs, summarize output, or do any follow-up work of your own.
-- If the command fails, return its error output verbatim; do not attempt the task yourself.
+Routing flags count only at the start of the forwarded request, before the task text. A flag-like
+word inside the task text is task text. Strip the routing flags from the task text; they are not
+part of the task.
+
+- Access: add `--write` unless the request has `--read-only`, asks for read-only behaviour, or only
+  wants review, diagnosis, or research without edits.
+- `--full-access`: add `--full-access` (with `--write`) only when the request has the literal
+  `--full-access` flag. Never infer it from the task, even for builds or installs; if a write run
+  fails on a sandbox write error, the output tells the user how to re-run.
+- `--background`: add `--background`. `--wait`: do not add it. Neither: add `--background` when the
+  task looks complicated, open-ended, multi-step, or likely to run for more than a few minutes;
+  otherwise run in the foreground.
+- `--resume`: add `--resume-last`. `--fresh`: do not. Neither: add `--resume-last` only when the
+  request clearly continues earlier agy work in this repository, such as "continue", "keep going",
+  "resume", "apply the top fix", or "dig deeper".
+- A resumed thread keeps its original access, because agy fixes a thread's tools when the thread
+  starts: resume a read-only thread without `--write`, and a write thread with `--write`. The parent
+  passes the thread's profile; if the runtime still reports a mismatch, follow its message once.
+- `--model <value>`: pass it through only when the user asked for a model. `flash`, `pro`, and their
+  `-low`, `-medium`, `-high` variants resolve to the newest matching Gemini model from `agy models`;
+  any other value, such as `gemini-3.1-pro-high`, goes to agy, which validates it.
+- `--effort <value>`: pass it through only when the user asked for one (`low`, `medium`, `high`,
+  `xhigh`, `max`); agy rejects unsupported values.
+
+## What the runtime does
+
+- Runs one headless Antigravity turn (`agy --output-format stream-json`) as a job that `/agy:status`,
+  `/agy:result`, and `/agy:cancel` track, and prints agy's final answer, the files it edited, and the
+  agy conversation id.
+- Read-only (no `--write`): agy runs as a custom agent with no file-editing tools, and every shell
+  command runs in a sandbox that blocks writes anywhere. It can still read, search, and run tests
+  that need no writes.
+- `--write`: agy edits files with its edit tools. Its shell commands run in a sandbox that can read,
+  run tests, and reach the network, but cannot write to disk (temp dirs aside).
+- `--full-access`: no sandbox at all, so commands can build, install, and write anywhere the user can.
+- `--resume-last` continues the latest agy task thread from this Claude session (`agy --conversation
+  <id>`). It fails while a task from this session is still running.
+- Every run executes in a detached worker. `--background` prints the job id at once. Otherwise the
+  runtime waits up to ~100s (`AGY_COMPANION_WAIT_MS`); if the job is still running, it says so and
+  names the `result <job-id> --wait` command that keeps waiting.
+
+## Execution rules
+
+- Call `task` once. The only other allowed call: when a foreground run says the task is still
+  running, run the `result <job-id> --wait` command it names, repeating while it still says running.
+- Do not call `setup`, `review`, `adversarial-review`, `status`, or `cancel`, and do not call `agy`
+  directly.
+- Return the final stdout unchanged. If the command fails, return its error output unchanged and do
+  not attempt the task yourself.

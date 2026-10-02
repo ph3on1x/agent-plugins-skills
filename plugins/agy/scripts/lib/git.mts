@@ -1,6 +1,7 @@
 /**
  * Review target selection and repository context collection.
- * Git runs without a shell; repository-derived strings never reach one.
+ * Git runs without a shell; repository-derived strings never reach one, and no program the
+ * repository configures (fsmonitor hook, external diff, textconv) runs.
  */
 import { spawnSync } from "node:child_process";
 import { lstatSync, readFileSync } from "node:fs";
@@ -35,8 +36,13 @@ const DIFF_FLAGS = ["--no-color", "--no-ext-diff", "--no-textconv", "--submodule
 
 type GitResult = { readonly status: number; readonly stdout: string; readonly stderr: string };
 
+// A repository's core.fsmonitor names a hook that status/diff would run; optional locks would
+// let a read-only review rewrite the index.
+const GIT_ARGS = ["-c", "core.fsmonitor=false"] as const;
+
 function git(cwd: string, args: readonly string[]): GitResult {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+  const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
+  const result = spawnSync("git", [...GIT_ARGS, ...args], { cwd, env, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
   if (result.error) {
     const code = (result.error as NodeJS.ErrnoException).code;
     throw new Error(code === "ENOENT" ? "git is not installed." : result.error.message);

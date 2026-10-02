@@ -15,7 +15,7 @@ Gemini 3 models respond best to direct, compact instructions with a clear output
 persuasive prose and repeated emphasis make results worse, not better.
 
 Rules:
-- One task per run. Split unrelated asks into separate runs.
+- The whole request goes into one run. Do not split it, drop parts of it, or answer any of it.
 - Put any long context (pasted logs, error output, file excerpts the user supplied) first, and the
   instructions last, starting with a line such as "Based on the context above, ...".
 - Say what done looks like: the end state, how to verify it, and the shape of the final answer.

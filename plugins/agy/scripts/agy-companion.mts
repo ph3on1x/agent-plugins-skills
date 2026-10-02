@@ -4,6 +4,7 @@
  *
  *   setup [--enable-review-gate|--disable-review-gate] [--json]
  *   review | adversarial-review  "[--base <ref>] [--scope auto|working-tree|branch] [--model m] [focus ...]"
+ *       (or --args-stdin with that raw argument string on stdin)
  *   task [--write] [--model m] [--effort e] [--resume-last|--fresh] [--background] [--json] [prompt | stdin]
  *   status [job] [--wait] [--timeout-ms n] [--all] [--json]
  *   result [job] [--json]      cancel [job] [--json]      task-resume-candidate [--json]
@@ -18,17 +19,17 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  agyBin, checkAvailability, listModels, needsModelLookup, readOnlyBreach, resolveModelAlias, runAgyTurn, staleError, turnFailure,
+  agyBin, checkAvailability, listModels, needsModelLookup, readOnlyFailure, resolveModelAlias, runAgyTurn, staleError, turnFailure,
   type Profile, type Progress, type TurnOutcome
 } from "./lib/agy.mts";
-import { expandRawArguments, flag, parseArgs, stringOption, type Parsed } from "./lib/args.mts";
+import { expandRawArguments, flag, parseArgs, splitRawArgs, stringOption, type Parsed } from "./lib/args.mts";
 import { collectReviewContext, findRepoRoot, isEmptyReview, resolveReviewTarget, type ReviewContext } from "./lib/git.mts";
 import {
   appendLog, appendLogBlock, createJob, currentSessionId, forSession, generateJobId, isActive, listJobs, matchJob,
   DATA_DIR_ENV, forceUpdateJob, listAllJobs, nowIso, progressPreview, readConfig, readJob, SESSION_ID_ENV, terminateProcessTree, updateJob, withSessionLock, writeConfig,
   type Job, type ReviewRequest, type TaskRequest
 } from "./lib/jobs.mts";
-import { asReviewOutput, renderInvalidReview, renderJobDetail, renderJobTable, renderReview, renderTask } from "./lib/render.mts";
+import { asReviewOutput, outsideWarning, renderInvalidReview, renderJobDetail, renderJobTable, renderReview, renderTask } from "./lib/render.mts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SELF = fileURLToPath(import.meta.url);
@@ -138,7 +139,7 @@ const staleNote = (outcome: TurnOutcome): string => {
  * A failed turn can still have changed files (agy may fail on its last model call after doing the
  * work), so edits and the resumable conversation are always reported.
  */
-function failedTurn(outcome: TurnOutcome, failure: string, label: string): Execution {
+function failedTurn(outcome: TurnOutcome, failure: string, label: string, repoRoot: string): Execution {
   const partial = outcome.result.response.trim();
   const conversationId = outcome.result.conversation_id;
   const rendered = [
@@ -147,6 +148,7 @@ function failedTurn(outcome: TurnOutcome, failure: string, label: string): Execu
     failure,
     ...(partial ? ["", "Partial response:", "", partial] : []),
     ...(outcome.touchedFiles.length > 0 ? ["", "Files edited by agy before it stopped:", ...outcome.touchedFiles.map((f) => `- ${f}`)] : []),
+    ...outsideWarning(outcome.touchedFiles, repoRoot),
     ...(label === "task" && conversationId ? ["", `The agy conversation is kept (${conversationId}): continue it with /agy:rescue --resume.`] : []),
     ""
   ].join("\n");
@@ -173,8 +175,8 @@ async function executeReview(kind: ReviewKind, context: ReviewContext, focus: st
     schemaPath: join(ROOT, "schemas", "review-output.schema.json"),
     ...hooks
   });
-  const failure = turnFailure(outcome) ?? readOnlyBreach(outcome);
-  if (failure) return failedTurn(outcome, failure, label);
+  const failure = readOnlyFailure(outcome);
+  if (failure) return failedTurn(outcome, failure, label, context.repoRoot);
   const output = asReviewOutput(outcome.result.structured_output);
   const meta = { label, target: context.target.label, omitted: context.omittedDiffs.length };
   return output
@@ -183,14 +185,22 @@ async function executeReview(kind: ReviewKind, context: ReviewContext, focus: st
 }
 
 function reviewWork(kind: ReviewKind, request: ReviewRequest): (hooks: RunHooks) => Promise<Execution> {
-  return (hooks) => {
-    const target = resolveReviewTarget(request.cwd, { scope: request.scope, base: request.base });
-    return executeReview(kind, collectReviewContext(request.cwd, target), request.focus, request.model, hooks);
-  };
+  return (hooks) => executeReview(kind, collectReviewContext(request.cwd, request.target), request.focus, request.model, hooks);
+}
+
+/**
+ * Slash-command arguments: a raw string on stdin with --args-stdin (the commands pass it through a
+ * quoted heredoc, so the shell never expands backticks or `$` in focus text), else one argv string.
+ * Flags given in argv come first, so they still apply when the user's text contains `--`.
+ */
+function slashArguments(argv: readonly string[]): string[] {
+  return argv.includes("--args-stdin")
+    ? [...argv.filter((arg) => arg !== "--args-stdin"), ...splitRawArgs(readStdin())]
+    : expandRawArguments(argv);
 }
 
 async function handleReview(kind: ReviewKind, argv: readonly string[]): Promise<void> {
-  const parsed = parseArgs(expandRawArguments(argv), {
+  const parsed = parseArgs(slashArguments(argv), {
     values: ["base", "scope", "model", "cwd"],
     booleans: ["json", "wait", "background"],
     aliases: { m: "model" }
@@ -207,7 +217,7 @@ async function handleReview(kind: ReviewKind, argv: readonly string[]): Promise<
     return;
   }
   const model = resolveModel(stringOption(parsed, "model"));
-  const reviewRequest: ReviewRequest = { cwd, scope: stringOption(parsed, "scope"), base: stringOption(parsed, "base"), focus, model };
+  const reviewRequest: ReviewRequest = { cwd, target, focus, model };
   const job = createJob({
     id: generateJobId(kind),
     kind,
@@ -244,12 +254,12 @@ async function executeTask(request: TaskRequest, hooks: RunHooks): Promise<Execu
     conversationId: request.conversationId,
     ...hooks
   });
-  const failure = turnFailure(outcome) ?? (profile === "read-only" ? readOnlyBreach(outcome) : null);
+  const failure = profile === "read-only" ? readOnlyFailure(outcome) : turnFailure(outcome);
   if (failure) {
     const hint = profile === "write" && /operation not permitted/i.test(outcome.result.response)
       ? " Shell commands run in a write-blocking sandbox; re-run with --full-access if agy must build or install."
       : "";
-    return failedTurn(outcome, `${failure}${hint}`, "task");
+    return failedTurn(outcome, `${failure}${hint}`, "task", workspaceRootOf(request.cwd));
   }
   const { result } = outcome;
   return {
@@ -357,9 +367,19 @@ async function handleTask(argv: readonly string[]): Promise<void> {
  */
 async function startJob(job: Job, background: boolean, json: boolean): Promise<void> {
   appendLog(job.logFile, "Started in a detached worker.");
-  updateJob(job.workspaceRoot, job.id, { pid: spawnWorker(job) });
+  try {
+    updateJob(job.workspaceRoot, job.id, { pid: spawnWorker(job) });
+  } catch (error) {
+    // No worker means nothing will ever finish the job: fail it instead of leaving it queued.
+    const message = error instanceof Error ? error.message : String(error);
+    updateJob(job.workspaceRoot, job.id, { status: "failed", phase: "failed", completedAt: nowIso(), errorMessage: message });
+    throw error;
+  }
   if (!background) {
-    await awaitJob(job, json);
+    // Only the launcher reports failure through its exit code: `result --wait` runs inside /agy:result's
+    // inline command, where any non-zero exit aborts the command instead of showing the failure.
+    const final = await awaitJob(job, json);
+    if (!isActive(final) && final.status !== "completed") process.exitCode = 1;
     return;
   }
   const rendered = `agy ${job.kind} ${job.id} started in the background${job.profile ? ` (${job.profile})` : ""}.\nCheck progress with /agy:status ${job.id}; fetch output with /agy:result ${job.id}.\n`;
@@ -371,10 +391,10 @@ const waitSliceMs = (): number => Number(process.env.AGY_COMPANION_WAIT_MS ?? 10
 
 /**
  * Waits up to one slice for a job, echoing its progress to stderr, then prints its result, or a
- * "still running" notice naming the command that keeps waiting. The job never depends on this
- * process: killing the waiter leaves it running.
+ * "still running" notice naming the command that keeps waiting, and returns the job as last seen.
+ * The job never depends on this process: killing the waiter leaves it running.
  */
-async function awaitJob(job: Job, json: boolean): Promise<void> {
+async function awaitJob(job: Job, json: boolean): Promise<Job> {
   const deadline = Date.now() + waitSliceMs();
   let shown = progressPreview(job.logFile, Number.MAX_SAFE_INTEGER).length;
   let current = job;
@@ -390,10 +410,10 @@ async function awaitJob(job: Job, json: boolean): Promise<void> {
   if (isActive(current)) {
     const rendered = `agy ${current.kind} ${current.id} is still running (${current.phase}); it continues in the background.\nKeep waiting with: node "${SELF}" result ${current.id} --wait\nOr check later: /agy:status ${current.id}, /agy:result ${current.id}.\n`;
     print({ jobId: current.id, status: current.status, phase: current.phase }, rendered, json);
-    return;
+    return current;
   }
   print(current, current.rendered ?? `# agy ${current.kind} ${current.id} - ${current.status}\n\n${current.errorMessage ?? "No output was recorded."}\n\nLog: ${current.logFile}\n`, json);
-  if (current.status !== "completed") process.exitCode = 1;
+  return current;
 }
 
 async function handleJobWorker(argv: readonly string[]): Promise<void> {
@@ -479,14 +499,14 @@ async function handleResult(argv: readonly string[]): Promise<void> {
   print(job, header + body, flag(parsed, "json"));
 }
 
-async function cancelJob(job: Job, reason: string): Promise<Job> {
+async function cancelJob(job: Job, reason: string, graceMs?: number): Promise<Job> {
   const terminal = { status: "cancelled", phase: "cancelled", completedAt: nowIso(), errorMessage: reason } as const;
   // Mark first so the runner's completion write and any later agy-pid write are refused. Pids stay
   // in the record until both groups are stopped: agy's own group and the runner (detached worker,
   // or a foreground companion whose signal handler also stops agy). Then re-assert, race-free.
   const marked = updateJob(job.workspaceRoot, job.id, terminal);
   if (marked.status !== "cancelled") return marked; // It finished first; keep its real outcome.
-  await Promise.all([terminateProcessTree(marked.agyPid), terminateProcessTree(marked.pid)]);
+  await Promise.all([terminateProcessTree(marked.agyPid, graceMs), terminateProcessTree(marked.pid, graceMs)]);
   appendLog(job.logFile, reason);
   return forceUpdateJob(job.workspaceRoot, job.id, { ...terminal, pid: null, agyPid: null });
 }
@@ -572,12 +592,18 @@ function hookSessionStart(input: HookInput): void {
   if (exports) appendFileSync(envFile, exports, "utf8");
 }
 
+/**
+ * Claude Code gives plugin SessionEnd hooks 1.5s in all (their own `timeout` does not extend it), so
+ * the SIGKILL fallback for a process that ignores SIGTERM must land well inside that.
+ */
+const SESSION_END_GRACE_MS = 800;
+
 /** Session over: stop its running jobs but keep their records and results. */
 async function hookSessionEnd(input: HookInput): Promise<void> {
   if (!input.session_id) return;
   // Every repository this session touched, not just the hook's cwd (jobs may use --cwd elsewhere).
   const active = forSession(listAllJobs(), input.session_id).filter(isActive);
-  await Promise.all(active.map((job) => cancelJob(job, "Cancelled because the Claude session ended.")));
+  await Promise.all(active.map((job) => cancelJob(job, "Cancelled because the Claude session ended.", SESSION_END_GRACE_MS)));
 }
 
 type StopVerdict = { readonly decision: "allow" | "block"; readonly reason: string };
@@ -604,7 +630,7 @@ async function stopGateDecision(input: HookInput, workspaceRoot: string): Promis
     schemaPath: join(ROOT, "schemas", "stop-gate.schema.json"),
     printTimeout: STOP_GATE_PRINT_TIMEOUT
   });
-  const failure = turnFailure(outcome) ?? readOnlyBreach(outcome);
+  const failure = readOnlyFailure(outcome);
   if (failure) return { note: `agy stop-time review skipped: ${failure}` };
   const verdict = asStopVerdict(outcome.result.structured_output);
   if (!verdict) return { note: "agy stop-time review skipped: agy returned no valid allow/block verdict." };

@@ -31,7 +31,7 @@
     {
       "name": "agy",
       "source": "./plugins/agy",
-      "description": "Use Google Antigravity (agy, Gemini models) from Claude Code: structured code reviews, adversarial design reviews, and delegated rescue tasks with background job tracking. A drop-in twin of the Codex plugin's workflow."
+      "description": "Use Google Antigravity (agy, Gemini models) from Claude Code: structured code reviews, adversarial design reviews, and delegated rescue tasks with background job tracking. Modeled on the Codex plugin's workflow."
     },
     {
       "name": "wisci",

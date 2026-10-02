@@ -55,6 +55,8 @@ export type TurnRequest = {
 export type TurnOutcome = {
   readonly result: AgyResult;
   readonly touchedFiles: readonly string[];
+  /** Any edit-tool step, finished or not, with or without a target path. */
+  readonly editToolUsed: boolean;
   readonly stderr: string;
   readonly exitCode: number;
 };
@@ -138,9 +140,11 @@ export function describeStep(step: StepUpdate): Progress | null {
   return { message: `Tool ${step.tool_name}${target ? `: ${target}` : ""}`, phase: "investigating" };
 }
 
+const isEditStep = (step: StepUpdate): boolean => step.tool_name !== undefined && WRITE_TOOLS.has(step.tool_name);
+
 export function collectTouchedFiles(steps: readonly StepUpdate[]): string[] {
   const files = steps
-    .filter((s) => s.state === "DONE" && s.tool_name !== undefined && WRITE_TOOLS.has(s.tool_name))
+    .filter((s) => s.state === "DONE" && isEditStep(s))
     .map((s) => s.tool_info?.parameters?.TargetFile)
     .filter((f): f is string => typeof f === "string" && f.length > 0);
   return [...new Set(files)];
@@ -253,7 +257,7 @@ export function runAgyTurn(request: TurnRequest): Promise<TurnOutcome> {
         const final = result as AgyResult | null;
         if (failure) reject(failure);
         else if (!final) reject(new Error(`agy produced no result event: ${summarizeStderr(stderr) || (signal ? `terminated by ${signal}` : `exit ${code}`)}`));
-        else resolve({ result: final, touchedFiles: collectTouchedFiles(steps), stderr, exitCode: code ?? 1 });
+        else resolve({ result: final, touchedFiles: collectTouchedFiles(steps), editToolUsed: steps.some(isEditStep), stderr, exitCode: code ?? 1 });
       });
     });
 
@@ -264,9 +268,10 @@ export function runAgyTurn(request: TurnRequest): Promise<TurnOutcome> {
 
 /** Defense in depth: the read-only agent has no edit tools, so any edit step means the boundary broke. */
 export function readOnlyBreach(outcome: TurnOutcome): string | null {
-  return outcome.touchedFiles.length > 0
-    ? `agy edited files during a read-only run (${outcome.touchedFiles.join(", ")}); treat the read-only boundary as broken.`
-    : null;
+  if (outcome.touchedFiles.length > 0) {
+    return `agy edited files during a read-only run (${outcome.touchedFiles.join(", ")}); treat the read-only boundary as broken.`;
+  }
+  return outcome.editToolUsed ? "agy used an edit tool during a read-only run; treat the read-only boundary as broken." : null;
 }
 
 const hasAnswer = (result: AgyResult): boolean => result.response.trim() !== "" || result.structured_output !== undefined;
@@ -295,6 +300,12 @@ export function turnFailure(outcome: TurnOutcome): string | null {
   if (denied) return denied;
   if (!result.response.trim() && result.structured_output === undefined) return "agy returned an empty response.";
   return null;
+}
+
+/** For read-only runs: a broken boundary is reported even when the turn also failed for another reason. */
+export function readOnlyFailure(outcome: TurnOutcome): string | null {
+  const failures = [turnFailure(outcome), readOnlyBreach(outcome)].filter((f): f is string => f !== null);
+  return failures.length > 0 ? failures.join(" ") : null;
 }
 
 export type ModelEntry = { readonly id: string; readonly label: string };
