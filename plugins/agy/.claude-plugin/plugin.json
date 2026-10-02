@@ -1,7 +1,7 @@
 {
   "name": "agy",
   "description": "Use Google Antigravity (agy, Gemini models) from Claude Code: structured code reviews, adversarial design reviews, and delegated rescue tasks with background job tracking. Modeled on the Codex plugin's workflow.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": {
     "name": "Dennis Nasarov"
   },

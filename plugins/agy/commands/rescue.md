@@ -4,7 +4,16 @@ argument-hint: "[--background|--wait] [--resume|--fresh] [--read-only|--full-acc
 allowed-tools: Bash(node:*), AskUserQuestion, Agent
 ---
 
-Invoke the `agy:agy-rescue` subagent via the `Agent` tool (`subagent_type: "agy:agy-rescue"`), forwarding the raw user request as the prompt.
+Invoke the `agy:agy-rescue` subagent via the `Agent` tool (`subagent_type: "agy:agy-rescue"`). Its prompt is the raw user request in this frame, unchanged apart from the routing flags added below:
+
+```text
+Forward to agy:
+<request>
+<the raw user request>
+</request>
+```
+
+The frame keeps a request that reads like a question to the subagent, such as "what model are you?", from being answered by the subagent instead of by agy.
 `agy:agy-rescue` is a subagent, not a skill — do not call `Skill(agy:agy-rescue)` (no such skill) or `Skill(agy:rescue)` (that re-enters this command and hangs the session).
 The final user-visible response must be agy's output verbatim.
 
