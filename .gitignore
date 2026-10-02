@@ -1,0 +1,23 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log
+
+# Runtimes
+__pycache__/
+*.py[cod]
+*.pkl
+node_modules/
+
+# Local agent / dev state (anchored: plugins/agy/agent-home/.agents/ must stay tracked)
+scratchpad/
+/.agents/
+/.gemini/
+/.claude/
+/.wisci/
+/openspec/
+/.code-review-graph/
+plugins/wisci/evals/outputs/
