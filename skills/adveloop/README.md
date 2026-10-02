@@ -29,12 +29,16 @@ adveloop runs a three-role adversarial loop for every deliverable you approve. A
 </tr>
 <tr>
   <td><strong>Claude Code</strong></td>
-  <td><code>claude plugin marketplace add ph3on1x/adveloop</code><br><code>claude plugin install adveloop</code></td>
+  <td><code>claude plugin marketplace add ph3on1x/agent-plugins-skills</code><br><code>claude plugin install adveloop@ph3on1x</code></td>
+</tr>
+<tr>
+  <td><strong>Codex, Cursor, Gemini CLI, Antigravity, and other agents</strong></td>
+  <td><code>npx skills add ph3on1x/agent-plugins-skills --skill adveloop</code></td>
 </tr>
 </table>
 
 > [!NOTE]
-> Requires [cmux](https://github.com/manaflow-ai/cmux) (macOS 14.0+) and the [`/cmux` skill](https://github.com/ph3on1x/claude-cmux-skill) — adveloop delegates every pane/signal operation to it. The [context7](https://github.com/upstash/context7) MCP server is strongly recommended: both panes are instructed to query current library/framework/API docs through context7 before writing or auditing. Without it, they fall back to training-data knowledge and stale API usage may slip through.
+> Requires [cmux](https://github.com/manaflow-ai/cmux) (macOS 14.0+) and the [`/cmux` skill](../cmux) — adveloop delegates every pane/signal operation to it. The [context7](https://github.com/upstash/context7) MCP server is strongly recommended: both panes are instructed to query current library/framework/API docs through context7 before writing or auditing. Without it, they fall back to training-data knowledge and stale API usage may slip through.
 
 ## Usage
 

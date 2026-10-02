@@ -58,8 +58,8 @@ example live in [`references/frameworks.md`](references/frameworks.md).
 ## Install
 
 ```bash
-npx skills add ph3on1x/skills --skill refine-prompt
+npx skills add ph3on1x/agent-plugins-skills --skill refine-prompt
 ```
 
-Or in Claude Code: `/plugin marketplace add ph3on1x/skills` then
-`/plugin install refine-prompt@ph3on1x-skills`.
+Or in Claude Code: `/plugin marketplace add ph3on1x/agent-plugins-skills` then
+`/plugin install refine-prompt@ph3on1x`.

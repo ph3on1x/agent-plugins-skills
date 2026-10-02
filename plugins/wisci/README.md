@@ -31,19 +31,11 @@ WISCI skills use the [Agent Skills open standard](https://agentskills.io) (`SKIL
 </tr>
 <tr>
   <td><strong>Claude Code</strong></td>
-  <td><code>claude plugin marketplace add ph3on1x/wisci</code><br><code>claude plugin install wisci</code></td>
+  <td><code>claude plugin marketplace add ph3on1x/agent-plugins-skills</code><br><code>claude plugin install wisci@ph3on1x</code></td>
 </tr>
 <tr>
-  <td><strong>Gemini CLI</strong></td>
-  <td><code>gemini extensions install &lt;github-url&gt;</code></td>
-</tr>
-<tr>
-  <td><strong>Codex CLI</strong></td>
-  <td>Clone the repo, then run <code>./scripts/setup-platforms.sh</code></td>
-</tr>
-<tr>
-  <td><strong>Cursor</strong></td>
-  <td>Auto-discovers skills — no setup needed if Claude Code plugin is installed. Otherwise, run <code>./scripts/setup-platforms.sh</code></td>
+  <td><strong>Codex, Cursor, Gemini CLI, Antigravity, and other agents</strong></td>
+  <td><code>npx skills add ph3on1x/agent-plugins-skills --skill commit compress isolate select write</code></td>
 </tr>
 </table>
 
