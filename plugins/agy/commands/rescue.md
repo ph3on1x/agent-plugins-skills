@@ -13,11 +13,12 @@ $ARGUMENTS
 
 Execution mode:
 
-- Run the `agy:agy-rescue` subagent in the foreground. It returns quickly for `--background` runs.
-- `--background` means agy runs as a detached background job; the subagent passes it to the runtime, which returns a job id immediately. `--wait` means agy runs to completion before the subagent returns.
-- If neither is present, the subagent decides: small, clearly bounded asks run in the foreground; open-ended, multi-step, or long work runs with `--background`.
-- `--model`, `--effort`, `--read-only`, and `--full-access` are runtime flags. Preserve them for the subagent, but they are not part of the natural-language task text.
 - Routing flags count only at the start of the request, before the task text. A flag-like word inside the task text is task text.
+- If the request's routing flags include `--background`, run the `agy:agy-rescue` subagent in the background. It waits for agy to finish, so its result arrives in the conversation when the run ends.
+- If they include `--wait`, run the subagent in the foreground.
+- If neither flag is present, default to foreground.
+- `--background` and `--wait` are execution flags for Claude Code. Leave them in the forwarded request; the subagent strips them and never passes them to the runtime. Either way agy runs in a detached worker, so Claude Code's Bash time limit cannot cut it short.
+- `--model`, `--effort`, `--read-only`, and `--full-access` are runtime flags. Preserve them for the subagent, but they are not part of the natural-language task text.
 - If the request's routing flags include `--resume` or `--fresh`, do not ask whether to continue. The user already chose.
 - Otherwise, before starting agy, check for a resumable rescue thread from this Claude session by running:
 

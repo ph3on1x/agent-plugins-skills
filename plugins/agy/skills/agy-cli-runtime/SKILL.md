@@ -17,7 +17,7 @@ Run the `task` command with `Bash`. The task text goes on stdin through a quoted
 shell never touches it:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/agy-companion.mts" task [--write] [--full-access] [--background] [--resume-last] [--model <model>] [--effort <effort>] <<'AGY_TASK_<suffix>'
+node "${CLAUDE_PLUGIN_ROOT}/scripts/agy-companion.mts" task [--write] [--full-access] [--resume-last] [--model <model>] [--effort <effort>] <<'AGY_TASK_<suffix>'
 <task text>
 AGY_TASK_<suffix>
 ```
@@ -36,9 +36,8 @@ part of the task.
 - `--full-access`: add `--full-access` (with `--write`) only when the request has the literal
   `--full-access` flag. Never infer it from the task, even for builds or installs; if a write run
   fails on a sandbox write error, the output tells the user how to re-run.
-- `--background`: add `--background`. `--wait`: do not add it. Neither: add `--background` when the
-  task looks complicated, open-ended, multi-step, or likely to run for more than a few minutes;
-  otherwise run in the foreground.
+- `--background` and `--wait` are Claude-side execution controls: the parent already chose whether
+  to wait for you. Strip them, and never pass `--background` to `task`.
 - `--resume`: add `--resume-last`. `--fresh`: do not. Neither: add `--resume-last` only when the
   request clearly continues earlier agy work in this repository, such as "continue", "keep going",
   "resume", "apply the top fix", or "dig deeper".
@@ -64,14 +63,15 @@ part of the task.
 - `--full-access`: no sandbox at all, so commands can build, install, and write anywhere the user can.
 - `--resume-last` continues the latest agy task thread from this Claude session (`agy --conversation
   <id>`). It fails while a task from this session is still running.
-- Every run executes in a detached worker. `--background` prints the job id at once. Otherwise the
+- Every run executes in a detached worker, so Claude Code's Bash time limit cannot cut it short. The
   runtime waits up to ~100s (`AGY_COMPANION_WAIT_MS`); if the job is still running, it says so and
   names the `result <job-id> --wait` command that keeps waiting.
 
 ## Execution rules
 
-- Call `task` once. The only other allowed call: when a foreground run says the task is still
-  running, run the `result <job-id> --wait` command it names, repeating while it still says running.
+- Call `task` once. The only other allowed call: while the output says the task is still running,
+  run the `result <job-id> --wait` command it names, repeating until the task finishes. Never return
+  a still-running notice: the parent expects agy's final answer.
 - Do not call `setup`, `review`, `adversarial-review`, `status`, or `cancel`, and do not call `agy`
   directly.
 - Return the final stdout unchanged. If the command fails, return its error output unchanged and do

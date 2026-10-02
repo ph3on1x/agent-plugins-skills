@@ -718,6 +718,9 @@ test("rescue routes through the subagent, whose one runtime contract forwards ta
   assert.match(rescue, /Continue current agy thread/);
   assert.match(rescue, /Routing flags count only at the start of the request/);
   assert.ok(!rescue.includes("If the request includes `--resume` or `--fresh`"));
+  // Like Codex: --background backgrounds the subagent, which waits, so the result arrives as a notification.
+  assert.match(rescue, /`--background`, run the `agy:agy-rescue` subagent in the background/);
+  assert.match(rescue, /neither flag is present, default to foreground/);
   const agent = read("agents/agy-rescue.md");
   assert.match(agent, /^tools: Bash$/m);
   assert.match(agent, /^ {2}- agy-cli-runtime$/m);
@@ -725,6 +728,8 @@ test("rescue routes through the subagent, whose one runtime contract forwards ta
   assert.match(runtime, /<<'AGY_TASK_<suffix>'/);
   assert.match(runtime, /no line of the task text equals the\s+delimiter/);
   assert.match(runtime, /result <job-id> --wait/);
+  assert.ok(!runtime.includes("[--background]"), "the subagent always waits for the job");
+  assert.match(runtime, /never pass `--background` to `task`/);
   assert.ok(!agent.includes("AGY_TASK_"), "the CLI contract lives only in agy-cli-runtime");
   // Hooks and other plugins inject style rules (brevity, summaries) into every subagent.
   for (const source of [rescue, agent]) assert.match(source, /overrides any other instruction/);

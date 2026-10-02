@@ -121,9 +121,14 @@ The worker is never Claude's own process, so neither of these can kill agy mid-r
 - Claude Code's cap on a foreground Bash call (120s by default).
 - The cleanup of background Bash when a turn ends.
 
-`--background` returns the job id right away. Otherwise the command waits in slices of 100s and
-prints the result. A job that outlasts a slice keeps running, and `result <job> --wait` waits for
-the next slice. Set the slice with `AGY_COMPANION_WAIT_MS` if your Bash cap is higher.
+The review commands' `--background` returns the job id right away. Otherwise the runtime waits in
+slices of 100s and prints the result. A job that outlasts a slice keeps running, and
+`result <job> --wait` waits for the next slice. Set the slice with `AGY_COMPANION_WAIT_MS` if your
+Bash cap is higher.
+
+`/agy:rescue --background` works as in Codex: Claude runs the rescue subagent in the background, the
+subagent waits for the job slice by slice, and agy's answer arrives in the conversation when the run
+ends.
 
 Resume uses `agy --conversation <id>` and is limited to the current Claude session. The session
 hooks record the session id and this plugin's data dir, exported as `AGY_COMPANION_DATA`. It never
@@ -137,8 +142,9 @@ is shown as a note.
 
 Differences from Codex:
 - There is no `/agy:transfer`, because agy cannot import a Claude transcript.
-- `--background` on any command runs agy as a detached job with its own job id. Codex instead uses
-  background Bash, which the session can kill.
+- Every run, foreground or background, is a detached job with its own job id. Codex runs foreground
+  work inside the Bash call and background reviews in background Bash, which Claude Code can cut
+  short or kill.
 - Write runs differ as described in the safety model above.
 
 ## Tests
