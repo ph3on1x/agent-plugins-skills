@@ -1,0 +1,42 @@
+{
+  "name": "ph3on1x",
+  "owner": {
+    "name": "Dennis Nasarov",
+    "url": "https://github.com/ph3on1x"
+  },
+  "metadata": {
+    "description": "Agent skills and plugins for AI coding agents: Claude Code, Codex, Cursor, Gemini CLI, Antigravity."
+  },
+  "plugins": [
+    {
+      "name": "adveloop",
+      "source": "./skills/adveloop",
+      "description": "GAN-inspired adversarial dev loop — Planner sequentially drives a Generator and Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable. Adapted from Anthropic's harness-design guidance for long-running agentic apps."
+    },
+    {
+      "name": "claude-cmux-skill",
+      "source": "./skills/cmux",
+      "description": "Skill for orchestrating independent Claude Code sessions in cmux terminal — split panes, agent monitoring, browser automation, sidebar metadata, notifications, and full CLI coverage."
+    },
+    {
+      "name": "refine-prompt",
+      "source": "./skills/refine-prompt",
+      "description": "Interview-style prompt refiner that picks a framework, fills gaps via AskUserQuestion, assembles a structured XML prompt, confirms, then executes it."
+    },
+    {
+      "name": "relamo",
+      "source": "./skills/relamo",
+      "description": "Recursive Language Model skill — programmatic codebase exploration via persistent Python REPL loop"
+    },
+    {
+      "name": "agy",
+      "source": "./plugins/agy",
+      "description": "Use Google Antigravity (agy, Gemini models) from Claude Code: structured code reviews, adversarial design reviews, and delegated rescue tasks with background job tracking. A drop-in twin of the Codex plugin's workflow."
+    },
+    {
+      "name": "wisci",
+      "source": "./plugins/wisci",
+      "description": "WISCI context engineering framework — Write, Isolate, Select, Compress, Iterate. Staleness-tracked context store (.wisci/), per-stream handoffs with a derived index, proactive session hooks, and context-enriched commits."
+    }
+  ]
+}
