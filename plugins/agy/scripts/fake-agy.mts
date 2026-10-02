@@ -20,7 +20,7 @@ if (args[0] === "--version") {
   process.stdout.write(
     mode === "unauthenticated"
       ? `${JSON.stringify({ status: "ERROR", error: "authentication required" })}\n`
-      : `${JSON.stringify({ status: "SUCCESS", response: "Gemini Models\tWeekly Limit Remaining\t99%\n" })}\n`
+      : `${JSON.stringify({ status: "SUCCESS", response: "Gemini Models\tWeekly Limit Remaining\t99%\nClaude and GPT models\tWeekly Limit Remaining\t100%\n" })}\n`
   );
   process.exit(mode === "unauthenticated" ? 1 : 0);
 } else if (args[0] === "models") {

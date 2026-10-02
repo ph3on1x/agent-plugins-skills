@@ -357,11 +357,15 @@ export type Availability = {
   readonly installed: boolean;
   readonly version: string | null;
   readonly authenticated: boolean;
-  /** Quota lines from `/usage` when signed in, otherwise the reason it is not ready. */
+  /** Gemini quota lines from `/usage` when signed in, otherwise the reason it is not ready. */
   readonly detail: string;
 };
 
-/** `agy -p /usage` needs a signed-in account but no agent turn, so it costs no quota. */
+/**
+ * `agy -p /usage` needs a signed-in account but no agent turn, so it costs no quota.
+ * Only Gemini quota is kept: the plugin targets Gemini, and agy's separate Claude/GPT pool reads
+ * as the user's Claude Code limits.
+ */
 export function checkAvailability(): Availability {
   const version = spawnSync(agyBin(), ["--version"], { encoding: "utf8", timeout: 15_000 });
   if (version.error || version.status !== 0) {
@@ -380,7 +384,7 @@ export function checkAvailability(): Availability {
     version: version.stdout.trim(),
     authenticated,
     detail: authenticated
-      ? (parsed.response ?? "").trim().split("\n").map((line) => line.split("\t").join(" | ")).join("\n")
+      ? (parsed.response ?? "").trim().split("\n").filter((line) => line.startsWith("Gemini")).map((line) => line.split("\t").join(" | ")).join("\n")
       : parsed.error || summarizeStderr(`${usage.stderr ?? ""}`) || "agy /usage failed"
   };
 }

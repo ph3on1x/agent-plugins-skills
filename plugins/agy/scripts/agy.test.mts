@@ -555,9 +555,10 @@ test("setup reports readiness, missing auth, and conflicting /agy plugins", () =
   const home = tempDir();
   mkdirSync(join(home, ".claude", "plugins"), { recursive: true });
   writeFileSync(join(home, ".claude", "plugins", "installed_plugins.json"), JSON.stringify({ plugins: { "agy@antigravity-cc": [], "agy@ph3on1x": [] } }));
-  const ready = JSON.parse(companion(repo, ["setup", "--json"], { ...fakeEnv("task"), HOME: home }).stdout) as { ready: boolean; conflicts: string[] };
+  const ready = JSON.parse(companion(repo, ["setup", "--json"], { ...fakeEnv("task"), HOME: home }).stdout) as { ready: boolean; conflicts: string[]; availability: { detail: string } };
   assert.equal(ready.ready, true);
   assert.deepEqual(ready.conflicts, ["agy@antigravity-cc"]);
+  assert.equal(ready.availability.detail, "Gemini Models | Weekly Limit Remaining | 99%");
   const unauth = JSON.parse(companion(repo, ["setup", "--json"], fakeEnv("unauthenticated")).stdout) as { ready: boolean };
   assert.equal(unauth.ready, false);
   const missing = JSON.parse(companion(repo, ["setup", "--json"], { ...fakeEnv("task"), AGY_COMPANION_AGY_BIN: "/nonexistent/agy" }).stdout) as { ready: boolean; availability: { installed: boolean } };
