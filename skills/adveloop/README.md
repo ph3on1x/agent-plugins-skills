@@ -4,7 +4,7 @@
 
 **GAN-inspired adversarial development loop — Planner directs Generator + Evaluator in fresh cmux panes until the work actually passes**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![Version](https://img.shields.io/badge/version-1.3.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
@@ -214,9 +214,9 @@ On Resume, #1 is skipped, #2 jumps straight to the Evaluator,
 
 - **Anthropic** — [Harness design for long-running agentic apps](https://www.anthropic.com/engineering/harness-design-long-running-apps), [Claude Code](https://github.com/anthropics/claude-code), and the [Agent Skills standard](https://agentskills.io)
 - **[cmux](https://github.com/manaflow-ai/cmux)** — the native macOS terminal for AI coding agents that makes pane orchestration possible
-- **[claude-cmux-skill](https://github.com/ph3on1x/claude-cmux-skill)** — the `/cmux` skill that adveloop delegates every pane operation to
+- **[cmux](../cmux)** — the `/cmux` skill that adveloop delegates every pane operation to
 - **GAN research** — the generator/discriminator adversarial framing that inspires the loop's structure
 
 ## License
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

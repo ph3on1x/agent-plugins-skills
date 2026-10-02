@@ -1,10 +1,12 @@
 <div align="center">
 
-# claude-cmux-skill
+# cmux
+
+*Formerly `claude-cmux-skill`.*
 
 **Orchestrate independent Claude Code sessions in cmux — split panes, monitor agents, automate browsers, coordinate parallel work**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![Version](https://img.shields.io/badge/version-2.0.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
@@ -88,20 +90,17 @@ AI coding agents are powerful individually. But when you need multiple agents wo
 Invoke with `/cmux` inside a cmux terminal. The skill uses **progressive disclosure** — core concepts load when `/cmux` is invoked, while detailed references load only when Claude needs them.
 
 ```
-claude-cmux-skill/
+skills/cmux/
 ├── .claude-plugin/
-│   ├── plugin.json              # Plugin metadata
-│   └── marketplace.json         # Marketplace catalog
+│   └── plugin.json              # Plugin metadata
 ├── hooks/
 │   └── hooks.json               # Lifecycle hooks (SessionStart, Stop, Notification)
-└── skills/
-    └── cmux/
-        ├── SKILL.md             # /cmux skill
-        └── references/
-            ├── orchestration.md       # Multi-agent patterns
-            ├── browser-automation.md  # Full browser API
-            ├── notifications.md       # Notification systems
-            └── complete-cli.md        # Complete CLI catalog
+├── SKILL.md                     # /cmux skill
+└── references/
+    ├── orchestration.md         # Multi-agent patterns
+    ├── browser-automation.md    # Full browser API
+    ├── notifications.md         # Notification systems
+    └── complete-cli.md          # Complete CLI catalog
 ```
 
 ### Key Capabilities
@@ -185,4 +184,4 @@ and writes tests based on the shared findings.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

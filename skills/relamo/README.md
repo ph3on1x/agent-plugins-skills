@@ -4,7 +4,7 @@
 
 **Recursive Language Model skill for AI coding agents — programmatic codebase exploration via persistent Python REPL**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![Version](https://img.shields.io/badge/version-1.2.0-green.svg)]()
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Standard-blueviolet.svg)](https://agentskills.io)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-orange.svg)](https://github.com/anthropics/claude-code)
@@ -263,4 +263,4 @@ The REPL runs in a restricted environment:
 
 ## License
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

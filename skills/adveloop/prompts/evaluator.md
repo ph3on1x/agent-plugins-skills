@@ -64,7 +64,7 @@ Set `passed: true` only if every testable outcome in the deliverable actually wo
 
 1. Write the verdict JSON to `.adveloop/tasks/<N>/eval-result-<R>.json` (matching the round number of the task file you read).
 2. Kill any background processes you started.
-3. Invoke the `/cmux` skill (Skill tool, name `claude-cmux-skill:cmux`) to load its orchestration patterns.
+3. Invoke the `/cmux` skill (Skill tool, name `cmux:cmux`) to load its orchestration patterns.
 4. Using the patterns provided by that skill, emit the completion signal whose name is given in the task file. This unblocks the Planner.
 
 Do NOT keep working after emitting the signal. Do NOT invoke `cmux` directly outside what the `/cmux` skill prescribes.

@@ -46,7 +46,7 @@ If you catch yourself writing something that feels like a workaround, stop — t
 # Final step (MUST do — skipping this hangs the Planner)
 
 1. Write a brief summary to `.adveloop/tasks/<N>/gen-result-<R>.md` (matching the round number of the task file you read) covering: what you built, files changed (paths), how to run/verify it, and any known limitations.
-2. Invoke the `/cmux` skill (Skill tool, name `claude-cmux-skill:cmux`) to load its orchestration patterns.
+2. Invoke the `/cmux` skill (Skill tool, name `cmux:cmux`) to load its orchestration patterns.
 3. Using the patterns provided by that skill, emit the completion signal whose name is given in the task file. This unblocks the Planner.
 
 Do NOT keep working after emitting the signal. Do NOT invoke `cmux` directly outside what the `/cmux` skill prescribes.

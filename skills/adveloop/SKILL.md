@@ -1,6 +1,6 @@
 ---
 name: adveloop
-description: Run a GAN-inspired adversarial development loop — the Planner drives a Generator and Evaluator in fresh cmux panes, gated by hard pass/fail per deliverable, adapted from Anthropic's harness-design guidance for long-running agentic apps. Use when the user asks to /adveloop, run an adversarial dev loop, spawn Planner-Generator-Evaluator panes, build with adversarial verification, or audit/harden existing code with a skeptical evaluator. Requires cmux and the claude-cmux-skill:cmux skill.
+description: Run a GAN-inspired adversarial development loop — the Planner drives a Generator and Evaluator in fresh cmux panes, gated by hard pass/fail per deliverable, adapted from Anthropic's harness-design guidance for long-running agentic apps. Use when the user asks to /adveloop, run an adversarial dev loop, spawn Planner-Generator-Evaluator panes, build with adversarial verification, or audit/harden existing code with a skeptical evaluator. Requires cmux and the cmux:cmux skill.
 argument-hint: "[product brief, or path to a spec file; empty to resume]"
 allowed-tools:
   - Read
@@ -26,7 +26,7 @@ User input: `$ARGUMENTS` (may be empty).
 ## 1. Pre-flight
 
 - `CMUX_SOCKET_PATH` must be set. If not, tell the user: `/adveloop requires a running cmux session. Launch Claude Code inside a cmux pane and re-run.` Stop.
-- The `/cmux` skill (`claude-cmux-skill:cmux`) must be available. If not, tell the user to install `claude-cmux-skill` from the marketplace. Stop.
+- The `/cmux` skill (`cmux:cmux`) must be available. If not, tell the user to install it (`claude plugin install cmux@ph3on1x`, or `npx skills add ph3on1x/agent-plugins-skills --skill cmux`). Stop.
 - Invoke the `/cmux` skill via the Skill tool so its orchestration patterns are in your context.
 - Generate `run_id` as `YYYYMMDD-HHMM-XXXX` where `XXXX` is 4 lowercase hex chars from a secure random source. Reference command: `run_id="$(date +%Y%m%d-%H%M)-$(head -c2 /dev/urandom | xxd -p)"`. Namespace every signal with it.
 
