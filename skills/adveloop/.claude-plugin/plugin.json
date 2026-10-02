@@ -1,0 +1,14 @@
+{
+  "name": "adveloop",
+  "version": "2.0.0",
+  "description": "GAN-inspired adversarial dev loop — Planner sequentially drives a Generator and Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable. Adapted from Anthropic's harness-design guidance for long-running agentic apps.",
+  "author": {
+    "name": "Dennis Nasarov",
+    "email": "dennis.nasarov@gmail.com",
+    "url": "https://github.com/ph3on1x"
+  },
+  "homepage": "https://github.com/ph3on1x/adveloop",
+  "repository": "https://github.com/ph3on1x/adveloop",
+  "license": "MIT",
+  "keywords": ["adversarial-dev", "cmux", "planner-generator-evaluator", "orchestration"]
+}
