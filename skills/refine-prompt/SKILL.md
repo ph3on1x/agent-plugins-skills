@@ -2,7 +2,6 @@
 name: refine-prompt
 description: This skill should be used when the user wants to "refine my prompt", "enhance this prompt", "make this a better prompt", "improve my prompt", "rewrite this prompt", or invokes /refine-prompt. Interviews the user with AskUserQuestion to fill gaps, picks the right prompt-engineering framework (RTF, RACE, RISEN, CO-STAR, CRISPE, BAB, TAG, CIDI, …) for the task, assembles a structured XML prompt, confirms it, then executes it in this session.
 argument-hint: "[rough prompt or task description] (optional — omit to be asked)"
-version: 0.1.0
 ---
 
 # /refine-prompt — Interview-Style Prompt Refiner
