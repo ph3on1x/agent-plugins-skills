@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CMUX_SOCKET_PATH\" ]; then cmux claude-hook session-start; else exit 0; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CMUX_SOCKET_PATH\" ]; then cmux claude-hook stop; else exit 0; fi"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CMUX_SOCKET_PATH\" ]; then cmux claude-hook notification; else exit 0; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
