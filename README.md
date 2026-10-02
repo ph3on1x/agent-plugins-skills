@@ -30,7 +30,7 @@ Each item has its own README with usage and requirements.
 /plugin install <name>@ph3on1x
 ```
 
-`<name>` is the plugin name: `wisci`, `agy`, `claude-cmux-skill`, `adveloop`, `relamo` or
+`<name>` is the plugin name: `wisci`, `agy`, `cmux`, `adveloop`, `relamo` or
 `refine-prompt`. Turn on auto-update for the `ph3on1x` marketplace under `/plugin` to get new versions.
 
 ### Codex, Cursor, Gemini CLI, Antigravity and other agents

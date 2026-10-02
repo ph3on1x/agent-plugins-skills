@@ -29,7 +29,7 @@ This plugin teaches Claude Code how to use [cmux](https://github.com/manaflow-ai
 </tr>
 <tr>
   <td><strong>Claude Code</strong></td>
-  <td><code>claude plugin marketplace add ph3on1x/agent-plugins-skills</code><br><code>claude plugin install claude-cmux-skill@ph3on1x</code></td>
+  <td><code>claude plugin marketplace add ph3on1x/agent-plugins-skills</code><br><code>claude plugin install cmux@ph3on1x</code></td>
 </tr>
 <tr>
   <td><strong>Codex, Cursor, Gemini CLI, Antigravity, and other agents</strong></td>

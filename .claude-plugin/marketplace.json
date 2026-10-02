@@ -14,7 +14,7 @@
       "description": "GAN-inspired adversarial dev loop — Planner sequentially drives a Generator and Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable. Adapted from Anthropic's harness-design guidance for long-running agentic apps."
     },
     {
-      "name": "claude-cmux-skill",
+      "name": "cmux",
       "source": "./skills/cmux",
       "description": "Skill for orchestrating independent Claude Code sessions in cmux terminal — split panes, agent monitoring, browser automation, sidebar metadata, notifications, and full CLI coverage."
     },
