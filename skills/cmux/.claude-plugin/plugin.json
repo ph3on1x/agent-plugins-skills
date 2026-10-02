@@ -7,6 +7,15 @@
     "url": "https://github.com/ph3on1x"
   },
   "license": "MIT",
-  "repository": "https://github.com/ph3on1x/claude-cmux-skill",
-  "keywords": ["cmux", "terminal", "browser-automation", "split-panes", "notifications", "orchestration", "independent-sessions"]
+  "repository": "https://github.com/ph3on1x/agent-plugins-skills",
+  "keywords": [
+    "cmux",
+    "terminal",
+    "browser-automation",
+    "split-panes",
+    "notifications",
+    "orchestration",
+    "independent-sessions"
+  ],
+  "homepage": "https://github.com/ph3on1x/agent-plugins-skills/tree/main/skills/cmux"
 }

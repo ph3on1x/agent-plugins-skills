@@ -7,8 +7,13 @@
     "email": "dennis.nasarov@gmail.com",
     "url": "https://github.com/ph3on1x"
   },
-  "homepage": "https://github.com/ph3on1x/adveloop",
-  "repository": "https://github.com/ph3on1x/adveloop",
+  "homepage": "https://github.com/ph3on1x/agent-plugins-skills/tree/main/skills/adveloop",
+  "repository": "https://github.com/ph3on1x/agent-plugins-skills",
   "license": "MIT",
-  "keywords": ["adversarial-dev", "cmux", "planner-generator-evaluator", "orchestration"]
+  "keywords": [
+    "adversarial-dev",
+    "cmux",
+    "planner-generator-evaluator",
+    "orchestration"
+  ]
 }

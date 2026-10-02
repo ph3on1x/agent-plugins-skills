@@ -6,8 +6,14 @@
     "name": "Dennis Nasarov"
   },
   "license": "MIT",
-  "repository": "https://github.com/ph3on1x/wisci",
-  "homepage": "https://github.com/ph3on1x/wisci#readme",
-  "keywords": ["context-engineering", "wisci", "context-store", "session-management", "handoff"],
+  "repository": "https://github.com/ph3on1x/agent-plugins-skills",
+  "homepage": "https://github.com/ph3on1x/agent-plugins-skills/tree/main/plugins/wisci",
+  "keywords": [
+    "context-engineering",
+    "wisci",
+    "context-store",
+    "session-management",
+    "handoff"
+  ],
   "hooks": "./hooks/hooks.json"
 }

@@ -2,10 +2,16 @@
   "name": "relamo",
   "description": "Recursive Language Model skill — programmatic codebase exploration via persistent Python REPL loop",
   "version": "1.2.0",
-  "repository": "https://github.com/ph3on1x/relamo",
+  "repository": "https://github.com/ph3on1x/agent-plugins-skills",
   "author": {
     "name": "Dennis Nasarov"
   },
   "license": "MIT",
-  "keywords": ["rlm", "recursive-language-model", "context-exploration", "repl"]
+  "keywords": [
+    "rlm",
+    "recursive-language-model",
+    "context-exploration",
+    "repl"
+  ],
+  "homepage": "https://github.com/ph3on1x/agent-plugins-skills/tree/main/skills/relamo"
 }
