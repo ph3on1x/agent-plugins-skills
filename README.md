@@ -58,18 +58,6 @@ plugins/<name>/    multi-skill or command/agent plugins for Claude Code
 Every item carries its own `.claude-plugin/plugin.json`, which is the only place its version lives.
 Releases are tagged `<item>-vX.Y.Z`.
 
-## Adding a skill or plugin
-
-1. A standalone skill goes in `skills/<name>/`: `SKILL.md` with YAML frontmatter (kebab-case `name`
-   matching the folder, a third-person `description` with the phrases a user would say), plus
-   `.claude-plugin/plugin.json`. Long detail goes in `references/`.
-2. A plugin goes in `plugins/<name>/`. Any skill that only makes sense inside the plugin gets
-   `metadata: {internal: true}` in its frontmatter, which hides it from `npx skills`.
-3. Add an entry (`name`, `source`, `description`) to `.claude-plugin/marketplace.json`; the `name`
-   must equal the `plugin.json` name. Do not put `version` in the marketplace entry.
-4. CI runs the plugin tests, `claude plugin validate` on every item, and checks the `npx skills`
-   catalog against the expected list in `.github/workflows/ci.yml`; update that list.
-
 ## Security
 
 Skills and plugins are executable instructions, and plugins can run hooks and scripts. Read an
