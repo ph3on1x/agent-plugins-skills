@@ -1,64 +1,304 @@
-# agy
+# Antigravity plugin for Claude Code
 
-> `/agy:review`, `/agy:adversarial-review`, `/agy:rescue`: a second opinion from Google's Gemini models without leaving Claude Code.
+Use Antigravity from inside Claude Code for code reviews or to delegate tasks to Antigravity.
 
-This Claude Code plugin drives the [Antigravity CLI](https://antigravity.google) (`agy`) the same way
-OpenAI's [Codex plugin](https://github.com/openai/codex-plugin-cc) drives Codex. The commands, flags,
-and job workflow match, so if you know `/codex:*` you already know `/agy:*`. Reviews run read-only.
-Rescue tasks can edit your code. Long runs go to the background, and you check on them with
-`/agy:status`.
+This plugin is for Claude Code users who want an easy way to start using Google's Gemini models,
+through the [Antigravity CLI](https://antigravity.google) (`agy`), from the workflow they already
+have. It mirrors OpenAI's [Codex plugin](https://github.com/openai/codex-plugin-cc): if you know
+`/codex:*`, you already know `/agy:*`.
+
+## What You Get
+
+- `/agy:review` for a normal read-only Antigravity review
+- `/agy:adversarial-review` for a steerable challenge review
+- `/agy:rescue`, `/agy:status`, `/agy:result`, and `/agy:cancel` to delegate work and manage
+  background jobs
 
 ## Requirements
 
-- The Antigravity CLI, signed in with a Google account (run `agy` once). To use an API key instead,
-  set `"modelProvider": "gemini"` in `~/.gemini/antigravity-cli/settings.json` and export
-  `GEMINI_API_KEY`; the variable alone has no effect. Usage counts against your Antigravity quota,
-  and `/agy:setup` shows what remains.
-- Node.js 22.18 or later. The runtime is TypeScript run by Node's built-in type stripping, with
+- **Google account or Gemini API key.**
+  - Usage will contribute to your Antigravity quota. `/agy:setup` shows what remains.
+- **Node.js 22.18 or later.** The runtime is TypeScript run by Node's built-in type stripping, with
   zero dependencies.
 
 ## Install
 
-```text
+Add the marketplace in Claude Code:
+
+```bash
 /plugin marketplace add ph3on1x/agent-plugins-skills
+```
+
+Install the plugin:
+
+```bash
 /plugin install agy@ph3on1x
+```
+
+Reload plugins:
+
+```bash
 /reload-plugins
+```
+
+Then run:
+
+```bash
 /agy:setup
 ```
 
-`/agy:setup` checks that `agy` is installed and signed in, and offers to install it with Homebrew
-when it is missing. If another plugin also uses the `/agy:` namespace (for example
-`agy@antigravity-cc`), setup warns you. Uninstall that plugin so the commands resolve to this one.
+`/agy:setup` will tell you whether agy is ready. If agy is missing and Homebrew is available, it can
+offer to install agy for you.
 
-## Commands
+If you prefer to install agy yourself, use:
 
-| Command | What it does |
-|---|---|
-| `/agy:review [--base <ref>] [--scope auto\|working-tree\|branch] [--model m]` | Structured, read-only review of your uncommitted changes, or of your branch against a base. It does not take focus text. |
-| `/agy:adversarial-review [...] [focus ...]` | A steerable review that challenges the design, tradeoffs, and failure modes. Same targeting as `/agy:review`. |
-| `/agy:rescue [--background\|--wait] [--resume\|--fresh] [--read-only\|--full-access] [--model m] [--effort e] task` | Hands a task to agy through the `agy:agy-rescue` subagent. It edits code by default. |
-| `/agy:status [job] [--wait] [--all]` | Running and recent jobs for this session, plus whether the stop-time review gate is on. |
-| `/agy:result [job]` | The stored output of a finished job. |
-| `/agy:cancel [job]` | Stops a running job (both the worker and agy). |
-| `/agy:setup [--enable-review-gate\|--disable-review-gate]` | Checks readiness and turns the stop-time review gate on or off for the current repository. |
+```bash
+brew install --cask antigravity-cli
+# or
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+```
 
-The review commands ask whether to wait or to run in the background. Pass `--wait` or `--background`
-to skip the question. You can also just ask in plain words, for example "ask agy to find out why the
-integration test is flaky", and Claude routes it through the rescue subagent.
+If agy is installed but not signed in yet, run it once to complete the browser sign-in:
 
-Examples:
+```bash
+!agy
+```
 
-```text
+To use an API key instead, see
+[Can I use a Gemini API key?](#can-i-use-a-gemini-api-key-instead-of-a-google-account)
+
+After install, you should see:
+
+- the slash commands listed below
+- the `agy:agy-rescue` subagent in `/agents`
+
+If another plugin also uses the `/agy:` namespace (for example `agy@antigravity-cc`), `/agy:setup`
+warns you. Uninstall that plugin so the commands resolve to this one.
+
+One simple first run is:
+
+```bash
 /agy:review --background
-/agy:adversarial-review --base main challenge the retry and idempotency design
-/agy:rescue fix the failing auth test with the smallest safe patch
-/agy:rescue --background --model pro investigate the memory leak in the worker pool
-/agy:rescue --resume apply the top fix from the last run
 /agy:status
 /agy:result
 ```
 
-## Models and effort
+## Usage
+
+### `/agy:review`
+
+Runs a normal Antigravity review on your current work. Findings come back structured and ordered by
+severity, with exact file paths and line numbers.
+
+> [!NOTE]
+> Code review especially for multi-file changes might take a while. It's generally recommended to
+> run it in the background.
+
+Use it when you want:
+
+- a review of your current uncommitted changes
+- a review of your branch compared to a base branch like `main`
+
+Use `--base <ref>` for branch review, or `--scope auto|working-tree|branch` to pick the target
+explicitly. It also supports `--wait`, `--background`, and `--model`; with neither `--wait` nor
+`--background`, it asks which you want. It is not steerable and does not take custom focus text.
+Use [`/agy:adversarial-review`](#agyadversarial-review) when you want to challenge a specific
+decision or risk area.
+
+Examples:
+
+```bash
+/agy:review
+/agy:review --base main
+/agy:review --background
+```
+
+This command is read-only and will not perform any changes. When run in the background you can use
+[`/agy:status`](#agystatus) to check on the progress and [`/agy:cancel`](#agycancel) to cancel the
+ongoing task.
+
+### `/agy:adversarial-review`
+
+Runs a **steerable** review that questions the chosen implementation and design.
+
+It can be used to pressure-test assumptions, tradeoffs, failure modes, and whether a different
+approach would have been safer or simpler.
+
+It uses the same review target selection as `/agy:review`, including `--base <ref>` for branch
+review. It also supports `--wait` and `--background`. Unlike `/agy:review`, it can take extra focus
+text after the flags.
+
+Use it when you want:
+
+- a review before shipping that challenges the direction, not just the code details
+- review focused on design choices, tradeoffs, hidden assumptions, and alternative approaches
+- pressure-testing around specific risk areas like auth, data loss, rollback, race conditions, or
+  reliability
+
+Examples:
+
+```bash
+/agy:adversarial-review
+/agy:adversarial-review --base main challenge whether this was the right caching and retry design
+/agy:adversarial-review --background look for race conditions and question the chosen approach
+```
+
+This command is read-only. It does not fix code.
+
+### `/agy:rescue`
+
+Hands a task to agy through the `agy:agy-rescue` subagent.
+
+Use it when you want agy to:
+
+- investigate a bug
+- try a fix
+- continue a previous agy task
+- take a faster or cheaper pass with a smaller model
+- give a second opinion from a different model family
+
+> [!NOTE]
+> Depending on the task and the model you choose these tasks might take a long time and it's
+> generally recommended to force the task to be in the background or move the agent to the
+> background.
+
+It supports `--background`, `--wait`, `--resume`, and `--fresh`. If you omit `--resume` and
+`--fresh`, the plugin can offer to continue the latest rescue thread from this Claude session.
+
+Rescue edits code by default. Pass `--read-only` for investigation without edits, or
+`--full-access` when agy must build, install, or write to disk from its commands (see the
+[safety model](#safety-model)).
+
+Examples:
+
+```bash
+/agy:rescue investigate why the tests started failing
+/agy:rescue fix the failing test with the smallest safe patch
+/agy:rescue --resume apply the top fix from the last run
+/agy:rescue --model flash --effort medium investigate the flaky integration test
+/agy:rescue --read-only find the root cause of the memory leak in the worker pool
+/agy:rescue --background investigate the regression
+```
+
+You can also just ask for a task to be delegated to agy:
+
+```text
+Ask agy to redesign the database connection to be more resilient.
+```
+
+**Notes:**
+
+- if you do not pass `--model` or `--effort`, agy uses the default model you selected in agy.
+- if you say `flash` or `pro`, the plugin maps that to the newest matching Gemini model listed by
+  `agy models` (see [models and effort](#models-and-effort))
+- follow-up rescue requests can continue the latest agy task from this Claude session
+
+### `/agy:status`
+
+Shows running and recent agy jobs for the current Claude session, and whether the review gate is on.
+Pass `--all` to list every job in the repository.
+
+Examples:
+
+```bash
+/agy:status
+/agy:status task-mfz1a2b-x7k3p
+/agy:status --all
+```
+
+Use it to:
+
+- check progress on background work
+- see the latest completed job
+- confirm whether a task is still running
+
+### `/agy:result`
+
+Shows the final stored agy output for a finished job.
+When available, it also includes the agy conversation ID so you can reopen that run directly in agy
+with `agy --conversation <id>`.
+
+Examples:
+
+```bash
+/agy:result
+/agy:result task-mfz1a2b-x7k3p
+```
+
+### `/agy:cancel`
+
+Cancels an active background agy job. It stops both the worker and agy.
+
+Examples:
+
+```bash
+/agy:cancel
+/agy:cancel task-mfz1a2b-x7k3p
+```
+
+### `/agy:setup`
+
+Checks whether agy is installed and authenticated.
+If agy is missing and Homebrew is available, it can offer to install agy for you.
+
+You can also use `/agy:setup` to manage the optional review gate.
+
+#### Enabling review gate
+
+```bash
+/agy:setup --enable-review-gate
+/agy:setup --disable-review-gate
+```
+
+When the review gate is enabled for the current repository, the plugin uses a `Stop` hook to run a
+targeted agy review of the working-tree diff together with Claude's last message. If that review
+finds a concrete defect, the stop is blocked so Claude can address it first.
+
+The gate never traps you:
+
+- It does nothing on a clean tree.
+- It runs once per stop: Claude's follow-up stop is not reviewed again.
+- If agy is missing, out of quota, or times out, it allows the stop and shows a note.
+
+> [!WARNING]
+> The review gate runs an agy review on every Claude stop that leaves changes, and may drain your
+> Antigravity quota quickly. Only enable it when you plan to actively monitor the session.
+
+## Typical Flows
+
+### Review Before Shipping
+
+```bash
+/agy:review
+```
+
+### Hand A Problem To Antigravity
+
+```bash
+/agy:rescue investigate why the build is failing in CI
+```
+
+### Start Something Long-Running
+
+```bash
+/agy:adversarial-review --background
+/agy:rescue --background investigate the flaky test
+```
+
+Then check in with:
+
+```bash
+/agy:status
+/agy:result
+```
+
+## Antigravity Integration
+
+The agy plugin wraps the [Antigravity CLI](https://antigravity.google) in headless mode
+(`agy --output-format stream-json`). It uses the global `agy` binary installed in your environment
+and applies the same settings and sign-in.
+
+### Models And Effort
 
 If you leave out `--model`, agy uses the default model you selected in agy. The aliases `flash` and
 `pro`, optionally with `-low`, `-medium`, or `-high`, resolve to the newest matching Gemini model
@@ -68,7 +308,14 @@ as `gemini-3.1-pro-high` or `claude-opus-4-6-thinking`, goes to agy as is. `--ef
 their effort level, so `--model pro --effort low` resolves to the `-low` variant. If you name a level
 explicitly and it conflicts with `--effort`, agy rejects the run.
 
-## Safety model
+### Moving The Work Over To Antigravity
+
+Delegated tasks can also be resumed directly inside agy by running `agy --conversation <id>` with the
+conversation ID you received from `/agy:result`.
+
+This way you can review the agy work or continue the work there.
+
+## Safety Model
 
 | Run | How agy is started | What it can do |
 |---|---|---|
@@ -98,17 +345,7 @@ Other guards:
 - Repository content reaches the model fenced as untrusted data, but a model that edits code can
   still be steered by hostile content in the repository it is editing.
 
-## Stop-time review gate
-
-`/agy:setup --enable-review-gate` turns on a `Stop` hook for the current repository. When Claude
-finishes a turn and the working tree has changes, agy reviews the diff together with Claude's last
-message. If agy finds a concrete defect, it blocks the stop and sends the reason back to Claude.
-The gate never traps you:
-- It does nothing on a clean tree.
-- It runs once per stop: Claude's follow-up stop is not reviewed again.
-- If agy is missing, out of quota, or times out, it allows the stop and shows a note.
-
-## How it works
+## How It Works
 
 `scripts/agy-companion.mts` runs every review and task as a job in a detached worker process:
 1. It starts `agy --input-format stream-json --output-format stream-json` and sends the prompt on
@@ -140,12 +377,45 @@ every later turn in that conversation reports `status: ERROR`. The runtime treat
 and its `AGY_ERROR:` line as the real signals. Such a turn counts as completed, and the stale error
 is shown as a note.
 
-Differences from Codex:
+### Differences From Codex
+
 - There is no `/agy:transfer`, because agy cannot import a Claude transcript.
 - Every run, foreground or background, is a detached job with its own job id. Codex runs foreground
   work inside the Bash call and background reviews in background Bash, which Claude Code can cut
   short or kill.
-- Write runs differ as described in the safety model above.
+- Write runs differ as described in the [safety model](#safety-model).
+
+## FAQ
+
+### Do I need a separate Antigravity account for this plugin?
+
+If you are already signed into agy on this machine, that account should work immediately here too.
+This plugin uses your local agy CLI authentication.
+
+If you only use Claude Code today and have not used Antigravity yet, you will also need to sign in to
+agy with a Google account or set it up with a Gemini API key. Run `/agy:setup` to check whether agy
+is ready, and use `!agy` to sign in if it is not.
+
+### Does the plugin use a separate Antigravity runtime?
+
+No. This plugin delegates through your local [Antigravity CLI](https://antigravity.google) on the
+same machine.
+
+That means:
+
+- it uses the same agy install you would use directly
+- it uses the same local authentication state
+- it uses the same repository checkout and machine-local environment
+
+### Will it use the same agy settings I already have?
+
+Yes. If you already use agy, the plugin picks up the same settings, including your default model.
+It never modifies `~/.gemini/antigravity-cli/settings.json`.
+
+### Can I use a Gemini API key instead of a Google account?
+
+Yes. Set `"modelProvider": "gemini"` in `~/.gemini/antigravity-cli/settings.json` and export
+`GEMINI_API_KEY`. The variable alone has no effect.
 
 ## Tests
 
