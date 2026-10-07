@@ -17,7 +17,7 @@ repository is both a Claude Code plugin marketplace and an `npx skills` catalog.
 | [`cmux`](skills/cmux) | skill | Orchestrate independent Claude Code sessions in the cmux terminal: split panes, agent monitoring, browser automation, notifications. | All agents (hooks: Claude Code) |
 | [`adveloop`](skills/adveloop) | skill | GAN-inspired adversarial development loop: a Planner drives a Generator and an Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable. | All agents (needs cmux) |
 | [`relamo`](skills/relamo) | skill | Recursive Language Model: explore a large codebase programmatically through a persistent Python REPL. | All agents |
-| [`refine-prompt`](skills/refine-prompt) | skill | Interview-style prompt refiner: picks a prompt-engineering framework, fills the gaps by asking, then runs the structured prompt. | All agents |
+| [`refine-prompt`](skills/refine-prompt) | skill + mod | Interview-style prompt refiner: picks a prompt-engineering framework, fills the gaps by asking, then runs the structured prompt. A refine prompt button above the prompt box sends your draft to it. | All agents (button: Claude Code) |
 
 Each item has its own README with usage and requirements.
 
@@ -44,7 +44,7 @@ npx skills add ph3on1x/agent-plugins-skills --skill commit compress isolate sele
 npx skills add ph3on1x/agent-plugins-skills --skill relamo -a codex   # target one agent
 ```
 
-Plugin-only features (hooks, slash commands, subagents) need Claude Code; the skills themselves work
+Plugin-only features (hooks, mods, slash commands, subagents) need Claude Code; the skills themselves work
 everywhere.
 
 ## Repository layout
