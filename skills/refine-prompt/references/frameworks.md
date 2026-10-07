@@ -66,38 +66,47 @@ structural framework; layer add-ons sparingly.
   than a fixed shape; useful as a gap-finding checklist even when another
   framework is chosen.
 
-## Selection decision tree
+## Selection scoring
 
-Walk the steps in order; the first match wins. Route on the task's **shape**
-(how much context, what input, what kind of output), never on its **domain**:
-in a coding agent nearly every request is about code, so "it is technical"
-picks nothing.
+Route on the task's **shape** (how much context, what input, what kind of
+output), never on its **domain**: in a coding agent nearly every request is
+about code, so "it is technical" scores nothing.
 
-1. Quick, single-step ask, almost no context needed → **RTF**.
-   *Rename a symbol, explain a regex, a one-line command.*
-2. Genuinely large/complex, multiple dependent stages → decompose into a
-   **prompt chain** (sequence of smaller refined prompts).
-   *Build a whole app; a rewrite spanning several subsystems.*
-3. Persuasive / marketing copy → **AIDA** (conversion) or **BAB** (problem→solution).
-   *Landing-page copy; pitching a tool or change to a team.*
-4. Output where style, tone, and audience are central → **CO-STAR**.
-   *Release notes, a blog post, docs or an announcement for a named audience.*
-5. Creative / open-ended / want multiple options → **CRISPE**.
-   *Name ideas, alternative designs with trade-offs, brainstorming.*
-6. Ordered steps AND a defined end state AND explicit constraints that narrow
-   scope (what must not change, limits to respect) → **RISEN**.
-   *A zero-downtime database migration; an upgrade that must not touch one module.*
-7. Goal that breaks into explicit ordered steps, nothing to narrow → **TAG**.
-   *CI or environment setup, a release checklist.*
-8. Work over supplied input (logs, stack trace, diff, file, data, notes) → **CIDI**.
-   *Fix this failing test, review this diff, summarize these notes.*
-9. Anything else / general professional task → **RACE** (default).
-   *Implement a feature, refactor a module, investigate a problem.*
+**Prompt chain first.** A genuinely large/complex task with multiple dependent
+stages is not scored: decompose it into a **prompt chain** (sequence of smaller
+refined prompts) and score each smaller prompt on its own.
+*Build a whole app; a rewrite spanning several subsystems.*
 
-An exact output format is not a routing signal: pick the framework by shape,
-then add few-shot examples (see the add-on layer below). When two steps seem to
-match, choose the framework with fewer slots. Use **5W3H** as a checklist to
-find missing information regardless of the framework chosen.
+**Then score every framework below** against the request: **0** when its
+signal is absent, **1** when it is present, **2** when it defines the task.
+The highest score wins. On a tie, choose the framework with fewer slots. When
+every score is 0, use **RACE**. List order carries no priority.
+
+- **RTF** — quick, single-step ask, almost no context needed.
+  *Rename a symbol, explain a regex, a one-line command.*
+- **AIDA** (conversion) or **BAB** (problem→solution) — persuasive / marketing copy.
+  *Landing-page copy; pitching a tool or change to a team.*
+- **CO-STAR** — output where style, tone, and audience are central.
+  *Release notes, a blog post, docs or an announcement for a named audience.*
+- **CRISPE** — creative / open-ended / want multiple options.
+  *Name ideas, alternative designs with trade-offs, brainstorming.*
+- **RISEN** — ordered steps AND a defined end state AND explicit constraints
+  that narrow scope (what must not change, limits to respect).
+  *A zero-downtime database migration; an upgrade that must not touch one module.*
+- **TAG** — goal that breaks into explicit ordered steps, nothing to narrow.
+  *CI or environment setup, a release checklist.*
+- **CIDI** — work over supplied input (logs, stack trace, diff, file, data, notes).
+  *Fix this failing test, review this diff, summarize these notes.*
+- **RACE** — default when every other score is 0; not scored itself.
+  *Implement a feature, refactor a module, investigate a problem.*
+
+*Example:* "brainstorm three fixes for this crash" with a 200-line stack trace
+pasted in → CIDI 2 (the trace is most of the request), CRISPE 1 (several
+options wanted), the rest 0 → **CIDI**.
+
+An exact output format is not a scoring signal: pick the framework by shape,
+then add few-shot examples (see the add-on layer below). Use **5W3H** as a
+checklist to find missing information regardless of the framework chosen.
 
 ## Reasoning add-on layer (orthogonal — apply only on demand)
 
@@ -120,8 +129,9 @@ scaffolding. Reach for these only when the task genuinely calls for it:
 
 **Rough prompt:** `write me something about dogs`
 
-**Step 2 — classify:** content piece where audience and tone matter → **CO-STAR**.
-Announce: "Using the CO-STAR framework for this."
+**Step 2 — score:** a content piece where audience and tone matter → CO-STAR 2,
+CRISPE 1 (open-ended), the rest 0 → **CO-STAR**.
+Announce: "CO-STAR 2 · CRISPE 1 — audience and tone matter most."
 
 **Step 3 — diagnose gaps:** Context, Objective, Style, Tone, Audience, Response
 are all unspecified. Topic ("dogs") is the only fixed input.

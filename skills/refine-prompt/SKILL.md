@@ -25,14 +25,18 @@ demands it.
    prompt when present. When no argument is given, ask the user what they want
    done in one open question before continuing.
 
-2. **Classify the task type and select ONE framework.** Walk the selection
-   table below top to bottom; the first row whose signal the request shows wins.
+2. **Score the frameworks and select ONE.** A large task with multiple
+   dependent stages is decomposed into a prompt chain first, and each smaller
+   prompt is scored on its own. Otherwise score every row of the selection
+   table below against the request: 0 when its signal is absent, 1 when it is
+   present, 2 when it defines the task. The highest score wins; on a tie,
+   prefer the framework with fewer slots; when every score is 0, use RACE.
    Route on the task's shape, never its domain: in a coding agent nearly every
-   request is about code, so "it is technical" is not a signal. When two rows
-   seem to fit, prefer the framework with fewer slots. Read
+   request is about code, so "it is technical" scores nothing. Read
    `references/frameworks.md` for the full catalog, slot definitions, and the
-   decision tree. State the chosen framework and the signal that picked it to
-   the user in one line, so the choice is transparent.
+   scoring rules. State the winner, the runner-up, and the signal that decided
+   it to the user in one line (`CIDI 2 · CRISPE 1 — the stack trace is most of
+   the request`), so the choice is transparent.
 
 3. **Diagnose gaps (adaptive).** Map the original prompt onto the chosen
    framework's slots. Mark each slot as satisfied, missing, or ambiguous. When
@@ -73,24 +77,27 @@ demands it.
 
 ## Framework selection heuristic
 
-First match wins, top to bottom.
+Decompose a large task with multiple dependent stages into a prompt chain
+first, and score each smaller prompt on its own. Otherwise score every row:
+0 = signal absent, 1 = present, 2 = defines the task. Highest score wins; a
+tie goes to the framework with fewer slots; all zeros means RACE. Row order
+carries no priority.
 
 | Signal in the request | Framework |
 |---|---|
 | Quick, single-step ask, almost no context | RTF (Role · Task · Format) |
-| Large task with multiple dependent stages | Decompose into a prompt chain |
 | Persuasive or marketing copy | BAB (Before-After-Bridge) or AIDA |
 | Content where voice, tone, audience matter | CO-STAR (Context · Objective · Style · Tone · Audience · Response) |
 | Creative / exploratory / wants several options | CRISPE |
 | Ordered steps, a defined end state, and explicit constraints that narrow scope (zero-downtime migration) | RISEN (Role · Instructions · Steps · End goal · Narrowing) |
 | Goal with explicit ordered steps, nothing to narrow (CI setup, release checklist) | TAG (Task · Action · Goal) |
 | Work over supplied input (logs, trace, diff, file, data) | CIDI (Context · Instruction · Detail · Input) |
-| Anything else, including most feature, refactor, and investigation work | RACE (Role · Action · Context · Execute) — default |
+| Every other row scores 0, including most feature, refactor, and investigation work | RACE (Role · Action · Context · Execute) — default, not scored |
 
 An exact output format is not a row: pick by shape, then add few-shot examples
 in step 5.
 
-Full slot definitions, "use when" notes, and the decision tree live in
+Full slot definitions, "use when" notes, and the scoring rules live in
 `references/frameworks.md`.
 
 ## Assembly rules

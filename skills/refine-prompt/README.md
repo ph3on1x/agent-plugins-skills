@@ -66,8 +66,8 @@ confirm step.
 ## How it works
 
 1. **Capture** your rough prompt (argument, or it asks).
-2. **Classify** the task and select one framework, telling you which and the
-   signal that picked it.
+2. **Score** each framework's fit to the task and select the best, telling you
+   the winner, the runner-up and the signal that decided it.
 3. **Diagnose** which framework slots are already satisfied vs missing.
 4. **Interview** — asks only the gaps via `AskUserQuestion` (batched, with
    sensible default options). Skips entirely if nothing is missing.
@@ -82,8 +82,11 @@ confirm step.
 It selects **one** structural framework per prompt. Selection goes by the
 task's **shape** (how much context, what input, what kind of output), never by
 its topic: in a coding agent nearly every request is about code, so "it is
-technical" picks nothing. The rows below are checked top to bottom; the first
-match wins.
+technical" scores nothing. A large task with several dependent stages is split
+into a prompt chain first. Otherwise every framework below is scored 0 (signal
+absent), 1 (present) or 2 (defines the task): the highest score wins, a tie
+goes to the framework with fewer slots, and RACE is the default when nothing
+scores.
 
 | Framework | Slots | Picked when |
 |---|---|---|
@@ -105,7 +108,7 @@ is picked by shape, then few-shot examples are added.
 Reasoning techniques (few-shot examples, step-by-step / chain-of-thought,
 retrieval / sources) are an **orthogonal layer** applied only when the task
 needs them — modern models reward clarity and structure over reasoning
-gimmicks. Full slot definitions, the decision tree, and a worked example live
+gimmicks. Full slot definitions, the scoring rules, and a worked example live
 in [`references/frameworks.md`](references/frameworks.md).
 
 ## Development
