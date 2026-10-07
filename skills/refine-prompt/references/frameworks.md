@@ -16,11 +16,16 @@ structural framework; layer add-ons sparingly.
   finished output should look like.
 - **Use when:** the everyday professional workhorse — covers most routine tasks.
 
-### RISEN — Role · Instruction · Structure · Examples · Nuance
-- **Slots:** persona; the instruction; required structure/sections; worked
-  examples; edge cases, constraints, and caveats.
-- **Use when:** precise, technical, code, or repeatable prompts that must be
-  reproducible.
+### RISEN — Role · Instructions · Steps · End goal · Narrowing
+- **Slots:** persona; the instruction; the ordered steps to follow; the
+  concrete end state that defines done; narrowing constraints (scope limits,
+  what must not change, what to avoid).
+- **Use when:** a multi-step task where the order of steps, a defined end
+  state, and explicit constraints all matter: a zero-downtime migration, an
+  upgrade that must leave one subsystem untouched.
+- **Not for:** a task merely because it is technical or about code. Ordered
+  steps with nothing to narrow route to TAG; most other code work to CIDI or
+  RACE.
 
 ### CO-STAR — Context · Objective · Style · Tone · Audience · Response
 - **Slots:** situation/background; the goal; writing style; emotional tone;
@@ -29,8 +34,8 @@ structural framework; layer add-ons sparingly.
   much as the message (marketing, brand copy, comms, system-prompt design).
 
 ### CRISPE — Capacity/Role · Insight · Statement · Personality · Experiment
-- **Slots:** capability/role; the core insight to surface; the framed request;
-  tone/personality; room to explore multiple variations.
+- **Slots:** capability/role; background and context (Insight); the request
+  (Statement); tone/personality; a request for several variations (Experiment).
 - **Use when:** creative, exploratory, or brainstorming work that benefits from
   several candidate directions.
 
@@ -46,7 +51,8 @@ structural framework; layer add-ons sparingly.
 ### TAG — Task · Action · Goal  *(minor)*
 - **Slots:** the task definition; the concrete actions to take; the end goal/
   success state.
-- **Use when:** a goal that decomposes into explicit, ordered action steps.
+- **Use when:** a goal that decomposes into explicit, ordered action steps,
+  with no persona or constraints worth spelling out; the lightweight RISEN.
 
 ### CIDI — Context · Instruction · Detail · Input  *(minor)*
 - **Slots:** background; the instruction; supporting detail/constraints; the
@@ -62,19 +68,36 @@ structural framework; layer add-ons sparingly.
 
 ## Selection decision tree
 
-1. Quick, single-step ask, almost no context needed → **RTF**.
-2. Persuasive / marketing copy → **AIDA** (conversion) or **BAB** (problem→solution).
-3. Output where style, tone, and audience are central → **CO-STAR**.
-4. Creative / open-ended / want multiple options → **CRISPE**.
-5. Precise, technical, code, or must-be-repeatable → **RISEN**.
-6. Goal that breaks into explicit ordered steps → **TAG**.
-7. Heavy supplied input/context to operate over → **CIDI**.
-8. Genuinely large/complex, multiple dependent stages → decompose into a
-   **prompt chain** (sequence of smaller refined prompts).
-9. Anything else / general professional task → **RACE** (default).
+Walk the steps in order; the first match wins. Route on the task's **shape**
+(how much context, what input, what kind of output), never on its **domain**:
+in a coding agent nearly every request is about code, so "it is technical"
+picks nothing.
 
-When two frameworks fit, choose the one with fewer slots. Use **5W3H** as a
-checklist to find missing information regardless of the framework chosen.
+1. Quick, single-step ask, almost no context needed → **RTF**.
+   *Rename a symbol, explain a regex, a one-line command.*
+2. Genuinely large/complex, multiple dependent stages → decompose into a
+   **prompt chain** (sequence of smaller refined prompts).
+   *Build a whole app; a rewrite spanning several subsystems.*
+3. Persuasive / marketing copy → **AIDA** (conversion) or **BAB** (problem→solution).
+   *Landing-page copy; pitching a tool or change to a team.*
+4. Output where style, tone, and audience are central → **CO-STAR**.
+   *Release notes, a blog post, docs or an announcement for a named audience.*
+5. Creative / open-ended / want multiple options → **CRISPE**.
+   *Name ideas, alternative designs with trade-offs, brainstorming.*
+6. Ordered steps AND a defined end state AND explicit constraints that narrow
+   scope (what must not change, limits to respect) → **RISEN**.
+   *A zero-downtime database migration; an upgrade that must not touch one module.*
+7. Goal that breaks into explicit ordered steps, nothing to narrow → **TAG**.
+   *CI or environment setup, a release checklist.*
+8. Work over supplied input (logs, stack trace, diff, file, data, notes) → **CIDI**.
+   *Fix this failing test, review this diff, summarize these notes.*
+9. Anything else / general professional task → **RACE** (default).
+   *Implement a feature, refactor a module, investigate a problem.*
+
+An exact output format is not a routing signal: pick the framework by shape,
+then add few-shot examples (see the add-on layer below). When two steps seem to
+match, choose the framework with fewer slots. Use **5W3H** as a checklist to
+find missing information regardless of the framework chosen.
 
 ## Reasoning add-on layer (orthogonal — apply only on demand)
 

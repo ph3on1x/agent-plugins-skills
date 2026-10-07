@@ -25,11 +25,14 @@ demands it.
    prompt when present. When no argument is given, ask the user what they want
    done in one open question before continuing.
 
-2. **Classify the task type and select ONE framework.** Match the request
-   against the selection table below. When two fit, prefer the simpler one. Read
+2. **Classify the task type and select ONE framework.** Walk the selection
+   table below top to bottom; the first row whose signal the request shows wins.
+   Route on the task's shape, never its domain: in a coding agent nearly every
+   request is about code, so "it is technical" is not a signal. When two rows
+   seem to fit, prefer the framework with fewer slots. Read
    `references/frameworks.md` for the full catalog, slot definitions, and the
-   tie-breaker decision tree. State the chosen framework to the user in one line
-   so the choice is transparent.
+   decision tree. State the chosen framework and the signal that picked it to
+   the user in one line, so the choice is transparent.
 
 3. **Diagnose gaps (adaptive).** Map the original prompt onto the chosen
    framework's slots. Mark each slot as satisfied, missing, or ambiguous. When
@@ -70,17 +73,22 @@ demands it.
 
 ## Framework selection heuristic
 
-| Task type | Framework |
+First match wins, top to bottom.
+
+| Signal in the request | Framework |
 |---|---|
-| Quick, single-step ask | RTF (Role · Task · Format) |
-| Everyday professional task | RACE (Role · Action · Context · Execute) |
-| Precise / technical / code / repeatable | RISEN (Role · Instruction · Structure · Examples · Nuance) |
-| Content where voice, tone, audience matter | CO-STAR (Context · Objective · Style · Tone · Audience · Response) |
-| Creative / exploratory / brainstorming | CRISPE |
+| Quick, single-step ask, almost no context | RTF (Role · Task · Format) |
+| Large task with multiple dependent stages | Decompose into a prompt chain |
 | Persuasive or marketing copy | BAB (Before-After-Bridge) or AIDA |
-| Goal with explicit action steps | TAG (Task · Action · Goal) |
-| Context-heavy information task | CIDI (Context · Instruction · Detail · Input) |
-| Large multi-step / complex task | Decompose into a prompt chain |
+| Content where voice, tone, audience matter | CO-STAR (Context · Objective · Style · Tone · Audience · Response) |
+| Creative / exploratory / wants several options | CRISPE |
+| Ordered steps, a defined end state, and explicit constraints that narrow scope (zero-downtime migration) | RISEN (Role · Instructions · Steps · End goal · Narrowing) |
+| Goal with explicit ordered steps, nothing to narrow (CI setup, release checklist) | TAG (Task · Action · Goal) |
+| Work over supplied input (logs, trace, diff, file, data) | CIDI (Context · Instruction · Detail · Input) |
+| Anything else, including most feature, refactor, and investigation work | RACE (Role · Action · Context · Execute) — default |
+
+An exact output format is not a row: pick by shape, then add few-shot examples
+in step 5.
 
 Full slot definitions, "use when" notes, and the decision tree live in
 `references/frameworks.md`.
