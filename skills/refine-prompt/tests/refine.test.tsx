@@ -97,10 +97,12 @@ test('yields the band to a survey', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: 'survey' })).toBeDefined()
 })
 
-test('names the chord that focuses the band', async $ => {
-  for (const surface of SURFACES) {
-    const ui = await $.ui.mount({ ...BAND, surface })
-    expect(await ui.find({ type: 'Text', text: 'ctrl+x tab, enter' })).toBeDefined()
-    await ui.unmount()
-  }
+test('names the focus chord on the terminal only', async $ => {
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminal.find({ type: 'Text', text: 'ctrl+x tab, enter' })).toBeDefined()
+  await terminal.unmount()
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: 'ctrl+x tab, enter' })).toBeUndefined()
+  expect(await desktop.find({ key: 'refine' })).toBeDefined()
 })

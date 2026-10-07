@@ -40,13 +40,16 @@ npx skills add ph3on1x/agent-plugins-skills --skill refine-prompt
 ❯ write a migration plan for the auth service
 ```
 
-Type a rough prompt, then click **`[ refine prompt ]`**, or press `ctrl+x tab`
-and then Enter. The draft leaves the prompt box and runs as
-`/refine-prompt <draft>`. If the run fails, the draft is put back.
+Type a rough prompt, then click **`[ refine prompt ]`**. The draft leaves the
+prompt box and runs as `/refine-prompt <draft>`. If the run fails, the draft is
+put back.
 
-- Nothing to configure: `ctrl+x tab` is Claude Code's own key for focusing the
-  row above the prompt, and the button holds the focus there, so Enter presses
-  it. `Esc` returns to the prompt.
+- In the terminal, the keyboard works too, with nothing to configure:
+  `ctrl+x tab` is Claude Code's own key for focusing the row above the prompt,
+  and the button holds the focus there, so Enter presses it. `Esc` returns to
+  the prompt.
+- In the Claude desktop app, the button shows in the **Code** tab once a
+  session has started; click it there. Chat does not run mods.
 - An empty prompt box runs nothing and says so.
 - The button steps aside while a Claude Code survey uses that row, and the
   row's own `[-]` collapses it.

@@ -30,8 +30,9 @@ const refineDraft = async ($: EngineInterface) => {
 }
 
 export const register: Register = on => {
-  // The band above the prompt is the one site near it that takes the keyboard: ctrl+x tab focuses it,
-  // the button holds the focus ring from the start, so Enter presses it.
+  // The band above the prompt is the one site near it that takes the keyboard: on the terminal ctrl+x tab
+  // focuses it, the button holds the focus ring from the start, so Enter presses it. Other surfaces bind
+  // their own keys, so only the terminal names the chord.
   on('ui.render', { component: 'AbovePrompt' }, ($, e, next) => {
     if (e.props.hasSurvey) {
       return next(e)
@@ -42,7 +43,7 @@ export const register: Register = on => {
     return (
       <Box gap={2}>
         <Button key="refine" label="refine prompt" dimColor autoFocus onPress={() => refineDraft($)} />
-        <Text dimColor>ctrl+x tab, enter</Text>
+        {e.surface === 'terminal' && <Text dimColor>ctrl+x tab, enter</Text>}
       </Box>
     )
   })

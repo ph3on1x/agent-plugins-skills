@@ -1,7 +1,7 @@
 {
   "name": "refine-prompt",
   "description": "Interview-style prompt refiner that picks a framework, fills gaps via AskUserQuestion, assembles a structured XML prompt, confirms, then executes it. In Claude Code, adds a refine prompt button above the prompt box.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Dennis Nasarov"
   },
