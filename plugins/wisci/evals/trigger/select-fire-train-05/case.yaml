@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: select-fire-train-05
+tags: ["trigger", "train", "select", "fire"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "catch me up on this project, I've been away a week"
+  max_turns: 3
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?select"'

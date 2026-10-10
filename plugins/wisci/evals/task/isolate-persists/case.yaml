@@ -1,0 +1,19 @@
+schema_version: "1.1"
+name: isolate-persists
+tags: ["task", "isolate"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "/wisci:isolate save \u2014 research how the payments webhook handler and the auth middleware relate in this codebase"
+  max_turns: 30
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: "invoked-write"
+    type: "tool_used"
+    tool: "Skill"
+    input_match: "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?write\""
+  - name: "note-checked"
+    type: "tool_used"
+    tool: "Bash"
+    input_match: "wisci\\.py[^a-z]{0,6}check\\s+[\"']?(?:[^\\s\"']*\\.wisci/)?context/"

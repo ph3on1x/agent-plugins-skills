@@ -1,0 +1,19 @@
+schema_version: "1.1"
+name: isolate-preflight-fresh
+tags: ["task", "isolate"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "/wisci:isolate how does token validation work in this codebase"
+  max_turns: 30
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: "no-subagents"
+    type: "tool_used"
+    tool: "Agent"
+    min: 0
+    max: 0
+  - name: "names-middleware"
+    type: "regex"
+    pattern: "src/auth/middleware\\.ts"

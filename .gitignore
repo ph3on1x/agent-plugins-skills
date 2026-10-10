@@ -20,6 +20,6 @@ scratchpad/
 /.wisci/
 /openspec/
 /.code-review-graph/
-plugins/wisci/evals/outputs/
+plugins/wisci/evals/results/
 # Type declarations Claude Code writes beside a hooks-module plugin loaded from disk
 .claude-plugin/types/

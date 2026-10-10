@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: write-fire-train-03
+tags: ["trigger", "train", "write", "fire"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "externalize what we just learned about the webhook retries: handleWebhook in src/payments/webhook.ts has no idempotency check, so provider retries process the same event twice"
+  max_turns: 3
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?write"'

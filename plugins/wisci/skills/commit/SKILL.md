@@ -1,113 +1,72 @@
 ---
 name: commit
-description: Creates conventional git commits enriched with a Context section that logs AI-layer changes (.wisci/, CLAUDE.md, skills, rules), turning git history into queryable long-term memory. Use to commit changes, optionally pushing afterward.
-argument-hint: "[push] [commit message] (both optional)"
-allowed-tools: Read Glob Grep Bash(git *)
+description: Conventional git commit with an AI-Context trailer per changed AI-layer file (.wisci/, CLAUDE.md, AGENTS.md, skills, rules). Optional leading "push".
+argument-hint: "[push] [message]"
+allowed-tools: Read Glob Grep Bash(git status *) Bash(git --no-pager diff *) Bash(git --no-pager log *) Bash(git log *) Bash(git ls-files *) Bash(git ls-tree *) Bash(git add *) Bash(git commit *) Bash(git push *)
 disable-model-invocation: true
+compatibility: Requires git 2.32+ (git commit --trailer).
 ---
 
-# /commit — Context-Enriched Committer
+# /commit — Commit with AI-Context Trailers
 
-Create git commits that track AI context evolution alongside application changes. When AI-layer files are part of the commit, a `Context:` section is appended to the commit body — making `git log` long-term, queryable memory for future sessions and agents.
+Commit the current changes with a conventional message. Add one `AI-Context:` git trailer per AI-layer file in the commit, so `git log` records how the project's agent context changed:
+
+`git log --format='%h %(trailers:key=AI-Context,valueonly,separator=%x3B )'`
 
 ## Current state
 
-!`git status`
+!`git status --porcelain=v1`
+
+Staged (name-status):
+!`git --no-pager diff --cached --name-status`
 
 !`git --no-pager diff --stat HEAD`
 
-Recent commits (style reference):
+Recent commits:
 !`git log --oneline -5`
 
-> If the blocks above show errors or unexpanded variables, run the commands yourself with Bash.
+Plugin manifests:
+!`git ls-files -co --exclude-standard -- ':(glob)**/.claude-plugin/plugin.json'`
 
-## Execution Flow
+## Steps
 
-1. **Parse arguments.** If `$ARGUMENTS` starts with the standalone word `push` (case-insensitive): enable push-after-commit, use the remainder as the commit message (may be empty).
+1. **Arguments.** A leading standalone `push` (any case) means push after committing; the rest is the message (may be empty). Run each git command in its own Bash call: chained or piped commands need extra permission.
+2. Nothing staged, unstaged or untracked → report "Nothing to commit — working tree clean." and stop.
+3. **Sensitive files** (patterns below). Already staged → stop, list them, and tell the user to unstage (`git restore --staged <file>`); leave their index as is. Unstaged or untracked → don't stage them; warn.
+4. **Classify** the rest as application code or AI-layer (below). Unrelated concerns with no hint in `$ARGUMENTS` → ask before bundling.
+5. **Stage by name** with `git add -- <file>…`; `-A` or `.` would sweep in unreviewed files.
+6. **Message.** Given one → use it, prepending a conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`) if missing. Otherwise write it from the staged diff, saying why rather than what. If your instructions add an attribution trailer (e.g. `Co-Authored-By`), end the message with it as its own last paragraph; attribution disabled → add none.
+7. **Commit**, one `--trailer` per AI-layer file; action from the name-status letter (A create, M update, D remove, R rename):
 
-2. **Check for committable changes** in the state above. Nothing staged, unstaged, or untracked → report "Nothing to commit — working tree clean." and stop. Run `git --no-pager diff HEAD` for the full diff when the stat summary is not enough to write an accurate message.
-
-3. **Classify every changed and untracked file:**
-   - **Application code** — stage normally
-   - **AI context files** (paths below) — stage normally; flag for the Context section
-   - **Sensitive files** (`.env`, `*.key`, `*.pem`, `credentials.*`, `*secret*`) — **do not stage**; warn the user
-   - **Unrelated concerns** — if changes span multiple unrelated concerns and `$ARGUMENTS` gives no hint, ask before bundling
-
-4. **Stage files individually** (`git add <file>`). Never `git add -A` or `git add .`.
-
-5. **Detect AI context changes.** Check `git --no-pager diff --cached --name-only` against the AI Context Paths below.
-
-6. **Draft the message.**
-   - `$ARGUMENTS` provided: use it; prepend a conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`) if missing, inferred from the changes.
-   - Empty: auto-generate from the staged diff — focus on why, not what.
-
-7. **Append the Context section** when AI-layer files are staged (omit entirely otherwise):
-   ```
-   Context:
-   - <create|update|remove|rename> <path> — <what changed>
-   ```
-
-8. **Commit** via heredoc:
    ```bash
    git commit -m "$(cat <<'EOF'
-   <prefix>: <description>
+   <type>: <description>
 
    <optional body>
-
-   Context:
-   - <action> <path> — <annotation>
    EOF
-   )"
+   )" --trailer "AI-Context: update .wisci/context/auth-research.md — token refresh decision"
    ```
 
-9. **Verify and report:** short hash, subject line, whether a Context section was included and how many AI-layer files it tracked.
+   No AI-layer files → no `--trailer`. git merges the `--trailer` lines into the attribution paragraph from step 6, if there is one. Never `--no-verify`: hooks are the project's gate, so on failure report the output and stop.
+8. **Verify** with `git log -1 --format='%h %s%n%(trailers:key=AI-Context,valueonly,separator=%x0A)'`; report hash, subject, trailer count.
+9. **Push** if requested: `git push` (`git push -u origin <branch>` without upstream). Never force; report failures.
 
-10. **Push (if requested).** `git push`; no upstream → `git push -u origin <current-branch>`. On failure: report the error, never retry with `--force`.
+## AI-layer files
 
-## AI Context Paths
+- Basenames at any depth: `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `GEMINI.md`.
+- Prefixes: `.wisci/`, `.claude/` (not `settings.local.json`), `.mcp.json`, `.cursor/rules/`, `.cursorrules`, `.github/copilot-instructions.md`, `.github/{instructions,prompts,agents,skills}/`, `.vscode/mcp.json`, `.agents/`, `.codex/`, `.gemini/`, `.devin/rules/`, `.windsurf/rules/`, `.kiro/steering/`, `.clinerules`, `.cline/rules/`, `.junie/`.
+- Plugin roots (the dirs holding the manifests listed above): their `.claude-plugin/`, `skills/`, `hooks/`, `agents/`, `commands/` subtrees. Scripts and other code are application code.
+- `CLAUDE.local.md` is personal: warn, don't stage.
 
-- `.wisci/**` — WISCI context store (context files, handoffs, primer, index)
-- `CLAUDE.md`, `.claude/CLAUDE.md` — project instructions
-- `.claude/rules/**`, `.claude/commands/**`, `.claude/skills/**`, `.claude/agents/**`, `.claude/hooks/**` — Claude project config
-- `.claude/settings.json`, `.claude/plugins/**` — Claude settings and plugins
-- `.mcp.json` — MCP server config
-- `skills/**`, `.claude-plugin/**`, `hooks/**` — plugin/skill definitions (when the repo is itself a plugin)
-- `.agents/**` — cross-client agent skills
-- `.cursorrules`, `.cursor/rules/**` — Cursor rules
-- `.github/copilot-instructions.md` — Copilot instructions
-- `AGENTS.md`, `codex.md`, `.codex/**` — Codex instructions
-- `GEMINI.md`, `.gemini/**` — Gemini CLI instructions and config
+## Sensitive files
 
-A staged file matches if its path starts with a directory prefix above or exactly matches a filename entry.
+`.env`, `.env.*` (not `.env.example`/`.env.sample`), `*.key`, `*.pem`, `*.p12`, `*.pfx`, `*.keystore`, `*.jks`, `id_rsa*`, `id_ed25519*`, `credentials.*`, `.netrc`, `.git-credentials`, `.pypirc`, `.npmrc`, `*.tfstate*`, `*.tfvars`, `secrets.*`, `*secret*.{json,yml,yaml,txt}`. Name patterns are a convenience; content scanning (a gitleaks pre-commit hook, push protection) is the real control.
 
-## Examples
-
-**Application + context changes:**
-```
+<example>
 feat: add token refresh to auth middleware
 
-Automatic refresh when access token expires. One retry before 401.
+Refresh once on expiry before returning 401.
 
-Context:
-- update .wisci/context/auth-research.md — added token refresh decision and rationale
-```
-
-**Context-only changes:**
-```
-docs: persist Stripe integration research
-
-Context:
-- create .wisci/context/stripe-integration.md — /isolate research results
-- update .wisci/handoff/payments.md — Stripe added to in-progress work
-```
-
-## Key Constraints
-
-- **Never `--no-verify`.** Pre-commit hook fails → report and stop.
-- **Never force-push.**
-- **Never `git add -A` / `git add .`.** Stage by name.
-- **Never stage sensitive files.**
-- **Context section is conditional** — only when AI-layer files are actually staged.
-- **One logical commit** — ask before bundling unrelated concerns.
-- **Respect user intent** — a provided message is used as-is apart from prefix and Context additions.
-- All diffs with `--no-pager`.
+AI-Context: update .wisci/context/auth-research.md — token refresh decision and rationale
+AI-Context: create .wisci/handoff/payments.md — Stripe work stream
+</example>

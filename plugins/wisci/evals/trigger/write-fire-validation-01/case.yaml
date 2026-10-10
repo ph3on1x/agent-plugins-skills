@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: write-fire-validation-01
+tags: ["trigger", "validation", "write", "fire"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "record what we discovered before we move on: the webhook handler calls audit(evt), but audit is not defined anywhere in src/, so every webhook throws"
+  max_turns: 3
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?write"'

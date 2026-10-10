@@ -1,0 +1,23 @@
+schema_version: "1.1"
+name: write-create-content
+tags: ["task", "write"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "/wisci:write rate limiting research \u2014 key findings: the API needs a token bucket limiter at 100 req/min per user; it belongs in a new middleware src/api/limiter.ts wired before auth in src/auth/middleware.ts; we decided against nginx-level limiting because we need per-user state."
+  max_turns: 30
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: "note-content"
+    type: "tool_used"
+    tool: "Write"
+    input_match: "token bucket[\\s\\S]*src/api/limiter\\.ts"
+  - name: "checked"
+    type: "tool_used"
+    tool: "Bash"
+    input_match: "wisci\\.py[^a-z]{0,6}check"
+  - name: "reserved-note"
+    type: "tool_used"
+    tool: "Bash"
+    input_match: "wisci\\.py[^a-z]{0,6}new context"

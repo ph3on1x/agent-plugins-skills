@@ -1,0 +1,17 @@
+schema_version: "1.1"
+name: write-silent-nearmiss-01
+tags: ["trigger", "validation", "write", "silent", "nearmiss"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "remember that we use pnpm in this repo, not npm"
+  max_turns: 3
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?write"'
+    min: 0
+    max: 0

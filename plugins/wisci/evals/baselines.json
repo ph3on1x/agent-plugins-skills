@@ -1,0 +1,934 @@
+{
+ "claudeVersion": "2.1.296",
+ "models": {
+  "claude-haiku-5-5": {
+   "outcomes": {
+    "commit-app-only": true,
+    "commit-custom-attribution": true,
+    "commit-default-attribution": true,
+    "commit-nested-plugin": true,
+    "commit-no-attribution": true,
+    "commit-staged-secret": true,
+    "compress-stale-stays": true,
+    "compress-untouched-leaves": true,
+    "isolate-heals-note": true,
+    "write-create-fresh": true,
+    "write-merge-keeps-stale": true
+   },
+   "task": {
+    "compress-new-stream": [
+     2,
+     2
+    ],
+    "isolate-persists": [
+     2,
+     2
+    ],
+    "isolate-preflight-fresh": [
+     2,
+     2
+    ],
+    "select-flags-changed": [
+     2,
+     2
+    ],
+    "write-create-content": [
+     2,
+     2
+    ]
+   },
+   "trigger": {
+    "compress-fire-train-01": [
+     1,
+     1
+    ],
+    "compress-fire-train-02": [
+     1,
+     1
+    ],
+    "compress-fire-train-03": [
+     1,
+     1
+    ],
+    "compress-fire-train-04": [
+     1,
+     1
+    ],
+    "compress-fire-train-05": [
+     1,
+     1
+    ],
+    "compress-fire-validation-01": [
+     1,
+     1
+    ],
+    "compress-fire-validation-02": [
+     1,
+     1
+    ],
+    "compress-fire-validation-03": [
+     1,
+     1
+    ],
+    "compress-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "compress-silent-train-01": [
+     1,
+     1
+    ],
+    "compress-silent-train-02": [
+     1,
+     1
+    ],
+    "compress-silent-train-03": [
+     1,
+     1
+    ],
+    "compress-silent-train-04": [
+     1,
+     1
+    ],
+    "compress-silent-train-05": [
+     1,
+     1
+    ],
+    "compress-silent-validation-01": [
+     1,
+     1
+    ],
+    "compress-silent-validation-02": [
+     1,
+     1
+    ],
+    "compress-silent-validation-03": [
+     1,
+     1
+    ],
+    "isolate-fire-train-01": [
+     1,
+     1
+    ],
+    "isolate-fire-train-02": [
+     1,
+     1
+    ],
+    "isolate-fire-train-03": [
+     1,
+     1
+    ],
+    "isolate-fire-train-04": [
+     0,
+     1
+    ],
+    "isolate-fire-train-05": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-01": [
+     0,
+     1
+    ],
+    "isolate-fire-validation-02": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-03": [
+     1,
+     1
+    ],
+    "isolate-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "isolate-silent-train-01": [
+     1,
+     1
+    ],
+    "isolate-silent-train-02": [
+     1,
+     1
+    ],
+    "isolate-silent-train-03": [
+     1,
+     1
+    ],
+    "isolate-silent-train-04": [
+     1,
+     1
+    ],
+    "isolate-silent-train-05": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-01": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-02": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-03": [
+     1,
+     1
+    ],
+    "select-fire-train-01": [
+     1,
+     1
+    ],
+    "select-fire-train-02": [
+     1,
+     1
+    ],
+    "select-fire-train-03": [
+     1,
+     1
+    ],
+    "select-fire-train-04": [
+     1,
+     1
+    ],
+    "select-fire-train-05": [
+     1,
+     1
+    ],
+    "select-fire-validation-01": [
+     1,
+     1
+    ],
+    "select-fire-validation-02": [
+     1,
+     1
+    ],
+    "select-fire-validation-03": [
+     0,
+     1
+    ],
+    "select-silent-train-01": [
+     1,
+     1
+    ],
+    "select-silent-train-02": [
+     1,
+     1
+    ],
+    "select-silent-train-03": [
+     1,
+     1
+    ],
+    "select-silent-train-04": [
+     1,
+     1
+    ],
+    "select-silent-train-05": [
+     1,
+     1
+    ],
+    "select-silent-validation-01": [
+     1,
+     1
+    ],
+    "select-silent-validation-02": [
+     1,
+     1
+    ],
+    "select-silent-validation-03": [
+     1,
+     1
+    ],
+    "write-fire-train-01": [
+     1,
+     1
+    ],
+    "write-fire-train-02": [
+     1,
+     1
+    ],
+    "write-fire-train-03": [
+     1,
+     1
+    ],
+    "write-fire-train-04": [
+     1,
+     1
+    ],
+    "write-fire-train-05": [
+     1,
+     1
+    ],
+    "write-fire-validation-01": [
+     0,
+     1
+    ],
+    "write-fire-validation-02": [
+     1,
+     1
+    ],
+    "write-fire-validation-03": [
+     1,
+     1
+    ],
+    "write-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "write-silent-train-01": [
+     1,
+     1
+    ],
+    "write-silent-train-02": [
+     1,
+     1
+    ],
+    "write-silent-train-03": [
+     1,
+     1
+    ],
+    "write-silent-train-04": [
+     1,
+     1
+    ],
+    "write-silent-train-05": [
+     1,
+     1
+    ],
+    "write-silent-validation-01": [
+     1,
+     1
+    ],
+    "write-silent-validation-02": [
+     1,
+     1
+    ],
+    "write-silent-validation-03": [
+     1,
+     1
+    ]
+   }
+  },
+  "claude-opus-5-5": {
+   "outcomes": {
+    "commit-app-only": true,
+    "commit-custom-attribution": true,
+    "commit-default-attribution": true,
+    "commit-nested-plugin": true,
+    "commit-no-attribution": true,
+    "commit-staged-secret": true,
+    "compress-stale-stays": true,
+    "compress-untouched-leaves": true,
+    "isolate-heals-note": true,
+    "write-create-fresh": true,
+    "write-merge-keeps-stale": true
+   },
+   "task": {
+    "compress-new-stream": [
+     2,
+     2
+    ],
+    "isolate-persists": [
+     2,
+     2
+    ],
+    "isolate-preflight-fresh": [
+     2,
+     2
+    ],
+    "select-flags-changed": [
+     2,
+     2
+    ],
+    "write-create-content": [
+     2,
+     2
+    ]
+   },
+   "trigger": {
+    "compress-fire-train-01": [
+     1,
+     1
+    ],
+    "compress-fire-train-02": [
+     1,
+     1
+    ],
+    "compress-fire-train-03": [
+     1,
+     1
+    ],
+    "compress-fire-train-04": [
+     1,
+     1
+    ],
+    "compress-fire-train-05": [
+     1,
+     1
+    ],
+    "compress-fire-validation-01": [
+     1,
+     1
+    ],
+    "compress-fire-validation-02": [
+     1,
+     1
+    ],
+    "compress-fire-validation-03": [
+     1,
+     1
+    ],
+    "compress-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "compress-silent-train-01": [
+     1,
+     1
+    ],
+    "compress-silent-train-02": [
+     1,
+     1
+    ],
+    "compress-silent-train-03": [
+     1,
+     1
+    ],
+    "compress-silent-train-04": [
+     1,
+     1
+    ],
+    "compress-silent-train-05": [
+     1,
+     1
+    ],
+    "compress-silent-validation-01": [
+     1,
+     1
+    ],
+    "compress-silent-validation-02": [
+     1,
+     1
+    ],
+    "compress-silent-validation-03": [
+     1,
+     1
+    ],
+    "isolate-fire-train-01": [
+     1,
+     1
+    ],
+    "isolate-fire-train-02": [
+     1,
+     1
+    ],
+    "isolate-fire-train-03": [
+     1,
+     1
+    ],
+    "isolate-fire-train-04": [
+     1,
+     1
+    ],
+    "isolate-fire-train-05": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-01": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-02": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-03": [
+     1,
+     1
+    ],
+    "isolate-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "isolate-silent-train-01": [
+     1,
+     1
+    ],
+    "isolate-silent-train-02": [
+     1,
+     1
+    ],
+    "isolate-silent-train-03": [
+     1,
+     1
+    ],
+    "isolate-silent-train-04": [
+     1,
+     1
+    ],
+    "isolate-silent-train-05": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-01": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-02": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-03": [
+     1,
+     1
+    ],
+    "select-fire-train-01": [
+     1,
+     1
+    ],
+    "select-fire-train-02": [
+     1,
+     1
+    ],
+    "select-fire-train-03": [
+     1,
+     1
+    ],
+    "select-fire-train-04": [
+     1,
+     1
+    ],
+    "select-fire-train-05": [
+     1,
+     1
+    ],
+    "select-fire-validation-01": [
+     1,
+     1
+    ],
+    "select-fire-validation-02": [
+     1,
+     1
+    ],
+    "select-fire-validation-03": [
+     1,
+     1
+    ],
+    "select-silent-train-01": [
+     1,
+     1
+    ],
+    "select-silent-train-02": [
+     1,
+     1
+    ],
+    "select-silent-train-03": [
+     1,
+     1
+    ],
+    "select-silent-train-04": [
+     1,
+     1
+    ],
+    "select-silent-train-05": [
+     1,
+     1
+    ],
+    "select-silent-validation-01": [
+     1,
+     1
+    ],
+    "select-silent-validation-02": [
+     1,
+     1
+    ],
+    "select-silent-validation-03": [
+     1,
+     1
+    ],
+    "write-fire-train-01": [
+     1,
+     1
+    ],
+    "write-fire-train-02": [
+     1,
+     1
+    ],
+    "write-fire-train-03": [
+     1,
+     1
+    ],
+    "write-fire-train-04": [
+     1,
+     1
+    ],
+    "write-fire-train-05": [
+     1,
+     1
+    ],
+    "write-fire-validation-01": [
+     1,
+     1
+    ],
+    "write-fire-validation-02": [
+     1,
+     1
+    ],
+    "write-fire-validation-03": [
+     1,
+     1
+    ],
+    "write-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "write-silent-train-01": [
+     1,
+     1
+    ],
+    "write-silent-train-02": [
+     1,
+     1
+    ],
+    "write-silent-train-03": [
+     1,
+     1
+    ],
+    "write-silent-train-04": [
+     1,
+     1
+    ],
+    "write-silent-train-05": [
+     1,
+     1
+    ],
+    "write-silent-validation-01": [
+     1,
+     1
+    ],
+    "write-silent-validation-02": [
+     1,
+     1
+    ],
+    "write-silent-validation-03": [
+     1,
+     1
+    ]
+   }
+  },
+  "claude-sonnet-5-5": {
+   "outcomes": {
+    "commit-app-only": true,
+    "commit-custom-attribution": true,
+    "commit-default-attribution": true,
+    "commit-nested-plugin": true,
+    "commit-no-attribution": true,
+    "commit-staged-secret": true,
+    "compress-stale-stays": true,
+    "compress-untouched-leaves": true,
+    "hostile-project-npx": true,
+    "hostile-project-plugin": true,
+    "isolate-heals-note": true,
+    "permissions-default-npx": true,
+    "permissions-default-plugin": true,
+    "sandbox-write": true,
+    "uv-missing": true,
+    "write-create-fresh": true,
+    "write-merge-keeps-stale": true
+   },
+   "task": {
+    "compress-new-stream": [
+     2,
+     2
+    ],
+    "isolate-persists": [
+     2,
+     2
+    ],
+    "isolate-preflight-fresh": [
+     2,
+     2
+    ],
+    "select-flags-changed": [
+     2,
+     2
+    ],
+    "write-create-content": [
+     2,
+     2
+    ]
+   },
+   "trigger": {
+    "compress-fire-train-01": [
+     1,
+     1
+    ],
+    "compress-fire-train-02": [
+     1,
+     1
+    ],
+    "compress-fire-train-03": [
+     1,
+     1
+    ],
+    "compress-fire-train-04": [
+     1,
+     1
+    ],
+    "compress-fire-train-05": [
+     1,
+     1
+    ],
+    "compress-fire-validation-01": [
+     1,
+     1
+    ],
+    "compress-fire-validation-02": [
+     1,
+     1
+    ],
+    "compress-fire-validation-03": [
+     1,
+     1
+    ],
+    "compress-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "compress-silent-train-01": [
+     1,
+     1
+    ],
+    "compress-silent-train-02": [
+     1,
+     1
+    ],
+    "compress-silent-train-03": [
+     1,
+     1
+    ],
+    "compress-silent-train-04": [
+     1,
+     1
+    ],
+    "compress-silent-train-05": [
+     1,
+     1
+    ],
+    "compress-silent-validation-01": [
+     1,
+     1
+    ],
+    "compress-silent-validation-02": [
+     1,
+     1
+    ],
+    "compress-silent-validation-03": [
+     1,
+     1
+    ],
+    "isolate-fire-train-01": [
+     1,
+     1
+    ],
+    "isolate-fire-train-02": [
+     1,
+     1
+    ],
+    "isolate-fire-train-03": [
+     1,
+     1
+    ],
+    "isolate-fire-train-04": [
+     1,
+     1
+    ],
+    "isolate-fire-train-05": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-01": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-02": [
+     1,
+     1
+    ],
+    "isolate-fire-validation-03": [
+     1,
+     1
+    ],
+    "isolate-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "isolate-silent-train-01": [
+     1,
+     1
+    ],
+    "isolate-silent-train-02": [
+     1,
+     1
+    ],
+    "isolate-silent-train-03": [
+     1,
+     1
+    ],
+    "isolate-silent-train-04": [
+     1,
+     1
+    ],
+    "isolate-silent-train-05": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-01": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-02": [
+     1,
+     1
+    ],
+    "isolate-silent-validation-03": [
+     1,
+     1
+    ],
+    "select-fire-train-01": [
+     1,
+     1
+    ],
+    "select-fire-train-02": [
+     1,
+     1
+    ],
+    "select-fire-train-03": [
+     1,
+     1
+    ],
+    "select-fire-train-04": [
+     1,
+     1
+    ],
+    "select-fire-train-05": [
+     1,
+     1
+    ],
+    "select-fire-validation-01": [
+     1,
+     1
+    ],
+    "select-fire-validation-02": [
+     1,
+     1
+    ],
+    "select-fire-validation-03": [
+     1,
+     1
+    ],
+    "select-silent-train-01": [
+     1,
+     1
+    ],
+    "select-silent-train-02": [
+     1,
+     1
+    ],
+    "select-silent-train-03": [
+     1,
+     1
+    ],
+    "select-silent-train-04": [
+     1,
+     1
+    ],
+    "select-silent-train-05": [
+     1,
+     1
+    ],
+    "select-silent-validation-01": [
+     1,
+     1
+    ],
+    "select-silent-validation-02": [
+     1,
+     1
+    ],
+    "select-silent-validation-03": [
+     1,
+     1
+    ],
+    "write-fire-train-01": [
+     1,
+     1
+    ],
+    "write-fire-train-02": [
+     1,
+     1
+    ],
+    "write-fire-train-03": [
+     1,
+     1
+    ],
+    "write-fire-train-04": [
+     1,
+     1
+    ],
+    "write-fire-train-05": [
+     1,
+     1
+    ],
+    "write-fire-validation-01": [
+     1,
+     1
+    ],
+    "write-fire-validation-02": [
+     1,
+     1
+    ],
+    "write-fire-validation-03": [
+     1,
+     1
+    ],
+    "write-silent-nearmiss-01": [
+     1,
+     1
+    ],
+    "write-silent-train-01": [
+     1,
+     1
+    ],
+    "write-silent-train-02": [
+     1,
+     1
+    ],
+    "write-silent-train-03": [
+     1,
+     1
+    ],
+    "write-silent-train-04": [
+     1,
+     1
+    ],
+    "write-silent-train-05": [
+     1,
+     1
+    ],
+    "write-silent-validation-01": [
+     1,
+     1
+    ],
+    "write-silent-validation-02": [
+     1,
+     1
+    ],
+    "write-silent-validation-03": [
+     1,
+     1
+    ]
+   }
+  }
+ },
+ "plugin_sha256": "d1b20f4d07a85a1f3ea84ecf25dff662ca074099c327840114c82edc1215a94f",
+ "suite_sha256": "9c1ec7855aff64874a4c1c7c2b76b43676920f286e9ab77c481c095455f5db1c"
+}

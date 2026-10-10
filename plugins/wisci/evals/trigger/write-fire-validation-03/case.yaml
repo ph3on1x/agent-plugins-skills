@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: write-fire-validation-03
+tags: ["trigger", "validation", "write", "fire"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "make sure the next session knows about these API quirks: the payment provider sends evt.type in lowercase only, and retries a webhook up to 5 times when we answer slower than 10s"
+  max_turns: 3
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?write"'

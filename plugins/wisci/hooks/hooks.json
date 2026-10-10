@@ -2,11 +2,11 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume|clear",
+        "matcher": "startup|resume|clear|fork",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status"
+            "command": "command -v uv >/dev/null 2>&1 || { echo 'wisci: uv is required — install: https://docs.astral.sh/uv/getting-started/installation/' >&2; exit 2; }; uv run --no-config --no-cache --script \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status && echo 'Context was just compacted — run /compress to snapshot session state to .wisci/ before continuing.'"
+            "command": "command -v uv >/dev/null 2>&1 || { echo 'wisci: uv is required — install: https://docs.astral.sh/uv/getting-started/installation/' >&2; exit 2; }; uv run --no-config --no-cache --script \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status && echo 'Context was compacted. If a work stream is in progress, run /compress before continuing.'"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Preserve verbatim in the summary: file paths, decisions with their rationale, error messages, next steps, and the current state of .wisci/ files.'"
+            "command": "echo 'Preserve verbatim in the summary: file paths, decisions with their rationale, approaches tried or ruled out and why, the user'\\''s requests, constraints and preferences exactly as stated, error messages, and next steps.'"
           }
         ]
       }

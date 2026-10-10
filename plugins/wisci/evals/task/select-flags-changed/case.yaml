@@ -1,0 +1,39 @@
+schema_version: "1.1"
+name: select-flags-changed
+tags: ["task", "select"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "/wisci:select auth research and old notes — what is the session TTL in seconds, and what does src/legacy.ts export?"
+  max_turns: 30
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: "used-loader"
+    type: "tool_used"
+    tool: "Bash"
+    input_match: "wisci\\.py[^a-z]{0,6}load"
+  - name: "no-raw-store-reads"
+    type: "tool_used"
+    tool: "Read"
+    input_match: "\\.wisci/(context|handoff)/"
+    min: 0
+    max: 0
+  - name: "no-store-edits"
+    type: "tool_used"
+    tool: "Edit"
+    input_match: "\\.wisci/"
+    min: 0
+    max: 0
+  - name: "current-ttl"
+    type: "regex"
+    pattern: "\\b60\\W{0,4}(s\\b|sec|second)|SESSION_TTL\\W{0,4}=\\s*60\\b"
+    flags: "i"
+  - name: "deleted-file-not-current"
+    type: "regex"
+    pattern: "deleted|removed|no longer|does not exist|doesn't exist|missing|not found"
+    flags: "i"
+  - name: "offers-fix"
+    type: "regex"
+    pattern: "/(?:wisci:)?write\\b[^\\n]{0,80}auth[- ]research"
+    flags: "i"

@@ -1,80 +1,57 @@
 ---
 name: write
-description: Externalizes knowledge from the conversation into persistent, staleness-tracked markdown files under .wisci/context/. Use when research results, decisions, or findings are worth keeping beyond this session, or when the user wants context saved to disk.
-argument-hint: description of what to externalize
-allowed-tools: Read Write Edit Glob Grep Bash(git *) Bash(python3 *)
-compatibility: Requires git and python3 (bundled wisci.py script)
+description: Saves knowledge from the conversation — research results, decisions with rationale, architecture notes, API quirks — as a note in .wisci/context/ whose claims about code carry quoted evidence, merging into an existing note on the same topic. Use when the user asks to save, persist, record or write down findings for future sessions. Not for code, tests, READMEs or other project files; session progress belongs to compress.
+argument-hint: what to save
+allowed-tools: Read Write Edit Glob Grep Bash(uv run --no-config --no-cache --script "${CLAUDE_SKILL_DIR}/scripts/wisci.py" *)
+compatibility: Requires uv (uv provides Python 3.11+; git recommended); uses the bundled scripts/wisci.py.
 ---
 
-# /write — Context Externalizer
+# /write — Save Knowledge
 
-Move knowledge from the context window into a structured, persistent file in `.wisci/context/`. This is the "save to disk" operation — preserve what would otherwise be lost to context limits or session endings.
+Save reusable knowledge from this conversation as a note in `.wisci/context/`. `/select` loads it later and flags any section whose quoted code is no longer in the code. Session state (progress, next steps) belongs to `/compress`.
 
-**Boundary:** `/write` stores reusable *knowledge* (research, decisions, architecture notes). Session work *state* (goal, in-progress, next steps) belongs in `/compress`.
+Script: `uv run --no-config --no-cache --script "${CLAUDE_SKILL_DIR}/scripts/wisci.py"` (`<wisci>` below). Run it exactly as written, as a command of its own, with the absolute path and quotes and no shell variables: the permission rule matches only that literal command. Edit store files with Write or Edit, never with shell redirects. Hosts without command injection: run it from the project root with `<this skill's directory>/scripts/wisci.py` as the path.
 
-Timestamp: !`date '+%Y-%m-%d %H:%M'`
+Store state:
+!`uv run --no-config --no-cache --script "${CLAUDE_SKILL_DIR}/scripts/wisci.py" scan`
 
-## Execution Flow
+## Steps
 
-1. **Parse arguments.** Read `$ARGUMENTS` to determine what to externalize from the current context.
+1. **Topic.** Name the core topic from `$ARGUMENTS` and the conversation, and compare it with the `context/…` paths above: same topic → merge (3); new → create (2), slug kebab-case, at most 4 words; unsure → ask.
+2. **Create.** `<wisci> new context <slug>` reserves the file and prints its path (`-2` if taken). Read it, then Write the full note (the Write tool requires the Read).
+3. **Merge.** Read the note, then change it with Edit. Rewrite the sections you re-checked against the code this session and add new ones. Leave the others as they are, failing quotes included. A newer decision on the same topic replaces the older one, which moves to Ruled out with why. Facts that conflict with no way to tell which is current: keep both, mark `<!-- REVIEW: possible overlap -->`.
+4. **Check.** Always run `<wisci> check <path>`: it is part of saving, not a code review. It lists every quote that no longer matches the code, then `evidence ok N/M`. Fix the failures in sections you wrote or changed: re-read the file, then correct the quote and the claim beside it together. Leave failures in sections you didn't touch. Never delete or swap a quote just to make it pass.
+5. **Confirm:** path, created or merged, `evidence ok N/M`, one-line summary.
 
-2. **Derive topic slug.** Extract the core topic noun phrase (strip filler: "results on", "notes about"), kebab-case, lowercase, max 5 words. If the user names a target file explicitly, use it.
+## Evidence
 
-3. **Check for existing file.** Glob `.wisci/context/` for the slug:
-   - **No match:** Create Mode below.
-   - **Exact match, same topic:** Merge Mode — read and follow [references/merge-procedure.md](references/merge-procedure.md).
-   - **Exact match, different topic:** ask the user — merge or disambiguated new name.
+For each claim about what the code does, quote the lines it rests on in a fenced block tagged with the language and the file's path from the project root:
 
-4. **Write** to `.wisci/context/<topic-slug>.md` (create directories as needed).
-
-5. **Confirm.** Report path, created vs merged, and a one-line content summary.
-
-## Create Mode
-
-1. Extract and structure the information from the current context per `$ARGUMENTS`
-2. Organize into logical `##` sections
-3. Build a `## References` section listing every file path mentioned in the content
-4. Write using the output format below
-
-## Output Format
-
-```markdown
-# <Title inferred from arguments>
-
-> Last updated by /write on <timestamp from above>
-> Source: <what session context this was extracted from>
-
-## Summary
-<2-3 sentence overview>
-
-## <Section 1>
-<Structured content with all specifics preserved>
-
-## Key Details
-- **Decisions**: <every decision made, with rationale>
-- **Open questions**: <anything unresolved>
-
-## References
-- `src/auth/middleware.ts` — auth middleware, token validation logic
-- `src/auth/session.ts:42` — session expiry configuration
+```ts src/auth/session.ts
+export const SESSION_TTL = 3600 // seconds
 ```
 
-## Preservation Rules
+- Copy whole lines exactly as they are in the file now, 1–3 lines per quote. Quote the line that would change if your claim became false (the value, the condition, the call), not just the signature. Pick lines that occur once.
+- One block per place in the code; no `...`.
+- Decisions, requirements, plans and ruled-out approaches need no quote.
+- Only fenced blocks with a path are checked. Mention other files in prose.
 
-Never summarize away:
+## Note format
 
-- Exact file paths and line numbers
-- Error messages and error codes
-- Numeric values, measurements, benchmarks
-- Command outputs and their results
-- Decisions and the reasoning behind them
-- Function, class, variable, and module names
-- URLs and references
+````markdown
+# <Title>
 
-When condensing verbose material, compression must be reversible: keep the pointer (file path, URL, commit hash) next to every condensed claim so the detail is one Read away.
+## <Topic section>
+<claims, each followed by its evidence block>
 
-## Key Constraints
+## Key Details
+- **Decisions**: <decision — rationale> (YYYY-MM-DD)
+- **Ruled out**: <approach — why> (YYYY-MM-DD)
+- **Open questions**: <unresolved items>
+````
 
-- `## References` is always the last section, each entry annotated with why it is referenced. This manifest powers staleness detection by `/select` and the bundled script ([scripts/wisci.py](scripts/wisci.py)).
-- The `## References` section is rebuilt from scratch on every write — current state, not accumulated history.
-- When in doubt during merge, preserve both versions and flag with `<!-- REVIEW: possible overlap -->`.
+Keep facts out of the title. Omit empty sections.
+
+## Keep verbatim
+
+Paths and line numbers; function, class and module names; error messages, numbers and command output; decisions with their reasoning and approaches ruled out with why; the user's requirements, constraints and preferences in their words; URLs. When you condense, keep a pointer (path, URL, commit) beside the claim. If the store is gitignored, a replaced section is gone for good, so merge rather than replace.

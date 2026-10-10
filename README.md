@@ -12,7 +12,7 @@ repository is both a Claude Code plugin marketplace and an `npx skills` catalog.
 
 | Name | Type | What it does | Works in |
 |---|---|---|---|
-| [`wisci`](plugins/wisci) | plugin (5 skills) | Context engineering framework: Write, Isolate, Select, Compress. Staleness-tracked context store, per-stream handoffs, session hooks, context-enriched commits. | All agents (hooks: Claude Code) |
+| [`wisci`](plugins/wisci) | plugin (5 skills) | Context engineering framework: Write, Isolate, Select, Compress. Context store whose notes quote their code evidence, checked on every load; per-stream handoffs, session hooks, commits with AI-Context trailers. | All agents (hooks: Claude Code) |
 | [`agy`](plugins/agy) | plugin | Google Antigravity (Gemini) inside Claude Code: code reviews, adversarial design reviews, delegated rescue tasks with background jobs. | Claude Code |
 | [`cmux`](skills/cmux) | skill | Orchestrate independent Claude Code sessions in the cmux terminal: split panes, agent monitoring, browser automation, notifications. | All agents (hooks: Claude Code) |
 | [`adveloop`](skills/adveloop) | skill | GAN-inspired adversarial development loop: a Planner drives a Generator and an Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable. | All agents (needs cmux) |

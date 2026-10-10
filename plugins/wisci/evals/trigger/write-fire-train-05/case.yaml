@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: write-fire-train-05
+tags: ["trigger", "train", "write", "fire"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "keep notes on the payment integration for later: webhooks enter through src/payments/webhook.ts, dispatch on evt.type, and we decided not to store raw payloads"
+  max_turns: 3
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?write"'
