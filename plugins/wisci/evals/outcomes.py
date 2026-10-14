@@ -23,6 +23,7 @@ Exit 1 if any check fails.
 
 import argparse
 import fnmatch
+import glob
 import hashlib
 import json
 import os
@@ -179,9 +180,11 @@ class Case:
     def __init__(self, root, model, log):
         self.root, self.model, self.log, self.checks = root, model, log, []
 
-    def claude(self, prompt, settings=None, layout="plugin", mode="default", env=None):
+    def claude(self, prompt, settings=None, layout="plugin", mode="default", env=None, resume=None):
         cmd = [CLAUDE, "-p", prompt, "--setting-sources", "project", "--permission-mode", mode,
                "--model", self.model, "--max-turns", "40", "--output-format", "stream-json", "--verbose"]
+        if resume:
+            cmd += ["--resume", resume]
         if layout == "plugin":
             cmd += ["--plugin-dir", PLUGIN]
         if settings is not None:
@@ -317,9 +320,22 @@ def case_compress_untouched_leaves(c):
         c.check("new leaf has no failing quote", ev is not None and ev[0] == 0, ev)
 
 
+def record_lines(root, rel):
+    """The non-blank lines of a leaf's record sections, which every update must keep byte for byte."""
+    return [ln for h in ("Constraints", "Decisions", "Tried / Ruled out")
+            for ln in (_section(root, rel, h) or "").splitlines() if ln.strip()]
+
+
+def check_records_kept(c, rel, lines):
+    with open(os.path.join(c.root, rel), encoding="utf-8") as f:
+        text = f.read().splitlines()
+    c.check("seeded record lines kept byte for byte", lines and all(ln in text for ln in lines),
+            [ln for ln in lines if ln not in text])
+
+
 def case_compress_stale_stays(c):
     leaf = ".wisci/handoff/auth-refactor.md"
-    before = sha(c.root, leaf)
+    before, records = sha(c.root, leaf), record_lines(c.root, leaf)
     write(c.root, "src/auth/middleware.ts", "export function authMiddleware(req, res, next) {\n  refresh(req)\n  next()\n}\n")
     run = c.claude("/wisci:compress auth-refactor — progress on this stream: I added setup notes to README.md. "
                    "Do not inspect any code; just record that progress.")
@@ -330,6 +346,7 @@ def case_compress_stale_stays(c):
     ev, rechecked = evidence(c.root, leaf), run.read_file("src/auth/middleware.ts")
     c.check("the failing quote stays unless its file was re-read",
             (ev is not None and ev[0] >= 1) or rechecked, {"evidence": ev, "read middleware.ts": rechecked})
+    check_records_kept(c, leaf, records)
 
 
 # ---------- write ----------
@@ -394,33 +411,137 @@ def case_isolate_heals_note(c):
 
 # ---------- compaction ----------
 
-def case_compact_writes_handoff(c):
-    for i in range(1, 5):  # each file names the next, so reads can't be batched past the compaction check
-        write(c.root, f"data/part{i}.txt", "".join(
+EVENTS_FILE = ".compact-events"
+# A second PostCompact hook, beside the plugin's, records each raw event so the case can read the summary itself.
+CAPTURE = {"hooks": {"PostCompact": [{"matcher": "auto|manual", "hooks": [{"type": "command", "command":
+           f"cat >> {EVENTS_FILE}; printf '\\n\\036\\n' >> {EVENTS_FILE}"}]}]}}
+STOCK_HEADERS = ("Primary Request and Intent", "Key Technical Concepts", "Pending Tasks", "Current Work",
+                 "All user messages")
+
+
+def compact_summaries(root):
+    """The <summary> body of each captured PostCompact event, <analysis> excluded."""
+    path = os.path.join(root, EVENTS_FILE)
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        raws = [r.strip() for r in f.read().split("\036") if r.strip()]
+    out = []
+    for raw in raws:
+        text = json.loads(raw, strict=False).get("compact_summary") or ""
+        text = re.sub(r"<analysis>.*?</analysis>", "", text, flags=re.DOTALL)
+        m = re.search(r"<summary>(.*)</summary>", text, re.DOTALL)
+        out.append(m.group(1) if m else text)
+    return out
+
+
+# Haiku sometimes writes its first compaction summary in the stock format (2 of ~12 first compactions on
+# 2026-10-14); every later summary follows the leaf of the one before. That fallback is recorded, not gated.
+SUMMARY_GATED_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
+
+
+def check_summaries_are_leaves(c):
+    """The summarizer followed the skill's "At compaction" rules: only handoff blocks, no stock sections."""
+    summaries = compact_summaries(c.root)
+    c.check("compaction events captured", summaries, summaries)
+    for i, s in enumerate(summaries, 1):
+        stock = [h for h in STOCK_HEADERS if h in s]
+        rest = re.sub(r"<wisci-handoff>\s*---\n.*?</wisci-handoff>", "", s, flags=re.DOTALL).strip()
+        if i == 1 and c.model not in SUMMARY_GATED_MODELS:
+            c.check("summary 1 format (recorded, not gated)", True,
+                    "leaf" if "<wisci-handoff>" in s and not rest else f"stock fallback: {s[:300]}")
+            continue
+        c.check(f"summary {i} has no stock sections", not stock, s[:600])
+        c.check(f"summary {i} holds only handoff blocks", "<wisci-handoff>" in s and not rest, rest[:600])
+
+
+def write_chain(root):
+    """Four data files, each naming the next, so reads can't be batched past the compaction check."""
+    for i in range(1, 5):
+        write(root, f"data/part{i}.txt", "".join(
             f"{i}-{n:04d} " + " ".join(f"word{(i * n + k) % 16}" for k in range(12)) + "\n" for n in range(1, 401))
             + (f"NEXT data/part{i + 1}.txt\n" if i < 4 else "END\n"))
+
+
+CHAIN = ("Start with data/part1.txt. Read each file in full, one Read call with no offset or limit; its last line "
+         "names the next file (NEXT …) or says END. Follow the chain to END, then report each file's line count. "
+         "Do not modify any file.")
+COMPACT_ENV = {**os.environ, "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "4"}
+
+
+def compacted(run):
+    return any(e.get("type") == "system" and e.get("subtype") == "compact_boundary" for e in run.events)
+
+
+def check_compaction_leaf(c, rel):
+    """A leaf saved at compaction: goal, no failing quote, engine-owned frontmatter."""
+    with open(os.path.join(c.root, rel), encoding="utf-8") as f:
+        text = f.read()
+    c.check("leaf has a goal and sections", re.search(r"^goal: \S", text, re.MULTILINE) and "## " in text, text[:300])
+    c.check("leaf names its session, not its stream",
+            re.search(r"^session: \S", text, re.MULTILINE) and not re.search(r"^stream:", text, re.MULTILINE), text[:300])
+    ev = evidence(c.root, rel)
+    c.check("leaf has no failing quote", ev is not None and ev[0] == 0, ev)
+
+
+def case_compact_writes_handoff(c):
+    write_chain(c.root)
     leaves = os.listdir(os.path.join(c.root, ".wisci/handoff"))
     before = tree_hashes(c.root, ".wisci/handoff")
-    run = c.claude("Start with data/part1.txt. Read each file in full, one Read call with no offset or limit; its "
-                   "last line names the next file (NEXT …) or says END. Follow the chain to END, then report each "
-                   "file's line count. Do not modify any file.",
-                   env={**os.environ, "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "4"})
+    run = c.claude(CHAIN, settings=CAPTURE, env=COMPACT_ENV)
     c.ran_clean(run)
-    c.check("the session compacted",
-            any(e.get("type") == "system" and e.get("subtype") == "compact_boundary" for e in run.events))
+    c.check("the session compacted", compacted(run))
+    check_summaries_are_leaves(c)
     added = new_files(c.root, "handoff", leaves)
-    c.check("one new leaf", len(added) == 1, added)
+    c.check("one leaf across all of the session's compactions", len(added) == 1, added)
     c.check("existing leaves byte-identical",
             {r: h for r, h in tree_hashes(c.root, ".wisci/handoff").items() if r in before} == before)
     if added:
         rel = f".wisci/handoff/{added[0]}"
-        with open(os.path.join(c.root, rel), encoding="utf-8") as f:
-            text = f.read()
-        c.check("leaf has a goal and next steps", re.search(r"^goal: \S", text, re.MULTILINE) and "## " in text, text[:300])
-        ev = evidence(c.root, rel)
-        c.check("leaf has no failing quote", ev is not None and ev[0] == 0, ev)
+        check_compaction_leaf(c, rel)
         constraints = _section(c.root, rel, "Constraints") or ""
+        c.check("the user's constraint is kept in their words", "Do not modify any file" in constraints, constraints)
         c.check("constraints hold only the user's words", "untrusted" not in constraints.lower(), constraints)
+
+
+def case_compact_resumed_stream(c):
+    """A session that loaded a stream's leaf compacts: the leaf is updated in place, its records survive byte for
+    byte, and SessionStart re-injects them after the compaction."""
+    leaf, other = ".wisci/handoff/auth-refactor.md", ".wisci/handoff/ci-migration.md"
+    write_chain(c.root)
+    records, other_sha = record_lines(c.root, leaf), sha(c.root, other)
+    before, leaves = sha(c.root, leaf), os.listdir(os.path.join(c.root, ".wisci/handoff"))
+    first = c.claude("/wisci:select handoff/auth-refactor")
+    c.ran_clean(first, ("wisci load", wisci_cmd("load")))
+    sid = first.result.get("session_id")
+    c.check("first session has an id", sid, first.summary())
+    if not sid:
+        return
+    run = c.claude("Continue the auth refactor stream. Before changing any code, audit the request logs. " + CHAIN,
+                   settings=CAPTURE, env=COMPACT_ENV, resume=sid)
+    c.ran_clean(run)
+    c.check("the session compacted", compacted(run))
+    check_summaries_are_leaves(c)
+    c.check("no new leaf", not new_files(c.root, "handoff", leaves), new_files(c.root, "handoff", leaves))
+    c.check("the loaded leaf was updated in place", sha(c.root, leaf) != before)
+    c.check("other streams byte-identical", sha(c.root, other) == other_sha)
+    check_records_kept(c, leaf, records)
+    check_compaction_leaf(c, leaf)
+    injected = session_start_compact_outputs(run.result.get("session_id") or sid)
+    c.check("SessionStart re-injected the records after compaction",
+            any(records[0] in out for out in injected), injected[:2])
+
+
+def session_start_compact_outputs(sid):
+    """What the SessionStart(compact) hooks of a session put into its context, from its transcript."""
+    outs = []
+    for path in glob.glob(os.path.expanduser(f"~/.claude/projects/*/{sid}.jsonl")):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if '"SessionStart:compact"' in line:
+                    a = json.loads(line).get("attachment") or {}
+                    outs.append(str(a.get("content") or a.get("stdout") or ""))
+    return outs
 
 
 # ---------- infra (model-independent) ----------

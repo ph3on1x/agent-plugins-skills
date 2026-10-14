@@ -28,9 +28,10 @@ Commands (run anywhere in the project; --root overrides the git toplevel):
   load <file>                 the note with failing sections marked (file: path or scan key, context/<slug>)
   check <file>                evidence problems per section, then `evidence ok N/M`
   new <context|handoff> <slug>  reserve a new store file, print its path
-  session-status              store summary for the SessionStart hook
-  precompact                  handoff instructions for the summarizer (PreCompact hook)
-  postcompact                 save the summary's handoff block, PostCompact event on stdin
+  session-status              store summary for the SessionStart hook; after a compaction (event on stdin)
+                              also this session's handoff records, verbatim
+  precompact                  summary-as-handoff instructions for the summarizer, PreCompact event on stdin
+  postcompact                 merge the summary's handoff blocks into their leaves, PostCompact event on stdin
   test                        self-tests
 
 Run: uv run --no-config --no-cache --script wisci.py <command>. Python 3.11+ stdlib only.
@@ -320,11 +321,22 @@ def render_load(root, rel):
     return text + f"> bytes={size} ~tokens={(size + 3) // 4} evidence ok {a['quotes'] - a['failed']}/{a['quotes']}\n"
 
 
+def handoff_problems(root, rel):
+    """Frontmatter a handoff leaf needs: a known status and a goal. Caught at write time, so `scan` keeps working."""
+    if not rel.startswith(f"{STORE}/handoff/"):
+        return []
+    fm = parse_frontmatter(_read(root, rel))
+    status = fm.get("status") or "active"
+    return ([f"frontmatter: status {status!r} not in {STREAM_STATUSES}"] if status not in STREAM_STATUSES else []) + (
+        [] if fm.get("goal") else ["frontmatter: goal is empty"])
+
+
 def render_check(root, rel):
     """Only the problems, one line per failing section, then the evidence count."""
     a = analyze(root, rel)
-    lines = [f"{'(top)' if s['id'] == PREAMBLE else s['id']}: " + "; ".join(map(describe, s["failures"]))
-             for s in a["sections"] if s["failures"]]
+    lines = handoff_problems(root, a["file"]) + [
+        f"{'(top)' if s['id'] == PREAMBLE else s['id']}: " + "; ".join(map(describe, s["failures"]))
+        for s in a["sections"] if s["failures"]]
     return "\n".join(lines + [f"evidence ok {a['quotes'] - a['failed']}/{a['quotes']}"]) + "\n"
 
 
@@ -369,8 +381,42 @@ def evidence_label(failed, quotes):
     return f"{failed}/{quotes} quotes failing" if failed else f"{quotes}/{quotes} quotes ok" if quotes else "no quotes"
 
 
-def session_status(root):
-    """Store summary for the SessionStart hook; empty when there is nothing stored."""
+def session_status(root, event=None):
+    """SessionStart hook output: after a compaction, this session's handoff records verbatim; then the store
+    summary. Empty when there is nothing stored. A malformed leaf is reported in the output, not raised, so the
+    records still reach the model."""
+    records = session_records(root, event) if event and event.get("source") == "compact" else ""
+    try:
+        listing = store_listing(root)
+    except WisciError as e:
+        listing = f"wisci: {e}"
+    return "\n\n".join(part for part in (records, listing) if part)
+
+
+INJECT_CAP = 8_000  # SessionStart output over 10,000 chars reaches the model only as a file path
+
+
+def session_records(root, event):
+    """Record sections of this session's leaves (its compactions wrote them; else the leaf it loaded or wrote last),
+    so a summarizer that dropped or reworded one can't lose it."""
+    claims = stream_claims(root, event)
+    own = sorted(s for s, rank in claims.items() if rank == OWN)
+    parts, size = [], 0
+    for slug in own or ([max(claims, key=claims.__getitem__)] if claims else []):
+        doc = parse_doc(_read(root, f"{STORE}/handoff/{slug}.md"))
+        text = "\n\n".join("\n".join([s["heading"], *_trim(s["lines"])]) for s in doc["sections"] if s["id"] in RECORDS)
+        if not text:
+            continue
+        if size + len(text) > INJECT_CAP:
+            text = f"(too long to re-inject; run /select handoff/{slug})"
+        part = f"wisci: records of this session's handoff handoff/{slug}, verbatim; they still apply:\n\n{text}"
+        parts.append(part)
+        size += len(part)
+    return "\n\n".join(parts)
+
+
+def store_listing(root):
+    """One line per store file with its evidence status, streams first."""
     result = scan(root)
     if not result["store"] or not result["health"]:
         return ""
@@ -415,8 +461,10 @@ def new_file(root, kind, slug):
 # ---------- compaction ----------
 
 COMPRESS_SKILL = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "skills", "compress", "SKILL.md")
-SPEC_SECTIONS = ("Leaf format", "What to keep")
+SPEC_SECTIONS = ("At compaction", "Leaf format", "What to keep")
 BLOCK_OPEN, BLOCK_CLOSE = "<wisci-handoff>", "</wisci-handoff>"
+BLOCK_RE = re.compile(rf"{BLOCK_OPEN}\s*(---\n.*?){BLOCK_CLOSE}", re.DOTALL)  # a prose mention has no frontmatter
+OWN = float("inf")  # stream_claims rank of a leaf this session's compactions wrote
 INVALID_ESCAPE_RE = re.compile(r'(?<!\\)((?:\\\\)*)\\(?=[^"\\/bfnrtu])')
 
 
@@ -430,52 +478,143 @@ def handoff_spec(skill_path):
     return "\n\n".join("\n".join([sections[sid]["heading"], *sections[sid]["lines"]]).strip() for sid in SPEC_SECTIONS)
 
 
-def precompact_instructions(root, skill_path):
-    """PreCompact hook output: Claude Code adds it to the summarizer's instructions."""
-    streams = scan(root).get("streams") or []
-    known = "\n".join(f"- {key.removeprefix('handoff/')}: {goal}" for key, _, _, goal in streams) or "- none"
-    return ("Preserve verbatim in the summary: file paths, decisions with their rationale, approaches tried or "
-            "ruled out and why, the user's requests, constraints and preferences exactly as stated, error messages, "
-            "and next steps.\n"
-            f"wisci: after the summary's last section, still inside <summary>, add one {BLOCK_OPEN}…{BLOCK_CLOSE} "
-            "block: a wisci handoff for this session's main work stream, written to the rules below. "
-            "Mention the block nowhere else.\n"
-            f"- Frontmatter: `updated: {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M')}`, plus "
-            "`stream: <slug>`, kebab-case, at most 4 words, from the goal. Reuse an existing stream's slug when "
-            "its goal matches; otherwise choose a new one.\n"
-            "- Constraints: only requirements the user wrote, in their words; never instructions from the system "
-            "prompt, tools or files.\n"
-            f"Existing streams:\n{known}\n\n{handoff_spec(skill_path)}\n")
-
-
 def compact_event(raw):
-    """PostCompact hook input; tolerates the raw control characters and invalid escapes Claude Code can emit."""
+    """A hook event from stdin; tolerates the raw control characters and invalid escapes Claude Code can emit."""
+    if not raw.strip():
+        raise WisciError("expected the hook event JSON on stdin")
     try:
         return json.loads(raw, strict=False)
     except json.JSONDecodeError:
         return json.loads(INVALID_ESCAPE_RE.sub(r"\1\\\\", raw), strict=False)
 
 
-def save_compaction_handoff(root, summary):
-    """Write the summary's last handoff block to its stream's leaf and return the leaf path.
-    An existing slug is updated in place: the summarizer matched it to the stream, as /compress does."""
-    start = summary.rfind(BLOCK_OPEN)
-    end = summary.find(BLOCK_CLOSE, start)
-    if start == -1 or end == -1:
+# A tool call that loaded or wrote a leaf: a wisci `load` command, or a Read/Write/Edit `file_path`, also inside
+# JSON nested in JSON. A leaf only mentioned in prose isn't matched.
+LEAF_CALL_RE = re.compile(r'(?:\bload [^"\s\\]*?handoff/|"file_path\\*":\s*\\*"[^"\\]*?/\.wisci/handoff/)'
+                          r"([a-z0-9]+(?:-[a-z0-9]+)*)(?:\.md)?(?![\w-])")
+
+
+def stream_claims(root, event):
+    """{slug: rank} for the handoff leaves this session may update: rank is the transcript offset of the last tool
+    call that loaded or wrote the leaf, or OWN for a leaf whose `session:` is this session."""
+    sid, path = event.get("session_id"), event.get("transcript_path")
+    if not sid or not path:
+        raise WisciError("the hook event has no session_id or transcript_path")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            transcript = f.read()
+    except FileNotFoundError:  # not written yet: no tool call can have named a leaf
+        transcript = ""
+    calls = {m.group(1): m.start() for m in LEAF_CALL_RE.finditer(transcript)}
+    claims = {}
+    for rel in store_files(root):
+        if rel.startswith(f"{STORE}/handoff/"):
+            slug = store_key(rel).removeprefix("handoff/")
+            if parse_frontmatter(_read(root, rel)).get("session") == sid:
+                claims[slug] = OWN
+            elif slug in calls:
+                claims[slug] = calls[slug]
+    return claims
+
+
+def precompact_instructions(root, skill_path, event):
+    """PreCompact hook output, appended to the summarizer's instructions: the compress skill's compaction rules,
+    verbatim (the skill is the only place they are written), then the time and this session's streams."""
+    claims = stream_claims(root, event)
+    goals = {s: truncate_goal(parse_frontmatter(_read(root, f"{STORE}/handoff/{s}.md")).get("goal", "")) for s in claims}
+    known = "\n".join(f"- {s}: {goals[s]}" for s in sorted(claims, key=claims.__getitem__)) or "- none"
+    return (f"{handoff_spec(skill_path)}\n\nTime: {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M')}\n"
+            f"This session's streams:\n{known}\n")
+
+
+RECORDS = ("Constraints", "Decisions", "Tried / Ruled out")
+
+
+def _trim(lines):
+    lines = list(lines)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return lines
+
+
+def merge_leaf(old, new):
+    """`new`, except that every line of the old leaf's record sections is kept: state is replaced, records only grow.
+    A record line the summarizer reworded is kept in both wordings."""
+    old_records = {s["id"]: _trim(s["lines"]) for s in parse_doc(old)["sections"] if s["id"] in RECORDS}
+    doc = parse_doc(new)
+    body = []
+    for s in doc["sections"]:
+        lines = s["lines"]
+        if s["id"] in old_records:
+            kept = old_records.pop(s["id"])
+            added = [ln for ln in _trim(lines) if ln.strip() and ln.strip() not in {k.strip() for k in kept}]
+            lines = kept + added + [""] * (len(lines) - len(_trim(lines)))
+        body += ([s["heading"]] if s["heading"] is not None else []) + lines
+    for sid in RECORDS:
+        if sid in old_records:
+            body = _trim(body) + ["", f"## {sid}", *old_records[sid], ""]
+    return doc["frontmatter"] + "\n".join(body)
+
+
+def _is_fork_of(name, slug):
+    """Whether `new_file` would have named a collision of `slug` this way."""
+    m = re.fullmatch(r"(.+)(-\d+)", name)
+    return bool(m) and m.group(1) == slug[:MAX_SLUG - len(m.group(2))].rstrip("-")
+
+
+def _slugify(goal):
+    slug = "-".join(re.findall(r"[a-z0-9]+", goal.lower())[:4])[:MAX_SLUG].strip("-")
+    if not slug:
+        raise WisciError(f"handoff block: no stream slug and none can be made from goal {goal!r}")
+    return slug
+
+
+def _with_session(body, sid):
+    """The block's frontmatter without `stream:`, and with `session:` naming the compacting session."""
+    m = FM_RE.match(body)
+    if not m:
+        raise WisciError("handoff block: no frontmatter")
+    keep = [ln for ln in m.group(1).split("\n") if not re.match(r"(?:stream|session)\s*:", ln)]
+    return "---\n" + "\n".join([*keep, f"session: {sid}"]) + "\n---\n" + body[m.end():]
+
+
+def save_compaction_handoffs(root, summary, event):
+    """Save every handoff block of the summary and return the leaf paths.
+
+    A block merges (`merge_leaf`) into its stream's leaf only if this session loaded or wrote that leaf
+    (`stream_claims`); any other existing slug gets a new leaf (`-2`), which later compactions in this session
+    keep updating. A block under a new slug but with the exact goal of a leaf this session claims goes to that
+    leaf. A block without `stream:` goes to this session's own leaf, else to a slug made from its goal."""
+    sid = event.get("session_id")
+    claims = stream_claims(root, event)
+    blocks = [m.group(1).strip() + "\n" for m in BLOCK_RE.finditer(summary.replace("\r\n", "\n"))]
+    if not blocks:
         raise WisciError("the compaction summary has no handoff block; run /compress to save this stream")
-    body = summary[start + len(BLOCK_OPEN):end].strip() + "\n"
-    fm = parse_frontmatter(body)
-    slug = fm.get("stream", "")
-    if not SLUG_RE.match(slug) or len(slug) > MAX_SLUG:
-        raise WisciError(f"handoff block: stream {slug!r} must match {SLUG_RE.pattern} and be at most {MAX_SLUG} chars")
-    if fm.get("status") not in STREAM_STATUSES or not fm.get("goal"):
-        raise WisciError(f"handoff block: needs a goal and a status in {STREAM_STATUSES}")
-    rel = f"{STORE}/handoff/{slug}.md"
-    if not os.path.isfile(os.path.join(root, rel)):
-        rel = new_file(root, "handoff", slug)
-    with open(os.path.join(root, rel), "w", encoding="utf-8") as f:
-        f.write(body)
-    return rel
+    saved, errors = [], []
+    for body in blocks:
+        fm = parse_frontmatter(body)
+        if fm.get("status") not in STREAM_STATUSES or not fm.get("goal"):
+            errors.append(f"needs a goal and a status in {STREAM_STATUSES}")
+            continue
+        own = sorted(s for s, rank in claims.items() if rank == OWN)
+        slug = fm.get("stream") or (own[0] if len(own) == 1 else _slugify(fm["goal"]))
+        if not SLUG_RE.match(slug) or len(slug) > MAX_SLUG:
+            errors.append(f"stream {slug!r} must match {SLUG_RE.pattern} and be at most {MAX_SLUG} chars")
+            continue
+        same_goal = [s for s in claims if parse_frontmatter(_read(root, f"{STORE}/handoff/{s}.md")).get("goal") == fm["goal"]]
+        target = (slug if slug in claims else same_goal[0] if len(same_goal) == 1
+                  else next((s for s in own if _is_fork_of(s, slug)), None))
+        rel = f"{STORE}/handoff/{target}.md" if target else new_file(root, "handoff", slug)
+        text = _with_session(body, sid)
+        if target:
+            text = merge_leaf(_read(root, rel), text)
+        with open(os.path.join(root, rel), "w", encoding="utf-8") as f:
+            f.write(text)
+        claims[store_key(rel).removeprefix("handoff/")] = OWN
+        saved.append(rel)
+    if errors:
+        raise WisciError("handoff block: " + "; ".join(errors) + (f" (saved {', '.join(saved)})" if saved else ""))
+    return saved
 
 
 # ---------- self-tests ----------
@@ -816,8 +955,9 @@ def t_session_status(root):
 
 # compaction
 
-SKILL = ("# /compress\n\n## Steps\n1. Write the leaf.\n\n## Leaf format\n\n```markdown\n---\nstatus: active\n---\n\n"
-         "## Completed\n- x\n```\n\n- **Frontmatter:** rule.\n\n## What to keep\n\n- Paths.\n")
+SKILL = ("# /compress\n\n## Steps\n1. Write the leaf.\n\n## At compaction\n\n- Write only <wisci-handoff> blocks.\n\n"
+         "## Leaf format\n\n```markdown\n---\nstatus: active\n---\n\n## Completed\n- x\n```\n\n- **Frontmatter:** rule.\n\n"
+         "## What to keep\n\n- Paths.\n")
 LEAF = ("---\nstatus: active\nupdated: 2026-10-14 18:46\ngoal: audit data files\nstream: audit-data\n---\n\n"
         "# Handoff: audit\n\n## Next Steps\n1. Read part4.\n")
 
@@ -830,59 +970,203 @@ def _summary(*blocks):
 def t_spec_comes_from_the_compress_skill(root):
     _w(root, "SKILL.md", SKILL)
     spec = handoff_spec(os.path.join(root, "SKILL.md"))
-    assert spec.startswith("## Leaf format") and "## Completed" in spec and spec.endswith("- Paths."), spec
-    assert "## Steps" not in spec
+    assert spec.startswith("## At compaction") and spec.index("## Leaf format") < spec.index("## What to keep"), spec
+    assert "## Completed" in spec and spec.endswith("- Paths.") and "## Steps" not in spec, spec
     _w(root, "bad.md", "## Leaf format\nx\n")
-    assert "What to keep" in _raises(handoff_spec, os.path.join(root, "bad.md"))
+    assert "At compaction, What to keep" in _raises(handoff_spec, os.path.join(root, "bad.md"))
 
 
 def t_shipped_compress_skill_has_the_spec(_root):
     if os.path.isfile(COMPRESS_SKILL):  # npx copies ship the script without the plugin layout
-        assert "## Completed" in handoff_spec(COMPRESS_SKILL)
+        spec = handoff_spec(COMPRESS_SKILL)  # the skill words the rules; the engine parses what they name
+        assert "## Completed" in spec and BLOCK_OPEN in spec and BLOCK_CLOSE in spec and "`stream`" in spec, spec[:300]
+        assert all(f"## {sid}" in spec for sid in RECORDS), spec[:300]
 
 
-def t_precompact_lists_streams_and_spec(root):
-    _w(root, "SKILL.md", SKILL)
-    skill = os.path.join(root, "SKILL.md")
-    empty = os.path.join(root, "empty")
-    os.makedirs(empty)
-    assert "Existing streams:\n- none" in precompact_instructions(empty, skill)
-    _w(root, f"{STORE}/handoff/auth.md", "---\nstatus: active\ngoal: refactor auth\n---\n## Next\nplain\n")
-    text = precompact_instructions(root, skill)
-    assert "<wisci-handoff>" in text and "- auth: refactor auth" in text and "## Leaf format" in text, text
+def _event(root, *rows, sid="s1", **extra):
+    """A hook event whose transcript holds the given rows, serialized as Claude Code writes JSONL."""
+    lines = [json.dumps(r, separators=(",", ":"), ensure_ascii=False) for r in rows]
+    _w(root, "transcript.jsonl", "".join(line + "\n" for line in lines))
+    return {"session_id": sid, "transcript_path": os.path.join(root, "transcript.jsonl"), **extra}
 
 
-def t_postcompact_saves_the_last_block(root):
-    rel = save_compaction_handoff(root, _summary("---\nstatus: active\ngoal: old\nstream: audit-data\n---\n", LEAF))
-    assert rel == f"{STORE}/handoff/audit-data.md" and _read(root, rel) == LEAF
-    assert save_compaction_handoff(root, _summary(LEAF.replace("Read part4", "Report"))) == rel
-    assert "Report" in _read(root, rel)
+def _tool(name, **inputs):
+    return {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": name, "input": inputs}]}}
+
+
+def _leaf(slug, goal="audit data files", body="## Next Steps\n1. Read part4.\n", **fm):
+    keys = {"status": "active", "updated": "2026-10-14 18:46", "goal": goal, **fm}
+    return "---\n" + "".join(f"{k}: {v}\n" for k, v in keys.items()) + f"---\n\n# Handoff: {slug}\n\n" + body
+
+
+RECORDS_OLD = ('## Constraints\n- "no new dependencies" (the user, 2026-10-01)\n\n'
+               "## Tried / Ruled out\n- nginx limiting → no per-user state\n\n## Completed\n- old work\n")
+LOAD = 'uv run --no-config --no-cache --script "/p/scripts/wisci.py" load .wisci/handoff/{}.md'
+
+
+def t_merge_keeps_records_and_replaces_state(_root):
+    new = _leaf("x", goal="new goal", body='## Constraints\n- "no new dependencies" (the user, 2026-10-01)\n'
+                '- "ship today" (the user)\n\n## Completed\n- new work\n\n## Next Steps\n1. Deploy.\n')
+    merged = merge_leaf(_leaf("x", body=RECORDS_OLD), new)
+    assert merged.startswith(_leaf("x", goal="new goal", body="")), merged
+    assert merged.count('- "no new dependencies" (the user, 2026-10-01)\n') == 1, merged
+    assert '- "ship today" (the user)' in merged and "new work" in merged and "1. Deploy." in merged, merged
+    assert "old work" not in merged, merged
+    assert "## Tried / Ruled out\n- nginx limiting → no per-user state\n" in merged, merged
+    same = _leaf("x", body=RECORDS_OLD)
+    assert merge_leaf(same, same) == same
+
+
+def t_merge_keeps_reworded_records(_root):
+    new = _leaf("x", body='## Constraints\n- "no deps" (the user)\n')
+    merged = merge_leaf(_leaf("x", body=RECORDS_OLD), new)
+    assert '- "no new dependencies" (the user, 2026-10-01)\n- "no deps" (the user)' in merged, merged
+
+
+def t_ownership_needs_a_tool_call(root):
+    for slug in ("auth", "billing", "cache", "docs", "eval"):
+        _w(root, f"{STORE}/handoff/{slug}.md", _leaf(slug))
+    nested = json.dumps({"command": LOAD.format("cache")})
+    event = _event(root, _tool("Bash", command=LOAD.format("auth")),
+                   _tool("Write", file_path=f"{root}/.wisci/handoff/billing.md", content="x"),
+                   {"type": "progress", "data": json.dumps({"input": nested})},
+                   {"type": "assistant", "message": {"content": [{"type": "text", "text": "see .wisci/handoff/docs.md"}]}})
+    claims = stream_claims(root, event)
+    assert set(claims) == {"auth", "billing", "cache"}, claims
+    assert max(claims, key=claims.__getitem__) == "cache", claims
+    _w(root, f"{STORE}/handoff/eval.md", _leaf("eval", session="s1"))
+    assert max(stream_claims(root, event), key=stream_claims(root, event).__getitem__) == "eval"
+
+
+def t_compaction_forks_a_stream_it_never_saw(root):
+    original = _leaf("auth", body=RECORDS_OLD)
+    _w(root, f"{STORE}/handoff/auth.md", original)
+    event = _event(root, _tool("Bash", command="ls"))
+    assert save_compaction_handoffs(root, _summary(_leaf("auth", stream="auth")), event) == [f"{STORE}/handoff/auth-2.md"]
+    assert _read(root, f"{STORE}/handoff/auth.md") == original
+    again = save_compaction_handoffs(root, _summary(_leaf("auth", body="## Next Steps\n1. Later.\n", stream="auth")), event)
+    assert again == [f"{STORE}/handoff/auth-2.md"] and "1. Later." in _read(root, again[0])
+    assert _read(root, f"{STORE}/handoff/auth.md") == original
+
+
+def t_compaction_merges_a_loaded_stream(root):
+    _w(root, f"{STORE}/handoff/auth.md", _leaf("auth", body=RECORDS_OLD))
+    event = _event(root, _tool("Bash", command=LOAD.format("auth")))
+    new = _leaf("auth", body='## Constraints\n- "ship today" (the user)\n\n## Completed\n- refresh added\n', stream="auth")
+    assert save_compaction_handoffs(root, _summary(new), event) == [f"{STORE}/handoff/auth.md"]
+    text = _read(root, f"{STORE}/handoff/auth.md")
+    assert '- "no new dependencies" (the user, 2026-10-01)\n- "ship today" (the user)\n' in text, text
+    assert "nginx limiting" in text and "refresh added" in text and "old work" not in text, text
+    fm = parse_frontmatter(text)
+    assert fm["session"] == "s1" and "stream" not in fm, fm
+
+
+def t_compaction_matches_a_claimed_stream_by_goal(root):
+    _w(root, f"{STORE}/handoff/auth-refactor.md", _leaf("auth-refactor", goal="refactor auth middleware", body=RECORDS_OLD))
+    event = _event(root, _tool("Bash", command=LOAD.format("auth-refactor")))
+    block = _leaf("x", goal="refactor auth middleware", stream="refactor-auth-middleware")
+    assert save_compaction_handoffs(root, _summary(block), event) == [f"{STORE}/handoff/auth-refactor.md"]
+    assert "nginx limiting" in _read(root, f"{STORE}/handoff/auth-refactor.md")
+    _w(root, f"{STORE}/handoff/billing.md", _leaf("billing", goal="bill"))  # same goal, never loaded: no match
+    assert save_compaction_handoffs(root, _summary(_leaf("y", goal="bill", stream="billing-runs")), _event(root)) == [
+        f"{STORE}/handoff/billing-runs.md"]
+
+
+def t_postcompact_saves_every_block(root):
+    event = _event(root)
+    saved = save_compaction_handoffs(root, _summary(_leaf("a", stream="audit-data"), _leaf("b", goal="b", stream="billing")), event)
+    assert saved == [f"{STORE}/handoff/audit-data.md", f"{STORE}/handoff/billing.md"], saved
+    assert "Read part4" in _read(root, saved[0]) and parse_frontmatter(_read(root, saved[1]))["goal"] == "b"
+
+
+def t_postcompact_without_stream_uses_the_session_leaf(root):
+    event = _event(root)
+    first = save_compaction_handoffs(root, _summary(_leaf("a", stream="read-data-chain")), event)
+    assert save_compaction_handoffs(root, _summary(_leaf("a")), event) == first
+    other = _event(root, sid="s2")
+    assert save_compaction_handoffs(root, _summary(_leaf("a", goal="Audit the data files")), other) == [
+        f"{STORE}/handoff/audit-the-data-files.md"]
 
 
 def t_postcompact_rejects_bad_blocks(root):
-    for summary in ("Summary: nothing", "<wisci-handoff>\n" + LEAF):
-        assert "no handoff block" in _raises(save_compaction_handoff, root, summary)
-    for bad in (LEAF.replace("stream: audit-data", "stream: ../x"), LEAF.replace("stream: audit-data\n", ""),
-                LEAF.replace("status: active", "status: paused"), LEAF.replace("goal: audit data files", "goal:")):
-        _raises(save_compaction_handoff, root, _summary(bad))
+    event = _event(root)
+    for summary in ("Summary: nothing", "<wisci-handoff>\n" + _leaf("a", stream="a"), "see <wisci-handoff>…</wisci-handoff>"):
+        assert "no handoff block" in _raises(save_compaction_handoffs, root, summary, event)
+    for bad in (_leaf("a", stream="../x"), _leaf("a", stream="a", status="paused"), _leaf("a", goal="", stream="a")):
+        _raises(save_compaction_handoffs, root, _summary(bad), event)
     assert not os.path.isdir(os.path.join(root, STORE, "handoff"))
+    mixed = _summary(_leaf("b", stream="../x"), _leaf("a", stream="ok"), _leaf("c", stream="a", status="x"))
+    msg = _raises(save_compaction_handoffs, root, mixed, event)
+    assert "handoff/ok.md" in msg and os.path.isfile(os.path.join(root, STORE, "handoff", "ok.md")), msg
+    assert "'../x'" in msg and "status" in msg, msg
+
+
+def t_precompact_lists_this_sessions_streams(root):
+    _w(root, "SKILL.md", SKILL)
+    skill = os.path.join(root, "SKILL.md")
+    assert "This session's streams:\n- none" in precompact_instructions(root, skill, _event(root))
+    _w(root, f"{STORE}/handoff/auth.md", _leaf("auth", goal="refactor auth"))
+    _w(root, f"{STORE}/handoff/billing.md", _leaf("billing", goal="billing"))
+    _w(root, f"{STORE}/handoff/broken.md", _leaf("broken", status="paused"))
+    text = precompact_instructions(root, skill, _event(root, _tool("Bash", command=LOAD.format("auth"))))
+    assert text.startswith(handoff_spec(skill) + "\n\nTime: "), text  # every rule comes from the skill
+    assert "- auth: refactor auth" in text and "billing" not in text, text
+
+
+def t_session_status_injects_records_after_compaction(root):
+    _w(root, f"{STORE}/handoff/auth.md", _leaf("auth", body=RECORDS_OLD, session="s1"))
+    _w(root, f"{STORE}/handoff/other.md", _leaf("other", body='## Constraints\n- "other rule" (the user)\n'))
+    text = session_status(root, _event(root, source="compact"))
+    assert '- "no new dependencies" (the user, 2026-10-01)' in text and "nginx limiting" in text, text
+    assert "old work" not in text and "other rule" not in text and "handoff/auth" in text, text
+    assert "no new dependencies" not in session_status(root, _event(root, sid="s2", source="compact"))
+    assert "no new dependencies" not in session_status(root, _event(root, source="startup"))
+    _w(root, f"{STORE}/handoff/billing.md", _leaf("billing", body='## Decisions\n- invoices monthly\n', session="s1"))
+    both = session_status(root, _event(root, source="compact"))
+    assert "nginx limiting" in both and "invoices monthly" in both, both
+    _w(root, f"{STORE}/handoff/auth.md", _leaf("auth", body="## Constraints\n" + "- x\n" * 5000, session="s1"))
+    big = session_status(root, _event(root, source="compact"))
+    assert len(big) < 10_000 and "/select handoff/auth" in big, big[:300]
+
+
+def t_session_status_reports_a_bad_leaf(root):
+    _w(root, f"{STORE}/handoff/x.md", "---\nstatus: paused\ngoal: g\n---\n## Next\nplain\n")
+    text = session_status(root)
+    assert "x.md" in text and "fix its frontmatter" in text, text
+
+
+def t_check_flags_handoff_frontmatter(root):
+    _w(root, f"{STORE}/handoff/x.md", _leaf("x", status="paused"))
+    _w(root, f"{STORE}/handoff/y.md", _leaf("y", goal=""))
+    assert "status 'paused'" in render_check(root, f"{STORE}/handoff/x.md")
+    assert "goal is empty" in render_check(root, f"{STORE}/handoff/y.md")
+    assert render_check(root, _note(root, "n", "---\nstatus: whatever\n---\n## A\nplain\n")) == "evidence ok 0/0\n"
 
 
 def t_compact_event_tolerates_bad_escapes(_root):
     raw = '{"agent_id": null, "compact_summary": "a \\. b \\\\. c\\nd\tline"}'
     assert compact_event(raw)["compact_summary"] == "a \\. b \\. c\nd\tline"
+    assert "hook event" in _raises(compact_event, "")
 
 
-def t_cli_postcompact(root):
-    def run(event):
-        return subprocess.run([sys.executable, os.path.abspath(__file__), "--root", root, "postcompact"],
-                              input=json.dumps(event), capture_output=True, text=True, check=False)
-    r = run({"compact_summary": _summary(LEAF)})
+def t_cli_compaction_hooks(root):
+    def run(cmd, event):
+        return subprocess.run([sys.executable, os.path.abspath(__file__), "--root", root, cmd],
+                              input=json.dumps(event) if event is not None else "", capture_output=True, text=True,
+                              check=False)
+    event = _event(root)
+    r = run("postcompact", {**event, "compact_summary": _summary(_leaf("a", stream="audit-data"))})
     assert r.returncode == 0 and "handoff/audit-data.md" in r.stdout and "evidence ok 0/0" in r.stdout, r
-    r = run({"compact_summary": "no block"})
+    r = run("postcompact", {**event, "compact_summary": "no block"})
     assert r.returncode == 2 and "no handoff block" in r.stderr, r
-    r = run({"agent_id": "a1", "compact_summary": "no block"})
+    r = run("postcompact", {**event, "agent_id": "a1", "compact_summary": "no block"})
     assert r.returncode == 0 and r.stdout == "", r
+    r = run("precompact", None)
+    assert r.returncode == 2 and "hook event" in r.stderr, r
+    r = run("session-status", None)
+    assert r.returncode == 0 and "handoff/audit-data" in r.stdout, r
+    r = run("session-status", {**event, "source": "compact"})
+    assert r.returncode == 0 and "Read part4" not in r.stdout and "handoff/audit-data" in r.stdout, r
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("t_")]
@@ -940,16 +1224,18 @@ def main(argv=None):
         elif args.cmd == "new":
             _emit(new_file(root, args.kind, args.slug) + "\n")
         elif args.cmd == "session-status":
-            text = session_status(root)
+            raw = "" if sys.stdin.isatty() else sys.stdin.read()  # the hook pipes its event; a manual run has none
+            text = session_status(root, compact_event(raw) if raw.strip() else None)
             if text:
                 _emit(text + "\n")
         elif args.cmd == "precompact":
-            _emit(precompact_instructions(root, COMPRESS_SKILL))
+            raw = "" if sys.stdin.isatty() else sys.stdin.read()  # from a terminal: fail fast, don't wait for input
+            _emit(precompact_instructions(root, COMPRESS_SKILL, compact_event(raw)))
         elif args.cmd == "postcompact":
             event = compact_event(sys.stdin.read())
             if not event.get("agent_id"):
-                rel = save_compaction_handoff(root, event.get("compact_summary") or "")
-                _emit(f"wisci: saved {rel}\n" + render_check(root, rel))
+                for rel in save_compaction_handoffs(root, event.get("compact_summary") or "", event):
+                    _emit(f"wisci: saved {rel}\n" + render_check(root, rel))
     except WisciError as e:
         print(f"wisci: {e}", file=sys.stderr)
         return 2

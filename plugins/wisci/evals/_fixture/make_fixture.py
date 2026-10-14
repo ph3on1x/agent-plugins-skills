@@ -28,6 +28,11 @@ def quote(path, line, lang="ts"):
     return f"```{lang} {path}\n{line}\n```\n"
 
 
+# Record sections of the auth-refactor leaf; outcomes.py asserts these lines survive updates byte for byte.
+AUTH_RECORDS = ('## Constraints\n- "Never log access tokens, not even in debug mode." (the user, 2026-07-05)\n\n'
+                "## Tried / Ruled out\n- Session cookies → rejected: the mobile client can't keep cookies.\n\n")
+
+
 FILES = {
     "package.json": '{"name": "fixture-app", "dependencies": {"express": "^4.0.0"}}\n',
     "src/auth/middleware.ts": "export function authMiddleware(req, res, next) {\n  // validates tokens\n  next()\n}\n",
@@ -50,7 +55,8 @@ FILES = {
         + quote("src/legacy.ts", "export const OLD = true")),
     ".wisci/handoff/auth-refactor.md": (
         "---\nstatus: active\nupdated: 2026-07-05 10:00\ngoal: refactor auth middleware to token refresh\n---\n\n"
-        "# Handoff: auth refactor\n\n## Completed\n- Analyzed the auth middleware in src/auth/middleware.ts.\n\n"
+        "# Handoff: auth refactor\n\n" + AUTH_RECORDS +
+        "## Completed\n- Analyzed the auth middleware in src/auth/middleware.ts.\n\n"
         "## In Progress\nThe middleware still only validates tokens:\n"
         + quote("src/auth/middleware.ts", "  // validates tokens")
         + "\n## Next Steps\n1. Implement refresh in src/auth/middleware.ts.\n"),
