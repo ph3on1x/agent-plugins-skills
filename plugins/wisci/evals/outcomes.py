@@ -392,6 +392,37 @@ def case_isolate_heals_note(c):
             {r: h for r, h in tree_hashes(c.root, ".wisci").items() if r != rel} == others)
 
 
+# ---------- compaction ----------
+
+def case_compact_writes_handoff(c):
+    for i in range(1, 5):  # each file names the next, so reads can't be batched past the compaction check
+        write(c.root, f"data/part{i}.txt", "".join(
+            f"{i}-{n:04d} " + " ".join(f"word{(i * n + k) % 16}" for k in range(12)) + "\n" for n in range(1, 401))
+            + (f"NEXT data/part{i + 1}.txt\n" if i < 4 else "END\n"))
+    leaves = os.listdir(os.path.join(c.root, ".wisci/handoff"))
+    before = tree_hashes(c.root, ".wisci/handoff")
+    run = c.claude("Start with data/part1.txt. Read each file in full, one Read call with no offset or limit; its "
+                   "last line names the next file (NEXT …) or says END. Follow the chain to END, then report each "
+                   "file's line count. Do not modify any file.",
+                   env={**os.environ, "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "4"})
+    c.ran_clean(run)
+    c.check("the session compacted",
+            any(e.get("type") == "system" and e.get("subtype") == "compact_boundary" for e in run.events))
+    added = new_files(c.root, "handoff", leaves)
+    c.check("one new leaf", len(added) == 1, added)
+    c.check("existing leaves byte-identical",
+            {r: h for r, h in tree_hashes(c.root, ".wisci/handoff").items() if r in before} == before)
+    if added:
+        rel = f".wisci/handoff/{added[0]}"
+        with open(os.path.join(c.root, rel), encoding="utf-8") as f:
+            text = f.read()
+        c.check("leaf has a goal and next steps", re.search(r"^goal: \S", text, re.MULTILINE) and "## " in text, text[:300])
+        ev = evidence(c.root, rel)
+        c.check("leaf has no failing quote", ev is not None and ev[0] == 0, ev)
+        constraints = _section(c.root, rel, "Constraints") or ""
+        c.check("constraints hold only the user's words", "untrusted" not in constraints.lower(), constraints)
+
+
 # ---------- infra (model-independent) ----------
 
 def infra_uv_missing(c):

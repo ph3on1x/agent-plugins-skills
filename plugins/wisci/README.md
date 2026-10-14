@@ -53,7 +53,7 @@ Then, in any project:
 npx skills add ph3on1x/agent-plugins-skills --skill commit compress isolate select write
 ```
 
-- **No hooks.** The session-start summary and compaction guidance ship only in the Claude Code plugin.
+- **No hooks.** The session-start summary and the handoff saved at every compaction ship only in the Claude Code plugin.
 - **No command injection.** The model reads the skill and runs `scripts/wisci.py` through uv itself.
 - **Name collisions.** `npx skills` doesn't namespace skills, so `commit` or `write` can collide with another skill of the same name. The Claude Code plugin namespaces them as `/wisci:<name>`.
 - **Implicit invocation.** Codex, Gemini CLI, Antigravity and Copilot pick skills implicitly by default. `commit` ships `agents/openai.yaml` to turn that off on Codex.
@@ -85,7 +85,7 @@ Context fails in four recognizable ways ([Drew Breunig](https://www.dbreunig.com
 Model performance drops as input grows, often unevenly ([Chroma, *Context Rot*](https://research.trychroma.com/context-rot)). There is no universal threshold; keeping utilization around 40–60% is a practitioner heuristic ([HumanLayer](https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/ace-fca.md)), not a measured limit.
 
 > [!TIP]
-> Claude Code compacts automatically near the context limit. Run `/compress` before that happens, or set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to compact earlier.
+> Claude Code compacts automatically near the context limit, and the wisci plugin saves a handoff at every compaction (see Hooks below). Choose when it compacts with `/autocompact <tokens>`, for example `/autocompact 500k`.
 
 ## How it works
 
@@ -175,6 +175,8 @@ uv run --no-config --no-cache --script scripts/wisci.py <command>
 | `check <file>` | Only the failing quotes, then `evidence ok N/M` |
 | `new <context\|handoff> <slug>` | Reserve a new store file |
 | `session-status` | The session-start summary |
+| `precompact` | Handoff instructions for the compaction summary |
+| `postcompact` | Saves the summary's handoff block; reads the PostCompact event on stdin |
 | `test` | Self-tests |
 
 `<file>` is a store path (`.wisci/context/auth.md`) or the short name `scan` prints (`context/auth`).
@@ -186,9 +188,10 @@ uv run --no-config --no-cache --script scripts/wisci.py <command>
 
 <br>
 
-- **Session start** lists stored notes and streams with their evidence status, and tells the agent to load them with `/select`, not a raw Read, which would skip the check.
-- **After compaction**, it reminds you to `/compress` any in-progress stream.
-- **Before compaction**, it asks the summarizer to keep paths, decisions, ruled-out approaches and your constraints verbatim. This is best-effort: Claude Code passed the hook's output to the summarizer when checked (2.1.294), but the docs don't promise it. Running `/compress` before compaction is the reliable path.
+- **Session start** (and after each compaction) lists stored notes and streams with their evidence status, and tells the agent to load them with `/select`, not a raw Read, which would skip the check.
+- **Before compaction**, it asks the summarizer to end its summary with a `<wisci-handoff>` block: a handoff for the session's main stream, written to the leaf format and keep rules in `skills/compress/SKILL.md`, which it reads at run time, so `/compress` and compaction share one spec. Claude Code's stock summary sections stay, and the block is added after them.
+- **After compaction**, it saves that block to `.wisci/handoff/<stream>.md` and checks its quotes. The session carries on with the summary, which already contains the handoff; the file is for later sessions and teammates. If the block is missing, it tells you to run `/compress`.
+- Claude Code passes PreCompact output to the summarizer (verified on 2.1.299), but the docs don't promise it. The hook can't block a compaction: any failure exits 1. `/compress` stays the tool-checked path, since the summarizer can't run tools to verify its quotes.
 
 </details>
 

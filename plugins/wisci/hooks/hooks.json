@@ -2,20 +2,11 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume|clear|fork",
+        "matcher": "startup|resume|clear|fork|compact",
         "hooks": [
           {
             "type": "command",
-            "command": "command -v uv >/dev/null 2>&1 || { echo 'wisci: uv is required — install: https://docs.astral.sh/uv/getting-started/installation/' >&2; exit 2; }; uv run --no-config --no-cache --script \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status"
-          }
-        ]
-      },
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v uv >/dev/null 2>&1 || { echo 'wisci: uv is required — install: https://docs.astral.sh/uv/getting-started/installation/' >&2; exit 2; }; uv run --no-config --no-cache --script \"${CLAUDE_PLUGIN_ROOT}/scripts/wisci.py\" session-status && echo 'Context was compacted. If a work stream is in progress, run /compress before continuing.'"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" session-status"
           }
         ]
       }
@@ -26,7 +17,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Preserve verbatim in the summary: file paths, decisions with their rationale, approaches tried or ruled out and why, the user'\\''s requests, constraints and preferences exactly as stated, error messages, and next steps.'"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" precompact || exit 1"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "auto|manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" postcompact"
           }
         ]
       }
