@@ -1,7 +1,7 @@
 {
   "name": "wisci",
   "description": "WISCI context engineering framework — Write, Isolate, Select, Compress, Iterate. Context store (.wisci/) whose notes quote their code evidence, checked on every load, per-stream handoffs (every compaction summary is one), session hooks, and commits with AI-Context trailers.",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "author": {
     "name": "Dennis Nasarov"
   },

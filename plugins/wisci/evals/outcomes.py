@@ -306,18 +306,38 @@ COMPRESS_PROMPT = ("/wisci:compress rate-limiter — this session we designed a 
                    "Next step: implement the bucket store.")
 
 
+SAVE = (("wisci draft", wisci_cmd("draft")), ("wisci save", wisci_cmd("save")))
+VERIFIED = re.compile(r'^- ".+" \((?:answer to ".*", )?\d{4}-\d\d-\d\d\)$')
+
+
+def check_saved_through_wisci(c, run):
+    """/compress edits a draft; only `save` writes a leaf."""
+    direct = [u["input"].get("file_path") for u, _ in run.calls if u["name"] in ("Write", "Edit")
+              and "/.wisci/handoff/" in str(u["input"].get("file_path", ""))]
+    c.check("no Write or Edit of a leaf", not direct, direct)
+
+
+def new_constraints(root, rel, before=()):
+    return [ln for ln in (_section(root, rel, "Constraints") or "").splitlines() if ln.strip() and ln not in before]
+
+
 def case_compress_untouched_leaves(c):
     keep = [".wisci/handoff/auth-refactor.md", ".wisci/handoff/ci-migration.md"]
     before = {rel: sha(c.root, rel) for rel in keep}
     leaves = os.listdir(os.path.join(c.root, ".wisci/handoff"))
     run = c.claude(COMPRESS_PROMPT)
-    c.ran_clean(run, ("wisci new", wisci_cmd("new")), ("wisci check", wisci_cmd("check")))
+    c.ran_clean(run, *SAVE)
+    check_saved_through_wisci(c, run)
     c.check("other streams byte-identical", all(sha(c.root, r) == h for r, h in before.items()))
     added = new_files(c.root, "handoff", leaves)
     c.check("one new leaf", len(added) == 1, added)
     if added:
-        ev = evidence(c.root, f".wisci/handoff/{added[0]}")
+        rel = f".wisci/handoff/{added[0]}"
+        ev = evidence(c.root, rel)
         c.check("new leaf has no failing quote", ev is not None and ev[0] == 0, ev)
+        constraints = new_constraints(c.root, rel)
+        c.check("the user's constraint is a verified quote",
+                any(VERIFIED.match(ln) and "no new runtime dependencies" in ln.lower() for ln in constraints), constraints)
 
 
 def record_lines(root, rel):
@@ -339,7 +359,8 @@ def case_compress_stale_stays(c):
     write(c.root, "src/auth/middleware.ts", "export function authMiddleware(req, res, next) {\n  refresh(req)\n  next()\n}\n")
     run = c.claude("/wisci:compress auth-refactor — progress on this stream: I added setup notes to README.md. "
                    "Do not inspect any code; just record that progress.")
-    c.ran_clean(run, ("wisci check", wisci_cmd("check")))
+    c.ran_clean(run, *SAVE)
+    check_saved_through_wisci(c, run)
     with open(os.path.join(c.root, leaf), encoding="utf-8") as f:
         text = f.read()
     c.check("leaf updated with the progress", sha(c.root, leaf) != before and "README.md" in text)
@@ -446,7 +467,8 @@ def check_summaries_are_leaves(c):
     c.check("compaction events captured", summaries, summaries)
     for i, s in enumerate(summaries, 1):
         stock = [h for h in STOCK_HEADERS if h in s]
-        rest = re.sub(r"<wisci-handoff>\s*---\n.*?</wisci-handoff>", "", s, flags=re.DOTALL).strip()
+        rest = re.sub(r"<wisci-handoff>\s*---\n.*?</wisci-handoff>", "", s, flags=re.DOTALL)
+        rest = re.sub(r"</?summary>", "", rest).strip()  # a repeated wrapper tag (Sonnet, 1 of 12) is not content
         if i == 1 and c.model not in SUMMARY_GATED_MODELS:
             c.check("summary 1 format (recorded, not gated)", True,
                     "leaf" if "<wisci-handoff>" in s and not rest else f"stock fallback: {s[:300]}")
@@ -478,10 +500,30 @@ def check_compaction_leaf(c, rel):
     with open(os.path.join(c.root, rel), encoding="utf-8") as f:
         text = f.read()
     c.check("leaf has a goal and sections", re.search(r"^goal: \S", text, re.MULTILINE) and "## " in text, text[:300])
-    c.check("leaf names its session, not its stream",
-            re.search(r"^session: \S", text, re.MULTILINE) and not re.search(r"^stream:", text, re.MULTILINE), text[:300])
+    c.check("leaf names the committing session, not its stream",
+            re.search(r"^committed-by: \S", text, re.MULTILINE) and not re.search(r"^stream:", text, re.MULTILINE), text[:300])
     ev = evidence(c.root, rel)
     c.check("leaf has no failing quote", ev is not None and ev[0] == 0, ev)
+    c.check("no compaction left pending", not glob.glob(os.path.join(c.root, ".wisci/.pending/*.json")))
+
+
+def tokens(text):
+    return set(re.findall(r"\w+", re.sub(r"^\s*[-*\d.)]+\s+", "", text).casefold()))
+
+
+def check_no_restatements(c, rel, before=()):
+    """No new record item restates another: the smaller token set (3+ tokens) is 60 % or more inside the other."""
+    with open(os.path.join(c.root, rel), encoding="utf-8") as f:
+        text = f.read()
+    pairs = []
+    for h in ("Constraints", "Decisions", "Tried / Ruled out"):
+        items = [ln for ln in (_section(c.root, rel, h) or "").splitlines() if ln[:1] in "-*0123456789"]
+        for j, a in enumerate(items):
+            for b in items[:j]:
+                x, y = sorted((tokens(a), tokens(b)), key=len)
+                if a not in before and len(x) >= 3 and len(x & y) / len(x) >= 0.6:
+                    pairs.append((a[:80], b[:80]))
+    c.check("no record item restates another", not pairs, pairs[:3] or text[:0])
 
 
 def case_compact_writes_handoff(c):
@@ -499,9 +541,11 @@ def case_compact_writes_handoff(c):
     if added:
         rel = f".wisci/handoff/{added[0]}"
         check_compaction_leaf(c, rel)
-        constraints = _section(c.root, rel, "Constraints") or ""
-        c.check("the user's constraint is kept in their words", "Do not modify any file" in constraints, constraints)
-        c.check("constraints hold only the user's words", "untrusted" not in constraints.lower(), constraints)
+        constraints = new_constraints(c.root, rel)
+        c.check("the user's constraint is kept in their words",
+                any("Do not modify any file" in ln for ln in constraints), constraints)
+        c.check("constraints are verified quotes", all(VERIFIED.match(ln) for ln in constraints), constraints)
+        check_no_restatements(c, rel)
 
 
 def case_compact_resumed_stream(c):
@@ -527,9 +571,67 @@ def case_compact_resumed_stream(c):
     c.check("other streams byte-identical", sha(c.root, other) == other_sha)
     check_records_kept(c, leaf, records)
     check_compaction_leaf(c, leaf)
+    added = new_constraints(c.root, leaf, records)
+    c.check("new constraints are verified quotes", all(VERIFIED.match(ln) for ln in added), added)
+    check_no_restatements(c, leaf, records)
     injected = session_start_compact_outputs(run.result.get("session_id") or sid)
     c.check("SessionStart re-injected the records after compaction",
             any(records[0] in out for out in injected), injected[:2])
+
+
+def case_compact_subagent_not_saved(c):
+    """Only a subagent compacts: the hooks fire with the main session's ids, and no leaf may come of it."""
+    write_chain(c.root)
+    before = tree_hashes(c.root, ".wisci/handoff")
+    run = c.claude("Use the Agent tool once, with subagent_type general-purpose, in the foreground, and give it this "
+                   "task word for word: " + CHAIN + " Then tell me what it reported.", settings=CAPTURE, env=COMPACT_ENV)
+    c.ran_clean(run)
+    c.check("a subagent compacted", compact_summaries(c.root), run.summary())
+    c.check("the main session did not compact", not compacted(run))
+    c.check("handoff leaves byte-identical", tree_hashes(c.root, ".wisci/handoff") == before,
+            sorted(set(tree_hashes(c.root, ".wisci/handoff")) - set(before)))
+    c.check("no compaction left pending", not glob.glob(os.path.join(c.root, ".wisci/.pending/*.json")))
+
+
+PLANTED = {"data/part3.txt": "WARN E-4471: checksum of data/part3.txt is stale; rebuild it with tools/rehash.sh\n"}
+
+
+def case_compact_planted_facts(c):
+    """Facts a cold reader needs survive a compaction: a path, an error code, a code the user defined, and an
+    instruction the user gave mid-session, as their verified words."""
+    write_chain(c.root)
+    for rel, line in PLANTED.items():
+        with open(os.path.join(c.root, rel), encoding="utf-8") as f:
+            text = f.read()
+        write(c.root, rel, line + text)
+    leaves = os.listdir(os.path.join(c.root, ".wisci/handoff"))
+    first = c.claude("We are auditing the data files; call the audit report the DFA (data file audit). "
+                     "Don't read anything yet; just reply OK.")  # a read here would leave Haiku's resumed session
+                                                                 # over the 4 % threshold, and it thrashes
+    c.ran_clean(first)
+    sid = first.result.get("session_id")
+    c.check("first session has an id", sid, first.summary())
+    if not sid:
+        return
+    run = c.claude("New rule for the rest of this audit: report every warning code you find, with its file path. "
+                   "Now continue the DFA. " + CHAIN, settings=CAPTURE, env=COMPACT_ENV, resume=sid)
+    c.ran_clean(run)
+    c.check("the session compacted", compacted(run))
+    added = new_files(c.root, "handoff", leaves)
+    c.check("one leaf", len(added) == 1, added)
+    if not added:
+        return
+    rel = f".wisci/handoff/{added[0]}"
+    with open(os.path.join(c.root, rel), encoding="utf-8") as f:
+        text = f.read()
+    for label, ok in (("the error code", "E-4471" in text), ("its path", "data/part3.txt" in text),
+                      ("the fix's path", "tools/rehash.sh" in text),
+                      ("the user's code, explained", re.search(
+                          r"DFA\W{1,4}(?:the )?data file audit|data file audit\W{1,4}DFA", text, re.IGNORECASE))):
+        c.check(f"leaf keeps {label}", ok, text[:600])
+    constraints = new_constraints(c.root, rel)
+    c.check("the mid-session rule is a verified quote",
+            any(VERIFIED.match(ln) and "report every warning code" in ln for ln in constraints), constraints)
 
 
 def session_start_compact_outputs(sid):
@@ -651,6 +753,21 @@ def run_case(name, fn, model):
     return {"case": name, "pass": ok, "error": error, "checks": case.checks, "runs": case.log}
 
 
+PAID_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_USE_BEDROCK",
+            "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY")
+
+
+def require_subscription():
+    """Evals spend the user's Claude subscription, never paid API calls."""
+    paid = [k for k in PAID_ENV if os.environ.get(k)]
+    if paid:
+        raise SystemExit(f"outcomes.py: unset {', '.join(paid)}; evals run on a Claude subscription login only")
+    status = json.loads(sh([CLAUDE, "auth", "status", "--json"], HERE))
+    login = (status.get("loggedIn"), status.get("authMethod"), status.get("apiProvider"), bool(status.get("subscriptionType")))
+    if login != (True, "claude.ai", "firstParty", True):
+        raise SystemExit(f"outcomes.py: `claude auth status` is not a Claude subscription login: {login}")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--model", required=True)
@@ -663,6 +780,7 @@ def main():
     if args.list:
         print("\n".join(selected))
         return 0
+    require_subscription()
     version = sh([CLAUDE, "--version"], HERE).split()[0]
     with ThreadPoolExecutor(args.jobs) as pool:  # each case owns its temp repo; results keep case order
         report = list(pool.map(run_case, selected, selected.values(), [args.model] * len(selected)))

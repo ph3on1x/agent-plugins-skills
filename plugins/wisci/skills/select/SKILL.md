@@ -21,7 +21,7 @@ Script: `uv run --no-config --no-cache --script "${CLAUDE_SKILL_DIR}/scripts/wis
 
 ## Reading stored files
 
-Read every store file through the loader, never with Read: `<wisci> load .wisci/<path>.md`. It prints the whole note and ends with `… evidence ok N/M`. Under any section whose quoted code is no longer in its file it puts a marker naming the file and the missing code: `> check — …`. A raw Read drops the markers.
+Read every store file through the loader, never with Read: `<wisci> load .wisci/<path>.md`. It prints the whole note and ends with `… evidence ok N/M`. Under any section whose quoted code is no longer in its file it puts a marker naming the file and the missing code: `> check — …`. A raw Read drops the markers. A handoff also names the transcript of the session that saved it, when that file is still there: search it for a detail the handoff lacks; never read it whole.
 
 Before relying on a section marked `check`, re-read the file its marker names and go by what it says now. `ok` means the quoted code is still there, not that every claim is still true.
 

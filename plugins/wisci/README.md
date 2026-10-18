@@ -120,19 +120,19 @@ Commit `.wisci/` to share notes through git, or gitignore it to keep them local;
 When Claude Code compacts, whether automatically at the window you set with `/autocompact` or on `/compact`, the summary **is** a `/compress` handoff. Claude Code's stock summary sections are replaced:
 
 1. `/autocompact 500k` sets when compaction happens.
-2. The context reaches that window.
-3. **Before summarizing**, the PreCompact hook hands the summarizer three sections of `skills/compress/SKILL.md`, verbatim: "At compaction" (write only handoff leaves, one `<wisci-handoff>` block per work stream), "Leaf format" and "What to keep". It adds the time and the streams this session loaded or wrote, so the summarizer continues them. The skill is the only place the rules are written, so `/compress` and compaction always follow the same ones.
-4. **Right after**, the SessionStart hook re-injects the records of this session's leaf from disk, word for word: Constraints, Decisions, Tried / Ruled out. A summarizer that drops or rewords one can't lose it.
-5. **Then** the PostCompact hook merges each block into `.wisci/handoff/<stream>.md`. State (Completed, In Progress, Next Steps, Blockers, References) is replaced. Record lines are only added: every existing line is kept byte for byte.
-6. The session continues, in the same turn, from the summary (the new leaf), the re-injected records and the last messages kept verbatim. That is the same content the leaf on disk now holds.
+2. **Before summarizing**, the PreCompact hook hands the summarizer the streams this session works on, with their saved records under "Already saved", so it writes only what is new. Then come three sections of `skills/compress/SKILL.md`, verbatim: "At compaction" (write only handoff leaves, one `<wisci-handoff>` block per work stream), "Leaf format" and "What to keep". The rules come last: placed before the records, they lost to the stock format on Haiku 8 times in 20. The skill is the only place the rules are written, so `/compress` and compaction always follow the same ones.
+3. **Right after**, the SessionStart hook re-injects the saved records of those streams, word for word: Constraints, Decisions, Tried / Ruled out, newest first, within one budget for the whole output. A stream marked `done` is left out, and a stream that needs less than its share leaves the rest to the others.
+4. **When the turn ends**, the Stop hook finds the summary in the session's transcript and merges each block into `.wisci/handoff/<stream>.md`. Saved record lines are kept byte for byte and new items appended once; state (Completed, In Progress, Next Steps, Blockers, References) is replaced. If the saved state is 15 minutes or more older than the compaction, the Stop message says so and names the `/compress` that saves the later work.
 
-This repeats at every compaction. Each new summary is written from the previous one, so it merges from a full leaf, and the records never shrink.
+This repeats at every compaction.
 
-- **Only this session's streams.** A compaction updates a leaf only if this session loaded it (`/select`) or wrote it (`/compress`, or an earlier compaction, recorded as `session:` in the leaf). A block that names another stream is saved as a new leaf (`<stream>-2`), so a parallel session's handoff is never overwritten.
+- **Only the main session saves.** Claude Code fires the same compaction hooks for every subagent, with the main session's ids. The PostCompact hook only notes where the transcript ends; a summary row there means the main session compacted, and a subagent's compaction leaves none. Subagents still see the labelled records; isolating them needs a Claude Code mod.
+- **Only this session's streams.** A compaction updates a leaf only if this session's main thread loaded or saved it with a tool call that succeeded, or an earlier compaction of this session committed it (`committed-by:` in the leaf). A block that names another stream is saved as a new leaf (`<stream>-2`), so a parallel session's handoff is never overwritten.
+- **Your words, checked.** A Constraint is an exact quote. wisci finds it in what you typed or answered (AskUserQuestion) and adds the date; one it can't find is left out, so teammate messages, system rules and paraphrases never become your words.
+- **Never older state.** A summary prepared early (Claude Code precomputes it) is dated by the last message it covers; if the leaf was saved after that, its state stays and only the new records are added. Claude Code can prepare it hours before it is used (9 h 31 min in one measured session), so the work in between reaches the handoff only at the next compaction or a `/compress`; the Stop message tells you when that gap is 15 minutes or more.
 - **No extra cost.** The summarizer writes the handoff instead of the summary it was writing anyway: no extra model turn, no blocked tool calls.
-- **Always on.** It runs in every project with the plugin installed and creates `.wisci/handoff/` on the first compaction.
 - **`/compress` is still the careful path.** It can read files and fix a failing quote. The summarizer can't run tools, so it doesn't quote code.
-- **Verified, not promised.** Claude Code 2.1.300 passes PreCompact output to the summarizer, but the docs don't promise it. If no block comes back, the plugin tells you to run `/compress`. Claude Code's stock "All user messages" section is gone too: your requirements survive under Constraints, and recent messages survive in the verbatim tail.
+- **Verified, not promised.** Claude Code passes PreCompact output to the summarizer, but the docs don't promise it. If no block comes back, the Stop hook tells you to run `/compress`.
 
 ### Quoted evidence, checked on every load
 
@@ -172,7 +172,7 @@ Sessions expire after 3600 seconds.
 
 `no longer contains <line>` · `contains the quoted code N times` · `does not exist` · `is outside the project` · `is not a source file` · `is not a text file` · `is too large to check` · `has an empty quote` · `a code fence is not closed`
 
-New store files are reserved atomically, so parallel sessions never overwrite each other's new notes or streams. When two sessions update the same stream, the last write wins.
+New store files are reserved atomically, so parallel sessions never overwrite each other's new notes or streams. Leaf writes are serialized through `.wisci/.lock`, and `/compress` saves a draft only if its leaf is unchanged since the draft was made.
 
 </details>
 
@@ -197,9 +197,12 @@ uv run --no-config --no-cache --script scripts/wisci.py <command>
 | `load <file>` | The whole note, failing sections under a `check` marker |
 | `check <file>` | Only the failing quotes, then `evidence ok N/M` |
 | `new <context\|handoff> <slug>` | Reserve a new store file |
+| `draft <slug> [--session ID]` | Copy a handoff leaf, or an empty one, to `.wisci/.drafts/` for `/compress` to edit |
+| `save <draft> [--session ID]` | Merge the draft into its leaf: new records appended, Constraints checked against the session's transcript |
 | `session-status` | The session-start summary; after a compaction, also this session's handoff records |
 | `precompact` | Instructions that make the compaction summary a handoff; reads the PreCompact event on stdin |
-| `postcompact` | Merges the summary's handoff blocks into their leaves; reads the PostCompact event on stdin |
+| `mark` | Notes where the transcript ends at a compaction; reads the PostCompact event on stdin |
+| `stop` | Saves the main session's compaction summaries into their leaves |
 | `test` | Self-tests |
 
 `<file>` is a store path (`.wisci/context/auth.md`) or the short name `scan` prints (`context/auth`).
@@ -211,9 +214,10 @@ uv run --no-config --no-cache --script scripts/wisci.py <command>
 
 <br>
 
-- **Session start** (and after each compaction) lists stored notes and streams with their evidence status, and tells the agent to load them with `/select`, not a raw Read, which would skip the check. After a compaction it first prints the record sections of this session's leaf, verbatim. Claude Code runs this hook before the new summary exists, so it reads the leaf as saved before this compaction.
+- **Session start** (and after each compaction) lists stored notes and streams with their evidence status, and tells the agent to load them with `/select`, not a raw Read, which would skip the check. After a compaction it first prints the saved records of this session's streams, verbatim.
 - **Before compaction** (`wisci.py precompact`), it prints the instructions that make the summary a handoff. It can't block a compaction: any failure exits 1.
-- **After compaction** (`wisci.py postcompact`), it merges every `<wisci-handoff>` block of the summary into its stream's leaf: records only grow, state is replaced. That only happens for a leaf this session loaded or wrote; any other stream gets a new leaf. A missing or malformed block exits 2, which shows you the reason. Subagent compactions are skipped.
+- **After compaction** (`wisci.py mark`), it notes the transcript's size in `.wisci/.pending/`.
+- **At the end of each turn** (`wisci.py stop`), it saves every main-session summary that followed a mark and drops the marks of subagent compactions. Without a mark it exits before starting Python. Problems (no handoff block, a quote left out) are shown to you, never to the model. Session start and PreCompact commit pending marks too, so a session that ended early is saved next time.
 - Every hook runs through `hooks/run.sh`, which prints the uv install hint when uv is missing. See [Handoffs at every compaction](#handoffs-at-every-compaction).
 
 </details>
@@ -272,6 +276,18 @@ git log --format='%h %(trailers:key=AI-Context,valueonly,separator=%x3B )'
   Run /write .wisci/context/payment-integration.md to fix it.
 > /write payment-integration       # re-reads the handler, corrects the section and its quote
 ```
+
+## What's new in 4.0
+
+- **Only the main session writes handoffs.** Subagent compactions no longer overwrite or add leaves; compaction summaries are read from the session's transcript.
+- **No repeated records.** The summarizer sees what is already saved and adds only new items; wisci keeps saved lines byte for byte and drops exact repeats. One case still adds rewordings: a summary Claude Code prepared before a `/compress` restates, in other words, what that `/compress` saved. wisci keeps them rather than risk dropping a record only the summary had.
+- **Constraints are your words.** Each is an exact quote that wisci finds in your messages or answers and dates; anything else is left out.
+- **State never goes back in time.** A precomputed summary can't replace a newer leaf.
+- **`/compress` edits a draft.** `draft` copies the leaf, `save` merges it back and refuses if the leaf changed meanwhile or a saved record was edited.
+- **Leaves a cold reader can use.** Codes explained at first use, pointers with what matters there, outcomes rather than attempts, one fact in one place, no secrets.
+
+> [!WARNING]
+> **Upgrading from 3.x:** no migration. Existing leaves load and merge as written; their `session:` key is ignored and dropped at the next save. In a session that was already running when you upgraded, run `/compress <stream>` once: it adopts the leaf. Otherwise that session's next compaction saves to a new `<stream>-2` leaf, because a leaf that 3.x saved at compaction carries no proof this session owns it. If you commit `.wisci/`, commit the `.wisci/.gitignore` that wisci creates too: it keeps `.lock`, `.drafts/` and `.pending/` out of git.
 
 ## What's new in 3.2
 

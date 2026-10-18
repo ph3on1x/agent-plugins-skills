@@ -9,10 +9,14 @@ execution:
   timeout_seconds: 600
   allowed_tools: [Read, Glob, Grep, Skill, Agent]
 graders:
-  - name: "reserved-leaf"
+  - name: "drafted-leaf"
     type: "tool_used"
     tool: "Bash"
-    input_match: "wisci\\.py[^a-z]{0,6}new handoff"
+    input_match: "wisci\\.py[^a-z]{0,6}draft "
+  - name: "saved-leaf"
+    type: "tool_used"
+    tool: "Bash"
+    input_match: "wisci\\.py[^a-z]{0,6}save "
   - name: "ruled-out-section"
     type: "tool_used"
     tool: "Write"
