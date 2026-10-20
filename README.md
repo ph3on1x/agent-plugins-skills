@@ -14,6 +14,7 @@ repository is both a Claude Code plugin marketplace and an `npx skills` catalog.
 |---|---|---|---|
 | [`wisci`](plugins/wisci) | plugin (5 skills) | Context engineering framework: Write, Isolate, Select, Compress. Context store whose notes quote their code evidence, checked on every load; per-stream handoffs (every compaction summary is one), session hooks, commits with AI-Context trailers. | All agents (hooks: Claude Code) |
 | [`agy`](plugins/agy) | plugin | Google Antigravity (Gemini) inside Claude Code: code reviews, adversarial design reviews, delegated rescue tasks with background jobs. | Claude Code |
+| [`muse`](plugins/muse) | plugin | Meta's Muse Code (Muse Wonder, Muse Spark) inside Claude Code: code reviews, adversarial design reviews, delegated rescue tasks with background jobs, session transfer. | Claude Code |
 | [`cmux`](skills/cmux) | skill | Orchestrate independent Claude Code sessions in the cmux terminal: split panes, agent monitoring, browser automation, notifications. | All agents (hooks: Claude Code) |
 | [`adveloop`](skills/adveloop) | skill | GAN-inspired adversarial development loop: a Planner drives a Generator and an Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable. | All agents (needs cmux) |
 | [`relamo`](skills/relamo) | skill | Recursive Language Model: explore a large codebase programmatically through a persistent Python REPL. | All agents |
@@ -30,7 +31,7 @@ Each item has its own README with usage and requirements.
 /plugin install <name>@ph3on1x
 ```
 
-`<name>` is the plugin name: `wisci`, `agy`, `cmux`, `adveloop`, `relamo` or
+`<name>` is the plugin name: `wisci`, `agy`, `muse`, `cmux`, `adveloop`, `relamo` or
 `refine-prompt`. Turn on auto-update for the `ph3on1x` marketplace under `/plugin` to get new versions.
 
 ### Codex, Cursor, Gemini CLI, Antigravity and other agents

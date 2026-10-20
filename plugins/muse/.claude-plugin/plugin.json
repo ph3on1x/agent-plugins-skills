@@ -1,0 +1,10 @@
+{
+  "name": "muse",
+  "description": "Use Muse Code from Claude Code to review code or delegate tasks.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Dennis Nasarov"
+  },
+  "repository": "https://github.com/ph3on1x/agent-plugins-skills",
+  "homepage": "https://github.com/ph3on1x/agent-plugins-skills/tree/main/plugins/muse"
+}
