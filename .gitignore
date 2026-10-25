@@ -21,5 +21,8 @@ scratchpad/
 /openspec/
 /.code-review-graph/
 plugins/wisci/evals/results/
-# Type declarations Claude Code writes beside a hooks-module plugin loaded from disk
+plugins/anymodel/evals/results/
+# Type declarations and tsconfig Claude Code writes beside a hooks-module plugin loaded from disk
 .claude-plugin/types/
+/plugins/*/tsconfig.json
+/skills/*/tsconfig.json

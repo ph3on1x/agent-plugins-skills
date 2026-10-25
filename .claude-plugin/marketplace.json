@@ -39,6 +39,11 @@
       "description": "Use Muse Code from Claude Code to review code or delegate tasks."
     },
     {
+      "name": "anymodel",
+      "source": "./plugins/anymodel",
+      "description": "Claude Code subagents on the models you choose, local or cloud, called by name while your session stays on Claude."
+    },
+    {
       "name": "wisci",
       "source": "./plugins/wisci",
       "description": "WISCI context engineering framework — Write, Isolate, Select, Compress, Iterate. Context store (.wisci/) whose notes quote their code evidence, checked on every load, per-stream handoffs (every compaction summary is one), session hooks, and commits with AI-Context trailers."

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 530" width="1280" height="530" role="img" aria-labelledby="t d">
+<title id="t">anymodel: Claude Code subagents on any model</title>
+<desc id="d">Your main Claude Code session talks to Anthropic directly, with no proxy, so Remote Control keeps working and your login is untouched. It hands tasks to anymodel agents, each a full Claude Code session on its own model: Qwen on your machine, Kimi K3 and DeepSeek on OpenRouter.</desc>
+<style>.flow{stroke-dasharray:1 9;stroke-linecap:round}@media (prefers-reduced-motion:no-preference){.flow{animation:flow 1.1s linear infinite}}@keyframes flow{to{stroke-dashoffset:-20}}</style>
+<defs>
+<marker id="m-coral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1.5 8.5 5 1 8.5z" fill="#D97757"/></marker>
+<marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1.5 8.5 5 1 8.5z" fill="#9C9A92"/></marker>
+</defs>
+<rect x="1" y="1" width="1278" height="528" rx="22" fill="#FAF9F5" stroke="#E6E4DA" stroke-width="2"/>
+<text x="318" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" fill="#B4532F" text-anchor="middle" letter-spacing="0.14em">YOUR CLAUDE CODE</text>
+<text x="318" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="400" fill="#6E6C65" text-anchor="middle">exactly as it is</text>
+<text x="795" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" fill="#5E5D59" text-anchor="middle" letter-spacing="0.14em">ANYMODEL AGENTS</text>
+<text x="795" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="400" fill="#6E6C65" text-anchor="middle">task in, answer out</text>
+<text x="1115" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" fill="#5E5D59" text-anchor="middle" letter-spacing="0.14em">YOUR MODELS</text>
+<text x="1115" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="400" fill="#6E6C65" text-anchor="middle">local or cloud, as many as you like</text>
+<line x1="636" y1="112" x2="636" y2="508" stroke="#DAD8CE" stroke-width="1.5" stroke-dasharray="5 6"/>
+<rect x="64" y="146" width="110" height="34" rx="17" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<circle cx="84" cy="163" r="5" fill="#2E7D4F"/>
+<text x="97" y="168" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#5E5D59" text-anchor="start">no proxy</text>
+<rect x="185" y="146" width="208" height="34" rx="17" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<circle cx="205" cy="163" r="5" fill="#2E7D4F"/>
+<text x="218" y="168" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#5E5D59" text-anchor="start">Remote Control works</text>
+<rect x="405" y="146" width="167" height="34" rx="17" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<circle cx="425" cy="163" r="5" fill="#2E7D4F"/>
+<text x="438" y="168" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#5E5D59" text-anchor="start">login untouched</text>
+<rect x="40" y="260" width="200" height="120" rx="16" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="140" y="312" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="700" fill="#141413" text-anchor="middle">Anthropic</text>
+<text x="140" y="342" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="400" fill="#5E5D59" text-anchor="middle">Claude models</text>
+<line x1="322" y1="320" x2="248" y2="320" stroke="#D97757" stroke-width="3" marker-start="url(#m-coral)" marker-end="url(#m-coral)"/>
+<text x="285" y="304" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="700" fill="#B4532F" text-anchor="middle">direct</text>
+<rect x="330" y="230" width="266" height="180" rx="18" fill="#FFFFFF" stroke="#D97757" stroke-width="2.5"/>
+<circle cx="362" cy="273" r="7" fill="#D97757"/>
+<text x="380" y="282" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="700" fill="#141413" text-anchor="start">Claude Code</text>
+<text x="356" y="318" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="400" fill="#5E5D59" text-anchor="start">your main session</text>
+<line x1="356" y1="342" x2="570" y2="342" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="356" y="380" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="600" fill="#B4532F" text-anchor="start">on your claude.ai plan</text>
+<path d="M604 290 C 640 290, 642 190, 672 190" fill="none" stroke="#9C9A92" stroke-width="2" marker-start="url(#m-line)" marker-end="url(#m-line)"/>
+<path d="M604 320 C 640 320, 642 320, 672 320" fill="none" stroke="#9C9A92" stroke-width="2" marker-start="url(#m-line)" marker-end="url(#m-line)"/>
+<path d="M604 350 C 640 350, 642 450, 672 450" fill="none" stroke="#9C9A92" stroke-width="2" marker-start="url(#m-line)" marker-end="url(#m-line)"/>
+<rect x="680" y="142" width="230" height="96" rx="16" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="700" y="184" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="19" font-weight="700" fill="#141413" text-anchor="start">anymodel:qwen</text>
+<text x="700" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="400" fill="#5E5D59" text-anchor="start">full Claude Code session</text>
+<line x1="920" y1="190" x2="980" y2="190" class="flow" stroke="#2E7D4F" stroke-width="3.5"/>
+<path d="M974 184 982 190 974 196" fill="none" stroke="#2E7D4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="990" y="142" width="250" height="96" rx="16" fill="#FFFFFF" stroke="#2E7D4F" stroke-opacity="0.55" stroke-width="1.5"/>
+<rect x="1156" y="155" width="68" height="24" rx="12" fill="#E4F2E8"/>
+<text x="1190" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="700" fill="#2E7D4F" text-anchor="middle" letter-spacing="0.12em">LOCAL</text>
+<text x="1010" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="700" fill="#141413" text-anchor="start">Your machine</text>
+<text x="1010" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">Qwen3.8 27B · Unsloth Studio</text>
+<rect x="680" y="272" width="230" height="96" rx="16" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="700" y="314" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="19" font-weight="700" fill="#141413" text-anchor="start">anymodel:kimi</text>
+<text x="700" y="344" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="400" fill="#5E5D59" text-anchor="start">full Claude Code session</text>
+<line x1="920" y1="320" x2="980" y2="320" class="flow" stroke="#2F6DB5" stroke-width="3.5"/>
+<path d="M974 314 982 320 974 326" fill="none" stroke="#2F6DB5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="990" y="272" width="250" height="96" rx="16" fill="#FFFFFF" stroke="#2F6DB5" stroke-opacity="0.55" stroke-width="1.5"/>
+<rect x="1156" y="285" width="68" height="24" rx="12" fill="#E5EEF9"/>
+<text x="1190" y="302" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="700" fill="#2F6DB5" text-anchor="middle" letter-spacing="0.12em">CLOUD</text>
+<text x="1010" y="314" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="700" fill="#141413" text-anchor="start">OpenRouter</text>
+<text x="1010" y="344" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">Kimi K3</text>
+<rect x="680" y="402" width="230" height="96" rx="16" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="700" y="444" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="19" font-weight="700" fill="#141413" text-anchor="start">anymodel:reviewer</text>
+<text x="700" y="474" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">from .claude/agents</text>
+<line x1="920" y1="450" x2="980" y2="450" class="flow" stroke="#2F6DB5" stroke-width="3.5"/>
+<path d="M974 444 982 450 974 456" fill="none" stroke="#2F6DB5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="990" y="402" width="250" height="96" rx="16" fill="#FFFFFF" stroke="#2F6DB5" stroke-opacity="0.55" stroke-width="1.5"/>
+<rect x="1156" y="415" width="68" height="24" rx="12" fill="#E5EEF9"/>
+<text x="1190" y="432" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="700" fill="#2F6DB5" text-anchor="middle" letter-spacing="0.12em">CLOUD</text>
+<text x="1010" y="444" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="700" fill="#141413" text-anchor="start">OpenRouter</text>
+<text x="1010" y="474" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">DeepSeek V4.1 Flash</text>
+</svg>

@@ -1,0 +1,50 @@
+{
+  "name": "anymodel",
+  "description": "Claude Code subagents on the models you choose: name as many agents as you like, each on a model from your own providers (LM Studio, Unsloth Studio, llama.cpp, vLLM, OpenRouter, any Anthropic-compatible API), and call them like Claude's own subagents while the main session stays on Claude.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Dennis Nasarov"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ph3on1x/agent-plugins-skills",
+  "homepage": "https://github.com/ph3on1x/agent-plugins-skills/tree/main/plugins/anymodel",
+  "keywords": [
+    "subagents",
+    "agents",
+    "local-llm",
+    "openrouter",
+    "lm-studio",
+    "llama.cpp",
+    "vllm",
+    "models"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "agent": {
+      "type": "string",
+      "title": "Agent name",
+      "description": "The name you call it by: @anymodel:<name>. A new name adds an agent; an existing one is updated with the fields you fill in. /anymodel lists yours."
+    },
+    "url": {
+      "type": "string",
+      "title": "Server URL",
+      "description": "Base URL of a server that speaks the Anthropic Messages API, such as https://openrouter.ai/api or http://127.0.0.1:8888. Blank keeps the agent's own."
+    },
+    "model": {
+      "type": "string",
+      "title": "Model",
+      "description": "The model id exactly as the server lists it, such as moonshotai/kimi-k3. Blank keeps the agent's own."
+    },
+    "api_key": {
+      "type": "string",
+      "sensitive": true,
+      "title": "API key",
+      "description": "For a server that needs one: kept in the macOS Keychain (on Linux, a file only you can read) and sent only to that server. Agents on one server share its key. Blank keeps the saved key."
+    },
+    "context": {
+      "type": "string",
+      "title": "Context size",
+      "description": "In tokens, for a server that does not report it. Blank: read from the server."
+    }
+  }
+}
