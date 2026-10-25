@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 530" width="1280" height="530" role="img" aria-labelledby="t d">
-<title id="t">anymodel: Claude Code subagents on any model</title>
+<title id="t">anymodel: Claude Code subagents on the models you choose, local or cloud</title>
 <desc id="d">Your main Claude Code session talks to Anthropic directly, with no proxy, so Remote Control keeps working and your login is untouched. It hands tasks to anymodel agents, each a full Claude Code session on its own model: Qwen on your machine, Kimi K3 and DeepSeek on OpenRouter.</desc>
 <style>.flow{stroke-dasharray:1 9;stroke-linecap:round}@media (prefers-reduced-motion:no-preference){.flow{animation:flow 1.1s linear infinite}}@keyframes flow{to{stroke-dashoffset:-20}}</style>
 <defs>
