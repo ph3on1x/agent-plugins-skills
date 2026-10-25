@@ -32,7 +32,7 @@ http.createServer(async (req, res) => {
     canary: [...new Set(raw.match(CANARY) || [])],
     // Which credentials came: the worker's placeholder bearer, any bearer, an x-api-key that is (as a worker's provider)
     // the upstream's key, a header a project's settings tried to add. The header values are never stored.
-    bearerLocal: h.authorization === 'Bearer local', auth: 'authorization' in h, apiKey: 'x-api-key' in h,
+    placeholder: h['x-api-key'] === 'local', auth: 'authorization' in h, apiKey: 'x-api-key' in h,
     keyOk: UP_KEY !== undefined && h['x-api-key'] === UP_KEY, trap: 'x-trap' in h,
   }
   fs.writeFileSync(`${log}.bodies/${n}.json`, raw)

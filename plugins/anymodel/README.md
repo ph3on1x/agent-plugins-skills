@@ -97,12 +97,13 @@ a model that calls tools, served over the Anthropic Messages API (`/v1/messages`
 | **Agent name** | `kimi` | `qwen` |
 | **Server URL** | `https://openrouter.ai/api` | `http://127.0.0.1:8888` |
 | **Model** | `moonshotai/kimi-k3` | the model id the server lists |
-| **API key** | `sk-or-...` | the key from Unsloth Studio's settings |
+| **API key** | `sk-or-...` | the key from Unsloth Studio's settings, or blank for a server with none |
 | **Context size** | leave blank | leave blank |
 
-anymodel saves the agent and clears the form for the next one. To change an agent, enter its name and only what
-changes; `/anymodel remove <agent>` removes one. Load a local model with 65536 tokens of context or more. LM Studio,
-llama.cpp and vLLM work the same way but are untested so far. [Settings](REFERENCE.md#settings)
+anymodel saves the agent and clears the form for the next one. To change an agent, run `/plugin configure anymodel
+<agent>`: the form opens with its settings. `/anymodel remove <agent>` removes one. Load a local model with 65536
+tokens of context or more. LM Studio, llama.cpp and vLLM work the same way but are untested so far.
+[Settings](REFERENCE.md#settings)
 
 **3. Check it.** `/anymodel check` reads each model's context size and asks the model for a test tool call.
 [Troubleshooting](REFERENCE.md#troubleshooting)
@@ -123,6 +124,7 @@ llama.cpp and vLLM work the same way but are untested so far. [Settings](REFEREN
 | `@agent-anymodel:<agent> <task>` | Claude writes the task from your conversation, starts the agent and gets its answer. |
 | `/anymodel` | Lists your agents with their models and context sizes. |
 | `/anymodel check [agent]` | Reads each context size and asks for a test tool call. |
+| `/plugin configure anymodel <agent>` | Opens the settings form holding the agent's settings, to change them. |
 | `/anymodel remove <agent>` | Removes the agent, and its server's key once no agent uses that server. |
 | `/anymodel cleanup [days]` | Removes old agent session records and transcripts. |
 

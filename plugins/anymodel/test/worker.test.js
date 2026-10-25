@@ -214,7 +214,7 @@ test('agentList shows each agent with its model, server, context and key, never 
     'gem     gemma-4-26b-a4b-it-mlx at http://127.0.0.1:1234, context 131072 (read from 127.0.0.1:1234), no key',
     'q       qwen2.5-7b-instruct@q4_k_m at http://127.0.0.1:1234, context unknown: cannot read it, no key',
     '',
-    'Run one: /anymodel <agent> <task>. Test them: /anymodel check [agent]. Add or change one: /plugin configure anymodel. Remove one: /anymodel remove <agent>',
+    'Run one: /anymodel <agent> <task>. Test them: /anymodel check [agent]. Add one: /plugin configure anymodel. Change one: /plugin configure anymodel <agent>. Remove one: /anymodel remove <agent>',
   ].join('\n'))
   assert.ok(!agentList(config, contexts).includes('sk-'))
   // An agent that runs as a Claude Code agent definition says which, and how to keep the definition off Claude.
@@ -229,7 +229,7 @@ test('agentList shows each agent with its model, server, context and key, never 
     'a  needs fixing (below)',
     'b  m at http://x, context being read from the provider, no key',
     '',
-    'Run one: /anymodel <agent> <task>. Test them: /anymodel check [agent]. Add or change one: /plugin configure anymodel. Remove one: /anymodel remove <agent>',
+    'Run one: /anymodel <agent> <task>. Test them: /anymodel check [agent]. Add one: /plugin configure anymodel. Change one: /plugin configure anymodel <agent>. Remove one: /anymodel remove <agent>',
     '',
     'These agents need fixing: save them again in /plugin configure anymodel, or /anymodel remove them:',
     '- a: the server URL must start with http:// or https://',
@@ -266,7 +266,8 @@ test('workerArgv starts a full Claude Code in main environment, pointed only at 
   const env = argv.slice(1, argv.indexOf('/opt/node/bin/claude'))
   assert.ok(env.every(kv => /^[A-Za-z_]+=/.test(kv)))
   assert.ok(!env.some(kv => /^(PATH|HOME|SHELL|USER|LANG)=/.test(kv)))
-  for (const kv of ['ANTHROPIC_BASE_URL=http://127.0.0.1:1234', 'ANTHROPIC_AUTH_TOKEN=local',
+  // A server that needs no key gets the placeholder as x-api-key, never as a bearer (Unsloth Studio rejects that).
+  for (const kv of ['ANTHROPIC_BASE_URL=http://127.0.0.1:1234', 'ANTHROPIC_API_KEY=local', 'ANTHROPIC_AUTH_TOKEN=',
     // One process, one backend: every alias inside the worker names its model.
     'ANTHROPIC_MODEL=gemma-4-26b-a4b-it-mlx', 'ANTHROPIC_DEFAULT_HAIKU_MODEL=gemma-4-26b-a4b-it-mlx', 'ANTHROPIC_DEFAULT_SONNET_MODEL=gemma-4-26b-a4b-it-mlx', 'ANTHROPIC_DEFAULT_OPUS_MODEL=gemma-4-26b-a4b-it-mlx',
     'CLAUDE_CODE_MAX_CONTEXT_TOKENS=131072', 'HTTPS_PROXY=', 'CLAUDE_CODE_TMPDIR=/tmp/anymodel-501', 'CLAUDE_CONFIG_DIR=/data/config',
@@ -285,7 +286,7 @@ test('workerArgv starts a full Claude Code in main environment, pointed only at 
   const settings = JSON.parse(argv[argv.indexOf('--settings') + 1])
   // CLI settings outrank the project's env: nothing there can send the requests, or other credentials, elsewhere.
   assert.equal(settings.env.ANTHROPIC_BASE_URL, 'http://127.0.0.1:1234')
-  for (const [k, v] of Object.entries({ ANTHROPIC_API_KEY: '', ANTHROPIC_CUSTOM_HEADERS: '', CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' })) {
+  for (const [k, v] of Object.entries({ ANTHROPIC_API_KEY: 'local', ANTHROPIC_AUTH_TOKEN: '', ANTHROPIC_CUSTOM_HEADERS: '', CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' })) {
     assert.equal(settings.env[k], v, k)
   }
   // Main's rules and sandbox, never its default mode: the mode comes in --permission-mode.
@@ -316,6 +317,7 @@ test('workerArgv takes a provider key on fd 4 only, never in argv or env', () =>
   const argv = workerArgv({ ...run, backend: { ...jimmy3, contextSize: 1048576 }, hasKey: true })
   assert.ok(!argv.some(a => a.includes('sk-or')))
   assert.ok(argv.includes('CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR=4'))
+  assert.ok(argv.includes('ANTHROPIC_API_KEY='))
   assert.ok(argv.includes('ANTHROPIC_AUTH_TOKEN='))
   const settings = JSON.parse(argv[argv.indexOf('--settings') + 1])
   assert.equal(settings.env.ANTHROPIC_AUTH_TOKEN, '')

@@ -22,7 +22,9 @@ can.
 ## Settings
 
 `/plugin configure anymodel` holds one agent at a time. Save it, and anymodel adds the agent, or updates it, and
-clears the form for the next one; a toast says what was saved, or why not.
+clears the form for the next one; a toast says what was saved, or why not. `/plugin configure anymodel <agent>`
+opens the form holding that agent's settings to change them; a field left blank keeps its setting. Once it closes,
+the form keeps only the agent's name, so a new name typed over it starts from empty fields.
 
 | Field | What | Example |
 |---|---|---|
@@ -74,6 +76,8 @@ plugin. Settings are per user (or managed, for an organization), not per project
   (`Bash(npm test)`) and its first line of output (`⎿ 12 passed`), then its answer with the turns and tokens it took.
 - **`/anymodel`** lists your agents with their model, server URL, context size and whether a key is set, and any
   settings problems.
+- **`/plugin configure anymodel <agent>`** opens the settings form holding the agent's settings, to change them
+  ([Settings](#settings)).
 - **`/anymodel remove <agent>`** removes the agent, and its server's key once no agent uses that server.
 - **`/anymodel check [agent]`** reads each agent's context size again and shows it, with where it came from, then
   has its model answer one tool call, not streamed; each step shows its time or what went wrong.

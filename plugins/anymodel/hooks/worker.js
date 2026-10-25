@@ -242,7 +242,7 @@ export function agentList(config, contexts, definitions = new Map()) {
       return `${n.padEnd(width)}  ${a.model} at ${a.baseUrl}, ${contextText(contexts.get(n))}, ${a.apiKey === undefined ? 'no key' : 'key set'}${as}`
     }),
     '',
-    'Run one: /anymodel <agent> <task>. Test them: /anymodel check [agent]. Add or change one: /plugin configure anymodel. Remove one: /anymodel remove <agent>',
+    'Run one: /anymodel <agent> <task>. Test them: /anymodel check [agent]. Add one: /plugin configure anymodel. Change one: /plugin configure anymodel <agent>. Remove one: /anymodel remove <agent>',
     ...problems,
   ].join('\n')
 }
@@ -292,7 +292,9 @@ export function workerArgv({ claude, dataDir, tmpDir, backend, hasKey, mode, per
     // Pinned with the rest, so a project's env cannot send the key through a proxy of its own, other credentials
     // with it, or the requests to another cloud.
     ...Object.fromEntries(NETWORK_VARS.map(k => [k, host[k] ?? ''])), ...Object.fromEntries(UNSET_VARS.map(k => [k, ''])),
-    ANTHROPIC_API_KEY: '', ANTHROPIC_AUTH_TOKEN: hasKey ? '' : 'local', ANTHROPIC_CUSTOM_HEADERS: '',
+    // A server that needs no key still gets a placeholder, since Claude Code starts with none only by asking for a
+    // login. It goes as x-api-key, which a server without auth ignores; Unsloth Studio rejects a bearer it cannot decode.
+    ANTHROPIC_API_KEY: hasKey ? '' : 'local', ANTHROPIC_AUTH_TOKEN: '', ANTHROPIC_CUSTOM_HEADERS: '',
     CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0',
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', CLAUDE_CODE_ATTRIBUTION_HEADER: '0',
   }

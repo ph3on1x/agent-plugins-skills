@@ -64,13 +64,20 @@ type World = {
   cleared: string[]
   toasts: string[]
   saved: unknown[]
+  // The settings form's agent fields as $.config.list reads them, each write to them, the args /plugin opened with,
+  // the form each time it opened, and what the person leaves in it as the dialog closes.
+  form: Record<string, string>
+  sets: [string, string][]
+  opened: string[]
+  opening: Record<string, string>[]
+  dialog: (form: Record<string, string>) => Record<string, string>
 }
 
 function world(over: Partial<World> = {}): World {
   return {
     rows: [], messages: task('sum the debits'), verdict: 'allow', worker: [], claudePath: '/bin/claude', write: async () => true, files: new Map(),
     written: [], argv: [], input: '', asked: [], claude: false, queued: [], killed: false, onKill: () => {}, onSleep: () => {}, ran: [], fetch: () => ({ value: { status: 200, ok: true, headers: {}, text: JSON.stringify({ data: [{ id: 'gemma' }] }) } }), spawn: async e => ({ model: e.model ?? 'gemma', agentId: 'a1' }),
-    agents: { gem }, cleared: [], toasts: [], saved: [], ...over,
+    agents: { gem }, cleared: [], toasts: [], saved: [], form: { agent: '', url: '', model: '', context: '' }, sets: [], opened: [], opening: [], dialog: form => form, ...over,
   }
 }
 
@@ -92,7 +99,20 @@ function stubs(on: any, w: World) {
   on('store.set', ($: unknown, e: { key: string; value: Record<string, unknown> }) => ((w.agents = e.value), { value: undefined }))
   on('state.get', () => ({ value: { value: w.keys, version: w.keys === undefined ? 0 : 1 } }))
   on('state.set', ($: unknown, e: { value: Record<string, string> }) => ((w.keys = e.value), { value: { isSet: true, version: 1 } }))
-  on('config.set', ($: unknown, e: { key: string; value: string }) => (w.cleared.push(e.key), { value: e.value }))
+  on('config.set', ($: unknown, e: { key: string; value: string }) => {
+    w.cleared.push(e.key)
+    w.sets.push([e.key, e.value])
+    w.form[e.key.replace(/^anymodel\./, '')] = e.value
+    return { value: e.value }
+  })
+  on('config.list', () => ({ value: Object.entries(w.form).map(([k, value]) => ({ key: `anymodel.${k}`, label: k, kind: 'text', value, provider: { plugin: 'anymodel', tier: 'user' }, isLocked: false })) }))
+  // Core's /plugin: it opens the settings form.
+  on('command.run', { command: 'plugin' }, ($: unknown, e: { args: string }) => {
+    w.opened.push(e.args)
+    w.opening.push({ ...w.form })
+    w.form = w.dialog(w.form)
+    return { text: 'Configuration saved.' }
+  })
   on('ui.log', () => ({ value: undefined }))
   on('env.get', ($: unknown, e: { name: string }) => ({ value: NETWORK_VARS.includes(e.name) ? `main:${e.name}` : { HOME: '/home/u', PATH: '/usr/bin:/bin' }[e.name] }))
   on('fs.exists', ($: unknown, e: { path: string }) => ({ value: w.files.has(e.path) }))
@@ -563,6 +583,21 @@ test('/anymodel lists the agents, and /anymodel check names the step that failed
   expect(checked.exitCode).toBe(1)
 })
 
+test('/anymodel check sends a server without a key the placeholder as x-api-key, never a bearer', { options: form({}) }, async ($, on) => {
+  const w = world()
+  stubs(on, w)
+  const sent: Record<string, string>[] = []
+  w.fetch = ($: unknown, e: { url: string, init?: { headers?: Record<string, string> } }) => {
+    if (e.url.endsWith('/v1/messages')) sent.push(e.init?.headers ?? {})
+    return { value: { status: 200, ok: true, headers: {}, text: '{}' } }
+  }
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.command.run({ command: 'anymodel', args: 'check' })
+  expect(sent.length).toBe(1)
+  expect(sent[0]['x-api-key']).toBe('local')
+  expect(sent[0].authorization).toBeUndefined()
+})
+
 const OR = 'https://openrouter.ai/api'
 
 test('a save of the settings form adds the agent, writes its key with the others, and clears the form, its name last', { options: form({}, { agent: 'kimi', url: `${OR}/v1`, model: 'moonshotai/kimi-k3', api_key: 'sk-or-1' }) }, async ($, on) => {
@@ -617,6 +652,88 @@ test('/anymodel remove drops the agent, and its server key once no agent uses it
   const refused = await $.agent.spawn({ subagentType: 'anymodel:kimi', prompt: 'x', description: 'x' }).catch((err: Error) => ({ deny: err.message }))
   expect(JSON.stringify(refused)).toMatch(/no longer in the settings/)
   expect((await $.command.run({ command: 'anymodel', args: 'remove kimi' })).exitCode).toBe(1)
+})
+
+const kimi = { url: OR, model: 'moonshotai/kimi-k3' }
+const filled = { agent: 'gem', url: LOCAL, model: 'gemma', context: '49152' }
+
+test('/plugin configure anymodel <agent> opens the form holding the agent, its name written first', { options }, async ($, on) => {
+  const w = world()
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect((await $.command.run({ command: 'plugin', args: 'configure anymodel gem' })).text).toBe('Configuration saved.')
+  expect(w.opened).toEqual(['configure anymodel'])
+  expect(w.opening).toEqual([filled])
+  // Closed unchanged: what the agent already has goes, its name stays.
+  expect(w.sets).toEqual([['anymodel.agent', 'gem'], ['anymodel.url', LOCAL], ['anymodel.model', 'gemma'], ['anymodel.context', '49152'], ['anymodel.url', ''], ['anymodel.model', ''], ['anymodel.context', '']])
+  expect(w.form).toEqual({ agent: 'gem', url: '', model: '', context: '' })
+})
+
+test('/plugin configure anymodel <agent> closed with a change keeps the change for the save, and empties only the rest', { options }, async ($, on) => {
+  const w = world({ dialog: form => ({ ...form, model: 'gemma-2' }) })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.command.run({ command: 'plugin', args: 'configure anymodel gem' })
+  expect(w.form).toEqual({ agent: 'gem', url: '', model: 'gemma-2', context: '' })
+})
+
+for (const [what, dialog] of [['the save emptied it', () => ({ agent: '', url: '', model: '', context: '' })], ['it names another agent', (form: Record<string, string>) => ({ ...form, agent: 'gem2' })]] as const) {
+  test(`/plugin configure anymodel <agent> leaves the form alone as it closes once ${what}`, { options }, async ($, on) => {
+    const w = world({ dialog })
+    stubs(on, w)
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+    await $.command.run({ command: 'plugin', args: 'configure anymodel gem' })
+    expect(w.sets.length).toBe(4)
+  })
+}
+
+test("/plugin configure anymodel <agent> over another agent's settings takes them out before the name changes", { options: form({ [LOCAL]: 'sk-local', [OR]: 'sk-or-1' }) }, async ($, on) => {
+  const w = world({ agents: { gem, kimi }, form: { agent: 'kimi', url: OR, model: kimi.model, context: '' } })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.command.run({ command: 'plugin', args: 'configure anymodel@ph3on1x gem' })
+  expect(w.sets.slice(0, 6)).toEqual([['anymodel.url', ''], ['anymodel.model', ''], ['anymodel.agent', 'gem'], ['anymodel.url', LOCAL], ['anymodel.model', 'gemma'], ['anymodel.context', '49152']])
+  expect([w.opened, w.opening]).toEqual([['configure anymodel@ph3on1x'], [filled]])
+})
+
+test('/plugin configure anymodel empties a form an agent was left in unchanged, its name last', { options }, async ($, on) => {
+  const w = world({ form: { ...filled } })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.command.run({ command: 'plugin', args: 'configure anymodel' })
+  expect(w.sets).toEqual([['anymodel.url', ''], ['anymodel.model', ''], ['anymodel.context', ''], ['anymodel.agent', '']])
+  expect(w.opened).toEqual(['configure anymodel'])
+})
+
+test('/plugin configure anymodel keeps an agent the form holds unsaved, and opens no other agent over it', { options }, async ($, on) => {
+  const w = world({ form: { agent: 'new1', url: LOCAL, model: '', context: '' } })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.command.run({ command: 'plugin', args: 'configure anymodel' })
+  const refused = await $.command.run({ command: 'plugin', args: 'configure anymodel gem' })
+  expect(refused.text).toBe('The form holds new1, not saved yet: save it or empty its fields in /plugin configure anymodel first.')
+  expect(refused.exitCode).toBe(1)
+  expect([w.sets, w.opened]).toEqual([[], ['configure anymodel']])
+})
+
+test('/plugin configure anymodel <name> of no agent says so, and other /plugin commands pass through', { options }, async ($, on) => {
+  const w = world()
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const missing = await $.command.run({ command: 'plugin', args: 'configure anymodel nope' })
+  expect([missing.text, missing.exitCode]).toEqual(['no agent named "nope"; yours are gem', 1])
+  await $.command.run({ command: 'plugin', args: 'configure other gem' })
+  await $.command.run({ command: 'plugin', args: 'install anymodel@ph3on1x' })
+  expect([w.sets, w.opened]).toEqual([[], ['configure other gem', 'install anymodel@ph3on1x']])
+})
+
+test('/anymodel remove empties the form holding the agent while it is still saved', { options: form({ [LOCAL]: 'sk-local', [OR]: 'sk-or-1' }) }, async ($, on) => {
+  const w = world({ agents: { gem, kimi }, form: { agent: 'kimi', url: OR, model: kimi.model, context: '' } })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect((await $.command.run({ command: 'anymodel', args: 'remove kimi' })).text).toBe('Removed kimi.')
+  expect(w.sets).toEqual([['anymodel.url', ''], ['anymodel.model', ''], ['anymodel.agent', '']])
+  expect(w.agents).toEqual({ gem })
 })
 
 test('/anymodel remove that cannot write the keys back removes nothing and says why', { options: form({ [LOCAL]: 'sk-local', [OR]: 'sk-or-1' }) }, async ($, on) => {

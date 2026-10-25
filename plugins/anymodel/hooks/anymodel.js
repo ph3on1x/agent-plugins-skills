@@ -253,6 +253,31 @@ async function settings($, options) {
   for (const k of ['url', 'model', 'context', 'agent']) if (field(k) !== '') await $.config.set({ key: `${$.plugin.name}.${k}`, value: '' })
 }
 
+// The settings form's agent fields as they are now; `options` has them as this load got them.
+async function formNow($) {
+  const rows = await $.config.list()
+  return Object.fromEntries(['agent', 'url', 'model', 'context'].map(k => [k, String(rows.find(r => r.key === `${$.plugin.name}.${k}`)?.value ?? '').trim()]))
+}
+
+// Whether the form holds a save that would change something: an agent not saved, left for the person to fix.
+const unsaved = (form, agents, keys) => Object.values(form).some(v => v !== '') && JSON.stringify(saveAgent(form, agents, keys)) !== JSON.stringify({ agents, keys })
+
+// Writes the form's agent fields, from a form that holds nothing unsaved. Each write reloads the plugin, and each
+// reload on the way reads the form empty or holding a saved agent's own settings, which saves nothing: a new name goes
+// in once the old agent's other fields are out, and before its own.
+async function fillForm($, now, to) {
+  const form = { ...now }
+  const set = async (k, value) => {
+    if (form[k] === value) return
+    await $.config.set({ key: `${$.plugin.name}.${k}`, value })
+    form[k] = value
+  }
+  if (now.agent !== to.agent) for (const k of ['url', 'model', 'context']) await set(k, '')
+  await set('agent', to.agent)
+  for (const k of ['url', 'model', 'context']) await set(k, to[k])
+}
+const EMPTY = { agent: '', url: '', model: '', context: '' }
+
 // Runs the task on the agent's model in a separate Claude Code and returns its report and usage. The worker keeps one session
 // per agent, so a SendMessage resume continues it with its earlier tool results. While it runs, its permission
 // requests, its tool calls (as notices in the agent's view) and main's messages to the agent go through the bridge.
@@ -423,8 +448,8 @@ async function check($, agent) {
       steps.push({ step: label, error: message(err) })
     }
   }
-  // As the worker sends them: the key as x-api-key, or the placeholder bearer of a server that needs none.
-  const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01', ...(agent.apiKey === undefined ? { authorization: 'Bearer local' } : { 'x-api-key': agent.apiKey }) }
+  // As the worker sends them: the key, or the placeholder of a server that needs none, as x-api-key.
+  const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01', 'x-api-key': agent.apiKey ?? 'local' }
   await step('context', async () => {
     const c = await readContext((url, init) => $.http.fetch(url, init), agent)
     reads.delete(agent.name)
@@ -492,6 +517,33 @@ export function register(on, options) {
     return started
   })
 
+  // /plugin configure anymodel <agent> opens the settings form holding the agent's settings, to change them there.
+  // /plugin configure anymodel opens it empty for a new agent, as an agent opened before and left unchanged goes.
+  on('command.run', { command: 'plugin' }, async ($, e, next) => {
+    const [verb, id = '', name = '', ...more] = e.args.trim().split(/\s+/)
+    if (verb !== 'configure' || id.split('@')[0] !== $.plugin.name || more.length) return next(e)
+    const agents = (await $.store.get(AGENTS)) ?? {}
+    const { value: keys = {} } = await $.state.get(KEYS)
+    const now = await formNow($)
+    const open = () => next({ ...e, args: `configure ${id}` })
+    if (name === '') {
+      if (!unsaved(now, agents, keys)) await fillForm($, now, EMPTY)
+      return open()
+    }
+    if (!Object.hasOwn(agents, name)) return { text: `no agent named "${name}"; yours are ${Object.keys(agents).join(', ') || 'none yet'}`, exitCode: 1 }
+    if (unsaved(now, agents, keys)) return { text: `The form holds ${now.agent || 'an agent'}, not saved yet: save it or empty its fields in /plugin configure ${id} first.`, exitCode: 1 }
+    const a = agents[name]
+    const to = { agent: name, url: a.url, model: a.model, context: a.context === undefined ? '' : String(a.context) }
+    await fillForm($, now, to)
+    // Resolves as the dialog closes. Each field still holding the agent's own setting goes then: blank, a field keeps
+    // it, so a save the dialog just made means the same. The name stays, as only a load sees whether the dialog saved a
+    // key with it; a new name typed over it starts from empty fields.
+    const closed = await open()
+    const left = await formNow($)
+    if (left.agent === name) await fillForm($, left, { ...left, ...Object.fromEntries(['url', 'model', 'context'].map(k => [k, left[k] === to[k] ? '' : left[k]])) })
+    return closed
+  })
+
   // /anymodel <agent> <task> starts the agent through $.agent.spawn, so it runs in main's permission mode as when Claude
   // starts it, and shows its answer with no Claude turn; /anymodel alone lists the agents.
   on('command.run', { command: 'anymodel' }, async ($, e, next) => {
@@ -516,6 +568,9 @@ export function register(on, options) {
       const target = task.trim()
       if (!config.names.includes(target)) return fail(`no agent named "${target}"; yours are ${config.names.join(', ') || 'none yet'}`)
       const { value: keys = {} } = await $.state.get(KEYS)
+      // Left in the form, the agent would be saved again by the next load: it goes while it is still saved.
+      const now = await formNow($)
+      if (now.agent === target) await fillForm($, now, EMPTY)
       const left = removeAgent(target, (await $.store.get(AGENTS)) ?? {}, keys)
       if (JSON.stringify(left.keys) !== JSON.stringify(keys)) {
         try {
