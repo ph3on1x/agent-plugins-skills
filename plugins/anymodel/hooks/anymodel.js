@@ -480,9 +480,31 @@ async function cleanup($, args) {
   return { text: `Removed ${counts[0]} worker session record(s) and ${counts[1]} worker transcript file(s) older than ${days} days, and ${counts[2]} leftover run directories.` }
 }
 
+// An agent's answer as main will get it: $.anymodel.screen lets another plugin (personal-computer) rewrite it first.
+// A screen that rejects withholds the answer: it may hold what the screen was there to keep out. (A screen hook that
+// throws is skipped instead, as any hook is; its own .catch must withhold.)
+async function screened($, agentId, name, text) {
+  try {
+    return (await $.anymodel.screen({ agentId, name, text })).text
+  } catch (err) {
+    return `anymodel: the answer was withheld, as screening it failed: ${message(err)}`
+  }
+}
+
 export function register(on, options) {
   // The agents, read at session.start: this fires again after every settings change.
   let config = agentsConfig({}, {})
+
+  // $.anymodel for other plugins: screen's bottom passes the answer on unchanged; agents lists the saved agents as
+  // this session read them, keys left out.
+  on('engine.create', async ($, e, next) => {
+    const built = await next(e)
+    const agents = async () => config.names.map(name => {
+      const a = config.agents.get(name)
+      return { name, ...(a === undefined ? {} : { model: a.model, url: a.baseUrl }), problems: config.problems.get(name) }
+    })
+    return { ...built, anymodel: { screen: async args => ({ text: args.text }), agents } }
+  })
 
   // Each agent becomes the type anymodel:<name>, which the Agent tool, @-mentions and the @ list offer; each one's
   // context window is read now, in the background.
@@ -722,6 +744,7 @@ export function register(on, options) {
       $.ui.log(`anymodel: error agent=${e.agentId} ms=${Date.now() - started}: ${text}`, { to: 'debug' })
     }
     stopped.delete(e.agentId)
+    if (name !== '?') text = await screened($, e.agentId, name, text)
     const deliver = deliverer(e, messages, modes.get(e.agentId))
     if (forCommand) {
       served.add(e.agentId)

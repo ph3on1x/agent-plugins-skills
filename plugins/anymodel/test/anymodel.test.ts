@@ -231,6 +231,52 @@ test('a worker run answers the step, its tool calls shown and asked of main, its
   expect(JSON.parse(w.files.get(RECORD) ?? '')).toEqual({ sessionId: 'w1', baseUrl: 'http://127.0.0.1:9', model: 'gemma' })
 })
 
+test('another plugin screens the answer before main gets it, through anymodel.screen', { options }, async ($, on) => {
+  const w = world({ worker: [init, done('Paid Johanna Vexley 7964.25')] })
+  stubs(on, w)
+  const seen: unknown[] = []
+  on('anymodel.screen', ($: unknown, e: { agentId: string; name: string; text: string }) => {
+    seen.push(e)
+    return { value: { text: e.text.replace('Johanna Vexley', '[PERSON_1]') } }
+  })
+  await start($)
+  expect((await step($)).result.answer).toBe('Paid [PERSON_1] 7964.25')
+  expect(seen).toEqual([{ agentId: 'a1', name: 'gem', text: 'Paid Johanna Vexley 7964.25' }])
+})
+
+// A plugin that reads $.anymodel.agents(), as personal-computer's check does.
+const reader = {
+  name: 'reader',
+  register(on: any) {
+    on('command.run', { command: 'peek' }, async ($: any) => ({ text: JSON.stringify(await $.anymodel.agents()) }))
+  },
+}
+
+test('another plugin reads the agents through $.anymodel.agents(): names, models, URLs and problems, never a key', { options, plugins: [reader] }, async ($, on) => {
+  const w = world({ agents: { gem, broken: { url: 'nowhere', model: 'x' } } })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const { text } = await $.command.run({ command: 'peek' })
+  expect(JSON.parse(text)).toEqual([
+    { name: 'gem', model: 'gemma', url: LOCAL, problems: [] },
+    { name: 'broken', problems: ['the server URL must start with http:// or https://'] },
+  ])
+  expect(text).not.toMatch(/sk-local/)
+})
+
+// A screen hook that throws is skipped, as any hook is, and the answer would pass unscreened: the screening plugin's
+// own .catch is what withholds it.
+test("a screen that fails withholds the answer through the screening plugin's .catch", { options }, async ($, on) => {
+  const w = world({ worker: [init, done('Paid Johanna Vexley 7964.25')] })
+  stubs(on, w)
+  on('anymodel.screen', () => {
+    throw new Error('scanner down')
+  }).catch(() => ({ value: { text: 'withheld: could not be checked' } }))
+  await start($)
+  const { result } = await step($)
+  expect(result.answer).toBe('withheld: could not be checked')
+})
+
 test('a tool use main would ask about goes to the person, and their no refuses it', { options }, async ($, on) => {
   const permission = { type: 'control_request', request_id: 'r1', request: { subtype: 'can_use_tool', tool_name: 'Edit', input: { file_path: '/work/a' }, tool_use_id: 'tu1' } }
   const w = world({ verdict: 'ask', answer: 'No', worker: [init, permission, done('ok')] })

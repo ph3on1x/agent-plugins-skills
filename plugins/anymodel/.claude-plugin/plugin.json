@@ -1,7 +1,7 @@
 {
   "name": "anymodel",
   "description": "Claude Code subagents on the models you choose: name as many agents as you like, each on a model from your own providers (LM Studio, Unsloth Studio, llama.cpp, vLLM, OpenRouter, any Anthropic-compatible API), and call them like Claude's own subagents while the main session stays on Claude.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": {
     "name": "Dennis Nasarov"
   },
