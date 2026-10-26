@@ -16,6 +16,7 @@ repository is both a Claude Code plugin marketplace and an `npx skills` catalog.
 | [`agy`](plugins/agy) | plugin | Google Antigravity (Gemini) inside Claude Code: code reviews, adversarial design reviews, delegated rescue tasks with background jobs. | Claude Code |
 | [`muse`](plugins/muse) | plugin | Meta's Muse Code (Muse Wonder, Muse Spark) inside Claude Code: code reviews, adversarial design reviews, delegated rescue tasks with background jobs, session transfer. | Claude Code |
 | [`anymodel`](plugins/anymodel) | plugin + mod | Claude Code subagents on the models you choose: name agents on your local models (LM Studio, Unsloth Studio, llama.cpp, vLLM) or OpenRouter and other APIs, and call them like Claude's own subagents while the main session stays on Claude. | Claude Code |
+| [`personal-computer`](plugins/personal-computer) | plugin + mod | Personal data checked on your machine before Claude reads it: tool output, files and your prompts go through two local models (OpenAI Privacy Filter, PII-Tracer), and Claude hands the part that needs the data to a private model you run, through anymodel. | Claude Code (Mac with Apple silicon) |
 | [`cmux`](skills/cmux) | skill | Orchestrate independent Claude Code sessions in the cmux terminal: split panes, agent monitoring, browser automation, notifications. | All agents (hooks: Claude Code) |
 | [`adveloop`](skills/adveloop) | skill | GAN-inspired adversarial development loop: a Planner drives a Generator and an Evaluator in fresh cmux panes, with a hard pass/fail gate per deliverable. | All agents (needs cmux) |
 | [`relamo`](skills/relamo) | skill | Recursive Language Model: explore a large codebase programmatically through a persistent Python REPL. | All agents |
@@ -32,8 +33,8 @@ Each item has its own README with usage and requirements.
 /plugin install <name>@ph3on1x
 ```
 
-`<name>` is the plugin name: `wisci`, `agy`, `muse`, `anymodel`, `cmux`, `adveloop`, `relamo` or
-`refine-prompt`. Turn on auto-update for the `ph3on1x` marketplace under `/plugin` to get new versions.
+`<name>` is the plugin name: `wisci`, `agy`, `muse`, `anymodel`, `personal-computer`, `cmux`, `adveloop`, `relamo`
+or `refine-prompt`. Turn on auto-update for the `ph3on1x` marketplace under `/plugin` to get new versions.
 
 ### Codex, Cursor, Gemini CLI, Antigravity and other agents
 

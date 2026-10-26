@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 580" width="1280" height="580" role="img" aria-labelledby="t d">
+<title id="t">personal-computer: personal data is checked on your machine before Claude reads it</title>
+<desc id="d">Tool output, attached and @-mentioned files, background-task notifications and your prompts are checked on your machine by two local models and checksums. Output without personal data reaches Claude as it is; output with personal data is replaced by a notice. Claude hands that part of the task to your private model, an anymodel agent that reads the data on your machine, and its answer is checked again before Claude reads it. No proxy: Remote Control keeps working.</desc>
+<style>.flow{stroke-dasharray:1 9;stroke-linecap:round}@media (prefers-reduced-motion:no-preference){.flow{animation:flow 1.1s linear infinite}}@keyframes flow{to{stroke-dashoffset:-20}}</style>
+<defs>
+<marker id="m-coral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1.5 8.5 5 1 8.5z" fill="#D97757"/></marker>
+<marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1.5 8.5 5 1 8.5z" fill="#9C9A92"/></marker>
+<marker id="m-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1.5 8.5 5 1 8.5z" fill="#2E7D4F"/></marker>
+</defs>
+<rect x="1" y="1" width="1278" height="578" rx="22" fill="#FAF9F5" stroke="#E6E4DA" stroke-width="2"/>
+<text x="440" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" fill="#2E7D4F" text-anchor="middle" letter-spacing="0.14em">YOUR MACHINE</text>
+<text x="440" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="400" fill="#6E6C65" text-anchor="middle">checked before Claude reads it</text>
+<text x="1080" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" fill="#5E5D59" text-anchor="middle" letter-spacing="0.14em">ANTHROPIC</text>
+<text x="1080" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="400" fill="#6E6C65" text-anchor="middle">what Claude gets</text>
+<line x1="900" y1="112" x2="900" y2="558" stroke="#DAD8CE" stroke-width="1.5" stroke-dasharray="5 6"/>
+<rect x="198" y="132" width="110" height="34" rx="17" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<circle cx="218" cy="149" r="5" fill="#2E7D4F"/>
+<text x="231" y="154" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#5E5D59" text-anchor="start">no proxy</text>
+<rect x="320" y="132" width="208" height="34" rx="17" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<circle cx="340" cy="149" r="5" fill="#2E7D4F"/>
+<text x="353" y="154" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#5E5D59" text-anchor="start">Remote Control works</text>
+<rect x="540" y="132" width="142" height="34" rx="17" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<circle cx="560" cy="149" r="5" fill="#2E7D4F"/>
+<text x="573" y="154" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#5E5D59" text-anchor="start">fails closed</text>
+<rect x="40" y="200" width="236" height="196" rx="16" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="64" y="240" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="700" fill="#141413" text-anchor="start">Coming in</text>
+<text x="64" y="278" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">Read · Bash · MCP</text>
+<text x="64" y="306" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">@-files · attachments</text>
+<text x="64" y="334" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">background tasks</text>
+<text x="64" y="362" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">your prompts</text>
+<line x1="284" y1="298" x2="318" y2="298" stroke="#9C9A92" stroke-width="2" marker-end="url(#m-line)"/>
+<rect x="326" y="200" width="276" height="196" rx="18" fill="#FFFFFF" stroke="#D97757" stroke-width="2.5"/>
+<circle cx="356" cy="242" r="7" fill="#D97757"/>
+<text x="374" y="250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="700" fill="#141413" text-anchor="start">personal-computer</text>
+<text x="352" y="288" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="400" fill="#5E5D59" text-anchor="start">OpenAI Privacy Filter</text>
+<text x="352" y="314" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="400" fill="#5E5D59" text-anchor="start">PII-Tracer · checksums</text>
+<line x1="352" y1="336" x2="576" y2="336" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="352" y="370" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#B4532F" text-anchor="start">on 127.0.0.1, in milliseconds</text>
+<line x1="610" y1="246" x2="912" y2="246" stroke="#D97757" stroke-width="2.5" marker-end="url(#m-coral)"/>
+<text x="756" y="236" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" fill="#B4532F" text-anchor="middle">no personal data: as it is</text>
+<line x1="610" y1="330" x2="912" y2="330" stroke="#D97757" stroke-width="2.5" marker-end="url(#m-coral)"/>
+<text x="756" y="320" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" fill="#B4532F" text-anchor="middle">personal data: a notice instead</text>
+<rect x="920" y="200" width="320" height="196" rx="18" fill="#FFFFFF" stroke="#DAD8CE" stroke-width="1.5"/>
+<text x="944" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="700" fill="#141413" text-anchor="start">Claude</text>
+<text x="944" y="282" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">output without personal data</text>
+<text x="944" y="310" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">“1 name, 1 address, 1 IBAN”</text>
+<text x="944" y="338" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">the answer, checked again</text>
+<text x="944" y="366" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">or [PERSON_1] in mask mode</text>
+<rect x="600" y="440" width="276" height="104" rx="16" fill="#FFFFFF" stroke="#2E7D4F" stroke-width="1.5"/>
+<rect x="792" y="453" width="68" height="24" rx="12" fill="#E4F2E8"/>
+<text x="826" y="470" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="700" fill="#2E7D4F" text-anchor="middle" letter-spacing="0.12em">LOCAL</text>
+<text x="622" y="484" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="19" font-weight="700" fill="#141413" text-anchor="start">anymodel:qwen</text>
+<text x="622" y="516" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#5E5D59" text-anchor="start">your private model</text>
+<path d="M158 404 V492 H590" fill="none" class="flow" stroke="#2E7D4F" stroke-width="3"/>
+<path d="M582 486 590 492 582 498" fill="none" stroke="#2E7D4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="374" y="482" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" fill="#2E7D4F" text-anchor="middle">it reads the data on your machine</text>
+<path d="M884 492 H1060 Q1080 492 1080 472 V404" fill="none" stroke="#9C9A92" stroke-width="2" marker-start="url(#m-line)" marker-end="url(#m-line)"/>
+<text x="970" y="520" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" fill="#5E5D59" text-anchor="middle">task in, answer out</text>
+</svg>
