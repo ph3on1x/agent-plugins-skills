@@ -100,6 +100,12 @@ test('an account number needs six digits: a reference or invoice number is none'
   assert.deepEqual(findings(text, spans, []).map(f => f.value), ['48213977'])
 })
 
+test('an account number has no letters: an id such as an agent id is none', () => {
+  const text = '{"resumedAgentId":"a4215d20415698c29"} account 4821 3977 0012'
+  const spans = ['a4215d20415698c29', '4821 3977 0012'].map(v => ({ ...span('account_number', v, 0.9, text), model: 'pii-tracer' }))
+  assert.deepEqual(findings(text, spans, []).map(f => f.value), ['4821 3977 0012'])
+})
+
 test('the textbook example IBAN does not count, even when a model flags it: code and docs quote it', () => {
   const text = 'const CANARY = /DE89 3704 0044 0532 0130 00/'
   const spans = [{ ...span('account_number', 'DE89 3704 0044 0532 0130 00', 0.9, text), model: 'opf' }]

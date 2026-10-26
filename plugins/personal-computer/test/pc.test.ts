@@ -39,6 +39,8 @@ type World = {
   opened: string[]
   configured: { key: string; value: string }[]
   store: Map<string, unknown>
+  // A scanner whose start never comes up (its environment does not build).
+  broken?: boolean
 }
 
 function world(over: Partial<World> = {}): World {
@@ -83,6 +85,7 @@ const opts = (mode: string, prompts = 'ask', more: Record<string, string> = {}) 
 
 function stubs(on: any, w: World) {
   on('session.start', () => ({ cwd: '/work' }))
+  on('session.id', () => ({ value: 'S1' }))
   // Core's prompt.submit: what entered for the model.
   on('prompt.submit', ($: unknown, e: { text: string; context?: string[] }) => (w.submitted.push(e.text), { text: e.text, context: e.context }))
   // Core's attachments: what the model reads; and core's @-mention read.
@@ -101,7 +104,7 @@ function stubs(on: any, w: World) {
     if (e.argv[0] === '/bin/test') return { value: { exitCode: w.files.has(e.argv[2]) ? 0 : 1, stdout: '', stderr: '' } }
     if (e.argv[2] === 'command -v uv') return w.uv ? ok('/opt/homebrew/bin/uv\n') : { value: { exitCode: 1, stdout: '', stderr: '' } }
     // Starting the scanner: it writes its state file once it listens.
-    if (e.argv[2]?.includes('uv run --script')) w.files.set(`${STATE}/scanner.json`, JSON.stringify({ port: 4321, pid: 1 }))
+    if (e.argv[2]?.includes('uv run --script') && !w.broken) w.files.set(`${STATE}/scanner.json`, JSON.stringify({ port: 4321, pid: 1 }))
     if (e.argv[2]?.startsWith('ls ')) return { value: { exitCode: w.cached.some(m => e.argv[3].endsWith(`models--${m}`)) ? 0 : 1, stdout: '', stderr: '' } }
     return ok('')
   })
@@ -180,6 +183,19 @@ test('mask mode gives Claude placeholders, and a file Claude writes gets the rea
   expect(r.context?.at(-1)).toMatch(/placeholders such as \[PERSON_1\]/)
   await $.tool.call({ tool: 'Write', file_path: '/work/letter.md', content: 'Dear [PERSON_1], about [IBAN_1].', tool_use_id: 'tu3' })
   expect(w.got.at(-1)?.content).toBe('Dear Johanna Vexley, about DE29 3704 0044 9172 6048 15.')
+})
+
+test('mask mode keeps the session\'s placeholders on this machine: resumed or reloaded, it restores them and numbers new values after them', opts('mask'), async ($, on) => {
+  // What the session masked before it was resumed (another process) or the plugin reloaded.
+  const kept = `${STATE}/withheld/S1.placeholders.json`
+  const w = world({ files: new Map([SET_UP, [kept, JSON.stringify({ PERSON_1: 'Ada Lovelace' })]]) })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect((await read($)).result).toEqual({ text: 'Account holder: [PERSON_2], IBAN [IBAN_1]. Total 2996.38' })
+  await $.tool.call({ tool: 'Write', file_path: '/work/letter.md', content: 'Dear [PERSON_1] and [PERSON_2].', tool_use_id: 'tu3' })
+  expect(w.got.at(-1)?.content).toBe('Dear Ada Lovelace and Johanna Vexley.')
+  expect(JSON.parse(w.files.get(kept) ?? '{}')).toEqual({ PERSON_1: 'Ada Lovelace', PERSON_2: 'Johanna Vexley', IBAN_1: 'DE29 3704 0044 9172 6048 15' })
+  expect(w.ran).toContainEqual(['/bin/chmod', '600', kept])
 })
 
 test('mask mode gives a PDF as the text the scanner found in it, masked', opts('mask'), async ($, on) => {
@@ -718,4 +734,26 @@ test('off, the check does not start the scanner: it starts with setup', opts('pr
   expect(r.text).toMatch(/scanner +starts with setup/)
   expect(w.scanned).toEqual([])
   expect(w.ran.some(a => a[2]?.includes('uv run --script'))).toBe(false)
+})
+
+test('a scanner that does not come up is waited for once: the next checks within a minute fail at once', opts('private'), async ($, on) => {
+  const w = world({ files: new Map([SET_UP]), broken: true })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const naps = () => w.ran.filter(a => a[0] === '/bin/sleep').length
+  expect((await read($)).deny).toMatch(/could not check.*did not start/)
+  const waited = naps()
+  expect(waited).toBeGreaterThan(100)
+  expect((await $.tool.call({ tool: 'Bash', command: 'make', tool_use_id: 'tu12' })).deny).toMatch(/could not check.*did not start/)
+  expect(naps()).toBe(waited)
+})
+
+test('a SendMessage result is delivery status of Claude Code\'s own, so it is not checked: its agent id must stay usable', opts('mask'), async ($, on) => {
+  const status = '{"success":true,"message":"Resuming agent a4215d2","resumedAgentId":"a4215d20415698c29"}'
+  const w = world({ outputs: { SendMessage: status }, spans: text => (text.includes('a4215d20415698c29') ? [span(text, 'account_number', 'a4215d20415698c29')] : []) })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const r = await $.tool.call({ tool: 'SendMessage', to: 'a4215d20415698c29', message: 'Now the IBAN', tool_use_id: 'tu13' })
+  expect(r.text).toBe(status)
+  expect(w.scanned).toEqual([])
 })

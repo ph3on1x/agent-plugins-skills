@@ -24,14 +24,15 @@ const notPhone = (v) => /^[-+]?\d+[.,]\d{1,2}$/.test(v) || v.replace(/\D/g, '').
 // What OPF on statement rows calls an address: a merchant, often with the row's amount after it. A postal address has
 // a house number or a postcode.
 const AMOUNT_TAIL = /[,;\t|]\s*[-+]?\d+[.,]\d{2}$/
-// A reference, contract or invoice number is shorter than any account number.
+// A reference, contract or invoice number is shorter than any account number, and an id with letters in it (an agent
+// id, a1b2c3…) is none at all: PII-Tracer called the agent id a4215d20415698c29 an account number.
 const ACCOUNT_DIGITS = 6
 
 const plausible = (s) => s.value !== ''
   && !(s.type === 'private_phone' && notPhone(s.value))
   && !(s.type === 'private_person' && /^\S*[\d_]\S*$/.test(s.value))
   && !(s.type === 'private_address' && !/\d/.test(s.value))
-  && !(s.type === 'account_number' && s.value.replace(/\D/g, '').length < ACCOUNT_DIGITS)
+  && !(s.type === 'account_number' && (s.value.replace(/\D/g, '').length < ACCOUNT_DIGITS || /[a-z]/i.test(s.value)))
   && !testValue(s.value)
 
 const WORDS = {

@@ -43,8 +43,9 @@ let active
 let warned = false
 const WARNING = 'can\'t check for personal data, so outputs are withheld · /personal-computer'
 const MODELS_MISSING = absent => `the detection models are missing (${labels(absent)}), so outputs are withheld · /personal-computer setup`
-// Placeholders of mask mode for the session: [PERSON_1] → the value, restored in files Claude writes.
-let table = {}
+// Placeholders of mask mode for the session: [PERSON_1] → the value, restored in files Claude writes. Loaded once per
+// load from the session's file (loadTable), so a resumed session or a reload keeps them.
+let table
 // The user's own name and email, from git config and the account's full name: their commits, signatures and files
 // are no one else's data.
 let allow = []
@@ -55,6 +56,10 @@ const PROMPT_PLACEHOLDERS = 'personal-computer replaced the personal data in the
   '[PERSON_1]. Use them as they are: files you write get the real values back.'
 
 const nap = $ => $.process.run(['/bin/sleep', '0.5'])
+// When a scanner start last failed to come up: for a minute after, a check fails at once rather than wait again, so a
+// scanner that cannot start (its environment does not build) costs one wait, not one per tool call.
+let startFailedAt = 0
+const RETRY_MS = 60_000
 
 // The file /personal-computer setup leaves once its check passed; without it the plugin is off.
 async function setupFile($) {
@@ -125,7 +130,8 @@ const labels = ms => ms.map(m => MODEL_INFO[m].label).join(', ')
 
 // The scanner's spans for a text, or for a PDF it reads itself (its text comes back with them). Missing models are
 // fetched by /personal-computer setup, never here: a download takes minutes. A scanner that exited (idle) is started
-// again; it waits up to a minute for one still loading.
+// again; it waits up to a minute for one still loading, and a start that never came up is not waited for again within
+// the minute after.
 async function scan($, body) {
   try {
     const answer = await scanOnce($, body)
@@ -146,10 +152,17 @@ async function scan($, body) {
 async function scanOnce($, body) {
   const absent = await missing($)
   if (absent.length > 0) throw Object.assign(new Error(`the detection models are not downloaded (${labels(absent)}): run /personal-computer setup`), { absent })
-  await startScanner($)
-  let url
-  for (let i = 0; i < 120 && (url = await scannerUrl($)) === undefined; i++) await nap($)
-  if (url === undefined) throw new Error(`the PII scanner did not start (its log: ${await stateDir($)}/scanner.log)`)
+  let url = await scannerUrl($)
+  if (url === undefined) {
+    const failed = new Error(`the PII scanner did not start (its log: ${await stateDir($)}/scanner.log)`)
+    if (Date.now() - startFailedAt < RETRY_MS) throw failed
+    await startScanner($)
+    for (let i = 0; i < 120 && (url = await scannerUrl($)) === undefined; i++) await nap($)
+    if (url === undefined) {
+      startFailedAt = Date.now()
+      throw failed
+    }
+  }
   const r = await $.http.fetch(`${url}/scan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, models }) })
   const answer = JSON.parse(r.text)
   if (!r.ok || !Array.isArray(answer.spans)) throw new Error(`the PII scanner failed: ${answer.error ?? r.status}`)
@@ -186,6 +199,43 @@ async function keep($, name, text) {
   return file
 }
 
+// The session's placeholders, kept beside its withheld outputs: resumed (a new process) or reloaded (a setting changed
+// in the pane), the session restores them, and numbers new values after them rather than give [PERSON_1] again.
+async function tableFile($) {
+  return `${await stateDir($)}/withheld/${String(await $.session.id()).replace(/[^\w.-]/g, '_')}.placeholders.json`
+}
+
+async function loadTable($) {
+  if (table !== undefined) return
+  const file = await tableFile($)
+  const r = await $.process.run(['/bin/test', '-e', file])
+  if (r.exitCode > 1) throw new Error(`cannot tell whether ${file} exists: ${r.stderr.trim()}`)
+  const loaded = r.exitCode === 0 ? JSON.parse(await $.fs.read(file)) : {}
+  // A load that ran alongside may have set it, and a mask since extended it.
+  table ??= loaded
+}
+
+// Saves run one after another, each with the table as it is then: parallel masks never interleave their writes.
+let saving = Promise.resolve()
+function saveTable($) {
+  const save = saving.then(async () => {
+    const file = await tableFile($)
+    await $.fs.write(file, JSON.stringify(table))
+    await $.process.run(['/bin/chmod', '600', file])
+  })
+  saving = save.catch(() => {})
+  return save
+}
+
+// `text` with `found` masked by the session's placeholders, saved before Claude gets it.
+async function maskSession($, text, found) {
+  await loadTable($)
+  const m = mask(text, found, table)
+  table = m.table
+  await saveTable($)
+  return m.text
+}
+
 // A Read result of text, as the Read tool gives one for a text file: how a masked PDF reaches the model.
 const textRead = (filePath, content) => {
   const lines = content.split('\n').length
@@ -200,9 +250,7 @@ async function screen($, text, name, what) {
   if (found.length === 0) return text
   const file = await keep($, name, text)
   $.ui.toast(`personal-computer: ${what} had personal data (${summary(found)}). Claude got it masked; the full text: ${file}`)
-  const masked = mask(text, found, table)
-  table = masked.table
-  return masked.text
+  return maskSession($, text, found)
 }
 
 // The person's choice for something about to reach Claude: what it holds in words, never its values. With no one to
@@ -472,12 +520,14 @@ export function register(on, options) {
   // The gate: every output, in main and in-process subagents, before the model reads it.
   on('tool.call', async ($, e, next) => {
     if (!(await isActive($))) return next(e)
+    await loadTable($)
     const r = await next(restored(e))
     if ('deny' in r && r.deny !== undefined) return r
     // anymodel's report is screened where anymodel delivers it (anymodel.screen below); the person's answer to a
-    // question ($.ui.ask's own tool call, this mod's included) is theirs to give.
+    // question ($.ui.ask's own tool call, this mod's included) is theirs to give; SendMessage answers delivery status
+    // with the agent's id, which masked could no longer be addressed (the agent's reply comes as a notification).
     if (e.tool === 'Agent' && String(e.subagent_type ?? '').startsWith('anymodel:')) return r
-    if (e.tool === 'AskUserQuestion') return r
+    if (e.tool === 'AskUserQuestion' || e.tool === 'SendMessage') return r
     const { text, found, image } = await inspect($, e, r)
     if (image) {
       if (mode === 'ask' && (await choose($, `The output of ${e.tool}`, 'an image, which cannot be checked for personal data', ['Share as-is', 'Leave out'], 'Leave out')) === 'Share as-is') return r
@@ -488,13 +538,12 @@ export function register(on, options) {
     if (choice === 'Share as-is') return r
     if (choice === 'Leave out') return { deny: `The output of ${e.tool} contains personal data, and the user chose to leave it out.` }
     if (choice === 'Mask') {
-      const masked = mask(text, found, table)
-      table = masked.table
+      const masked = await maskSession($, text, found)
       // An error keeps reading as one. A result is the tool's own, its strings masked: a shape its schema refuses
       // would fail the call. A PDF reads as the text the scanner found in it.
-      if (r.isError) return { deny: masked.text }
+      if (r.isError) return { deny: masked }
       const path = pdfPath(e, r)
-      const result = path === undefined ? hide(r.result, table) : textRead(path, masked.text)
+      const result = path === undefined ? hide(r.result, table) : textRead(path, masked)
       return { result, context: [...(r.context ?? []).map(c => hide(c, table)), PLACEHOLDERS] }
     }
     if (agent === '') return { deny: noAgent(`The output of ${e.tool}`, found) }
@@ -533,9 +582,7 @@ export function register(on, options) {
       : await choose($, 'Your prompt', what, [...(found.length > 0 ? ['Mask'] : []), 'Send as is', 'Cancel'], found.length > 0 ? 'Mask' : 'Send as is')
     if (choice === 'Cancel') return { drop: 'personal-computer: the prompt was not sent.' }
     if (choice !== 'Mask' || found.length === 0) return next(e)
-    const masked = mask(e.text, found, table)
-    table = masked.table
-    return next({ ...e, text: masked.text, context: [...(e.context ?? []), PROMPT_PLACEHOLDERS] })
+    return next({ ...e, text: await maskSession($, e.text, found), context: [...(e.context ?? []), PROMPT_PLACEHOLDERS] })
   }).catch(async ($, e, next) => {
     if (next.called) return next(e)
     const why = next.error.message ?? next.error.kind
@@ -557,9 +604,7 @@ export function register(on, options) {
     if (choice === 'Share as-is') return next(e)
     if (choice === 'Leave out') return next({ ...e, text: `${source} contains personal data, and the user chose to leave it out.` })
     if (choice === 'Mask') {
-      const masked = mask(e.text, found, table)
-      table = masked.table
-      return next({ ...e, text: masked.text })
+      return next({ ...e, text: await maskSession($, e.text, found) })
     }
     if (agent === '') return next({ ...e, text: noAgent(source, found) })
     const file = await keep($, `attachment-${Date.now()}`, e.text)

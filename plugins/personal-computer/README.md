@@ -65,8 +65,8 @@ or `pii-tracer`: one model alone needs less disk and memory, and finds less.
 | Names, email addresses, phone numbers, postal addresses, account and card numbers, secrets | Dates, URLs, amounts, reference numbers, published test card numbers and IBANs, your own name and email (git and your Mac account) |
 
 One scanner process serves all your sessions. It listens on 127.0.0.1 only and exits after 30 minutes without a
-request. Withheld outputs and masked answers are kept in `~/.local/state/personal-computer/withheld`, readable by you
-only.
+request. Withheld outputs, masked answers and each session's placeholders (so a resumed session still writes the real
+values) are kept in `~/.local/state/personal-computer/withheld`, readable by you only.
 
 **Answers are checked too:** your private agent's, and every background task's notification (subagents run in the
 background by default). If one holds personal data, Claude gets it masked and you get a notice with the path of the
