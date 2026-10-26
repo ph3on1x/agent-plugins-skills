@@ -1,0 +1,50 @@
+{
+  "name": "personal-computer",
+  "description": "Keeps personal data out of Claude: every tool output is scanned on your machine (OpenAI Privacy Filter and PII-Tracer), and output with personal data is processed by a private model you choose through anymodel, while Claude orchestrates.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Dennis Nasarov"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ph3on1x/agent-plugins-skills",
+  "homepage": "https://github.com/ph3on1x/agent-plugins-skills/tree/main/plugins/personal-computer",
+  "keywords": [
+    "privacy",
+    "pii",
+    "personal-data",
+    "local-llm",
+    "anymodel"
+  ],
+  "types": "./types/index.d.ts",
+  "dependencies": [
+    { "name": "anymodel", "version": ">=0.2.0" }
+  ],
+  "userConfig": {
+    "agent": {
+      "type": "string",
+      "title": "Private agent",
+      "description": "The anymodel agent that works with output containing personal data, by its name as in @anymodel:<name>. Add one with /plugin configure anymodel: a local model, or one on your own private server."
+    },
+    "mode": {
+      "type": "string",
+      "title": "When personal data is found",
+      "description": "private: the output is withheld and Claude asks your private agent for what it needs. mask: Claude gets the output with names, IBANs and the like replaced by placeholders. ask: you choose each time.",
+      "options": ["private", "mask", "ask"],
+      "default": "private"
+    },
+    "prompts": {
+      "type": "string",
+      "title": "Check your prompts",
+      "description": "Checks what you send to Claude, pasted text included. ask: with personal data in a prompt, you choose: mask it, send it as is, or cancel. mask: personal data in prompts is replaced by placeholders without asking. off: prompts are not checked.",
+      "options": ["ask", "mask", "off"],
+      "default": "ask"
+    },
+    "detectors": {
+      "type": "string",
+      "title": "Detection models",
+      "description": "both: OpenAI Privacy Filter and PII-Tracer (most found, 3.7 GB). opf: OpenAI Privacy Filter alone (2.6 GB). pii-tracer: PII-Tracer alone (1.1 GB). IBANs and card numbers are always found by their checksums. Run /personal-computer setup after a change.",
+      "options": ["both", "opf", "pii-tracer"],
+      "default": "both"
+    }
+  }
+}

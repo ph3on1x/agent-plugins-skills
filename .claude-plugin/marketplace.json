@@ -44,6 +44,11 @@
       "description": "Claude Code subagents on the models you choose, local or cloud, called by name while your session stays on Claude."
     },
     {
+      "name": "personal-computer",
+      "source": "./plugins/personal-computer",
+      "description": "Keeps personal data out of Claude: tool outputs are checked on your machine, and those with personal data go to a private model you choose through anymodel."
+    },
+    {
       "name": "wisci",
       "source": "./plugins/wisci",
       "description": "WISCI context engineering framework — Write, Isolate, Select, Compress, Iterate. Context store (.wisci/) whose notes quote their code evidence, checked on every load, per-stream handoffs (every compaction summary is one), session hooks, and commits with AI-Context trailers."
