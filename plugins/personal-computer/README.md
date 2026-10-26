@@ -166,7 +166,6 @@ design.
 | **Claude Code untouched, Remote Control works** | **Yes** | Yes | No | Yes | No |
 | **Real values back in files Claude writes** | **Yes**, `mask` mode | Partly | Partly | Partly | — |
 | **Subagent answers and notifications checked** | **Yes** | Partly | Yes ⁵ | No | — |
-| **Any OS** | Mac, Linux, Windows in WSL 2 | Yes | Yes | Yes | Yes |
 
 ¹ [claude-code-redaction-hooks](https://github.com/l-mb/claude-code-redaction-hooks),
 [claude-code-redact](https://github.com/karanb192/claude-code-redact) and
