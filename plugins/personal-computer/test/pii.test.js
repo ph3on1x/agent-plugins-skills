@@ -1,7 +1,7 @@
 // usage: node --test plugins/personal-computer/test/*.test.js
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checksumSpans, findings, hide, mask, restore, summary, withheldNotice } from '../hooks/pii.js'
+import { checksumSpans, findings, hide, mask, reserved, restore, summary, withheldNotice } from '../hooks/pii.js'
 
 const statement = 'Account holder: Johanna Vexley, IBAN DE29 3704 0044 9172 6048 15, email jv@example.org. Total 2996.38'
 const at = (text, value) => [text.indexOf(value), text.indexOf(value) + value.length]
@@ -193,4 +193,14 @@ test('hide replaces every value of the table in every string of a value, the lon
     type: 'text', file: { filePath: '/x/statement.csv', content: '[PERSON_1], [IBAN_1]; [PERSON_2]', numLines: 1 }, lines: ['[PERSON_2]'],
   })
   assert.equal(hide('nothing here', table), 'nothing here')
+})
+
+test('placeholders already in a conversation are reserved: new values are numbered after them, and they stay as they are', () => {
+  const table = reserved('Dear [PERSON_1] and [PERSON_3], your [IBAN_2]; [TODO_1] is none of ours')
+  assert.deepEqual(table, { PERSON_1: null, PERSON_3: null, IBAN_2: null })
+  const text = 'Johanna Vexley, DE29 3704 0044 9172 6048 15'
+  const m = mask(text, [{ type: 'private_person', value: 'Johanna Vexley', start: 0, end: 14 }, { type: 'iban', value: 'DE29 3704 0044 9172 6048 15', start: 16, end: 43 }], table)
+  assert.equal(m.text, '[PERSON_4], [IBAN_3]')
+  assert.equal(hide({ note: 'null and Johanna Vexley' }, m.table).note, 'null and [PERSON_4]')
+  assert.equal(restore('Dear [PERSON_1] and [PERSON_4]', m.table), 'Dear [PERSON_1] and Johanna Vexley')
 })

@@ -39,6 +39,8 @@ type World = {
   opened: string[]
   configured: { key: string; value: string }[]
   store: Map<string, unknown>
+  // The conversation so far, as $.session.messages() gives it.
+  history: { role: 'user' | 'assistant'; text: string; toolUses: [] }[]
   // A scanner whose start never comes up (its environment does not build).
   broken?: boolean
 }
@@ -50,7 +52,7 @@ function world(over: Partial<World> = {}): World {
     scanner: 'up', files: new Map([[`${STATE}/scanner.json`, JSON.stringify({ port: 4321, pid: 1 })], SET_UP]), toasts: [], ran: [], got: [], scanned: [], submitted: [], attached: [], mentioned: [],
     uname: 'Darwin arm64', uv: true, cached: ['mlx-community--openai-privacy-filter-bf16', 'perplexity-ai--PII-Tracer'],
     download: ['{"model": "opf", "status": "downloading"}', '{"model": "opf", "status": "done"}', '{"model": "pii-tracer", "status": "downloading"}', '{"model": "pii-tracer", "status": "done"}'],
-    status: undefined, placed: true, opened: [], configured: [], store: new Map(), ...over,
+    status: undefined, placed: true, opened: [], configured: [], store: new Map(), history: [], ...over,
   }
 }
 
@@ -86,6 +88,8 @@ const opts = (mode: string, prompts = 'ask', more: Record<string, string> = {}) 
 function stubs(on: any, w: World) {
   on('session.start', () => ({ cwd: '/work' }))
   on('session.id', () => ({ value: 'S1' }))
+  on('session.messages', () => ({ value: w.history }))
+  on('settings.read', () => ({ value: {} }))
   // Core's prompt.submit: what entered for the model.
   on('prompt.submit', ($: unknown, e: { text: string; context?: string[] }) => (w.submitted.push(e.text), { text: e.text, context: e.context }))
   // Core's attachments: what the model reads; and core's @-mention read.
@@ -101,6 +105,8 @@ function stubs(on: any, w: World) {
     const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '' } })
     if (e.argv[0] === 'git') return ok(e.argv[3] === 'user.name' ? 'Dennis Nasarov\n' : 'dennis@example.org\n')
     if (e.argv[0] === '/usr/bin/uname') return ok(`${w.uname}\n`)
+    // The cleanup: two old files, as find prints what it removed.
+    if (e.argv[0] === '/usr/bin/find') return ok(`${e.argv[1]}/tu0.txt\n${e.argv[1]}/S0.placeholders.json\n`)
     if (e.argv[0] === '/bin/test') return { value: { exitCode: w.files.has(e.argv[2]) ? 0 : 1, stdout: '', stderr: '' } }
     if (e.argv[2] === 'command -v uv') return w.uv ? ok('/opt/homebrew/bin/uv\n') : { value: { exitCode: 1, stdout: '', stderr: '' } }
     // Starting the scanner: it writes its state file once it listens.
@@ -576,6 +582,7 @@ test('before setup nothing is checked: outputs, prompts and mentioned files reac
   expect(w.attached).toEqual([statement])
   expect(w.scanned).toEqual([])
   expect(w.ran.some(a => a[2]?.includes('uv run --script'))).toBe(false)
+  expect(w.ran.some(a => a[0] === '/usr/bin/find')).toBe(false)
   expect(w.status).toBeUndefined()
 })
 
@@ -756,4 +763,45 @@ test('a SendMessage result is delivery status of Claude Code\'s own, so it is no
   const r = await $.tool.call({ tool: 'SendMessage', to: 'a4215d20415698c29', message: 'Now the IBAN', tool_use_id: 'tu13' })
   expect(r.text).toBe(status)
   expect(w.scanned).toEqual([])
+})
+
+test('what it keeps is removed past Claude Code\'s cleanup period, at each start and by /personal-computer cleanup, never the session\'s own placeholders', opts('mask'), async ($, on) => {
+  const w = world()
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const find = (days: string) => ['/usr/bin/find', `${STATE}/withheld`, '-type', 'f', '-mtime', `+${days}`, '!', '-path', `${STATE}/withheld/S1.placeholders.json`, '-print', '-delete']
+  expect(w.ran).toContainEqual(find('30'))
+  const r = await command($, 'cleanup 7')
+  expect(w.ran.at(-1)).toEqual(find('7'))
+  expect(r.text).toBe(`Removed 2 file(s) older than 7 days from ${STATE}/withheld.`)
+  expect((await command($, 'cleanup soon')).exitCode).toBe(1)
+})
+
+test('a background notification\'s queue record is masked as Claude gets the notification, with the same placeholders', opts('private'), async ($, on) => {
+  const w = world()
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const row = (text: string) => ({ message: { type: 'user' as const, role: 'user' as const, isMeta: true as const, content: [{ type: 'text' as const, text }] }, door: 'queue' as const, origin: { kind: 'engine' as const }, uuid: 'q1' })
+  const queued = await $.session.append(row(`<task-notification><result>${statement}</result></task-notification>`))
+  expect(JSON.stringify(queued.message.content)).toBe(JSON.stringify([{ type: 'text', text: '<task-notification><result>Account holder: [PERSON_1], IBAN [IBAN_1]. Total 2996.38</result></task-notification>' }]))
+  // A queued prompt is recorded as prompt.submit left it, which the prompts setting decides.
+  const typed = await $.session.append({ ...row('Write to Johanna Vexley'), origin: { kind: 'user' as const } })
+  expect(JSON.stringify(typed.message.content)).toMatch(/Johanna Vexley/)
+})
+
+test('a queue record that cannot be checked is kept without its text', opts('private'), async ($, on) => {
+  const w = world({ scanner: 'down' })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const queued = await $.session.append({ message: { type: 'user', role: 'user', isMeta: true, content: [{ type: 'text', text: statement }] }, door: 'queue', origin: { kind: 'engine' }, uuid: 'q2' })
+  expect(JSON.stringify(queued.message.content)).not.toMatch(/Johanna|DE29/)
+})
+
+test('a forked session, whose placeholders stayed with its parent, numbers new values after the ones in its history', opts('mask'), async ($, on) => {
+  const w = world({ history: [{ role: 'assistant', text: 'Account holder: [PERSON_1], shop [ADDRESS_1].', toolUses: [] }] })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect((await read($)).result).toEqual({ text: 'Account holder: [PERSON_2], IBAN [IBAN_1]. Total 2996.38' })
+  await $.tool.call({ tool: 'Write', file_path: '/work/letter.md', content: 'Dear [PERSON_1] and [PERSON_2].', tool_use_id: 'tu3' })
+  expect(w.got.at(-1)?.content).toBe('Dear [PERSON_1] and Johanna Vexley.')
 })

@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 
-import { findings, hide, mask, restore, summary, withheldNotice } from './pii.js'
+import { findings, hide, mask, reserved, restore, summary, withheldNotice } from './pii.js'
 
 // personal-computer: every tool output is scanned for personal data on this machine before Claude reads it. Output
 // with personal data is withheld (mode private: Claude asks the user's private anymodel agent instead), masked (mode
@@ -210,7 +210,8 @@ async function loadTable($) {
   const file = await tableFile($)
   const r = await $.process.run(['/bin/test', '-e', file])
   if (r.exitCode > 1) throw new Error(`cannot tell whether ${file} exists: ${r.stderr.trim()}`)
-  const loaded = r.exitCode === 0 ? JSON.parse(await $.fs.read(file)) : {}
+  // None kept for this session id: a new session, or a fork, whose history keeps its parent's placeholders.
+  const loaded = r.exitCode === 0 ? JSON.parse(await $.fs.read(file)) : reserved(JSON.stringify(await $.session.messages()))
   // A load that ran alongside may have set it, and a mask since extended it.
   table ??= loaded
 }
@@ -235,6 +236,18 @@ async function maskSession($, text, found) {
   await saveTable($)
   return m.text
 }
+
+// What it keeps (withheld outputs, masked answers, placeholders) past Claude Code's own cleanup period, when the
+// transcripts that name them are gone too: removed at each start and by /personal-computer cleanup [days]. The
+// session's own placeholders stay, however old.
+async function cleanup($, days) {
+  const dir = `${await stateDir($)}/withheld`
+  const r = await $.process.run(['/usr/bin/find', dir, '-type', 'f', '-mtime', `+${days}`, '!', '-path', await tableFile($), '-print', '-delete'])
+  if (r.exitCode !== 0) throw new Error(`cannot clean up ${dir}: ${r.stderr.trim()}`)
+  return `Removed ${r.stdout.split('\n').filter(Boolean).length} file(s) older than ${days} days from ${dir}.`
+}
+
+const cleanupDays = async $ => Number((await $.settings.read({ key: 'cleanupPeriodDays' })) ?? 30)
 
 // A Read result of text, as the Read tool gives one for a text file: how a masked PDF reaches the model.
 const textRead = (filePath, content) => {
@@ -428,7 +441,7 @@ export function register(on, options) {
     }
     allow = own
     try {
-      await $.command.register({ name: 'personal-computer', description: 'Turn personal-computer on, see how it stands, and change its settings', argumentHint: '[check | setup]' })
+      await $.command.register({ name: 'personal-computer', description: 'Turn personal-computer on, see how it stands, and change its settings', argumentHint: '[check | setup | cleanup [days]]' })
     } catch (err) {
       $.ui.toast(`personal-computer: cannot add /personal-computer: ${err.message}`)
     }
@@ -444,6 +457,7 @@ export function register(on, options) {
       return started
     }
     if (agent === '' && mode !== 'mask') $.ui.toast('personal-computer: set your private agent with /personal-computer')
+    await cleanup($, await cleanupDays($)).catch(err => $.ui.toast(`personal-computer: ${err.message}`))
     const absent = await missing($)
     if (absent.length > 0) {
       warned = true
@@ -500,11 +514,17 @@ export function register(on, options) {
   on('command.run', { command: 'personal-computer' }, async ($, e) => {
     const verb = e.args.trim()
     if (verb === 'check') return report(await checks($, settings), settings)
+    if (verb.split(/\s+/)[0] === 'cleanup') {
+      const given = verb.slice('cleanup'.length).trim()
+      const days = given === '' ? await cleanupDays($) : Number(given)
+      if (!Number.isInteger(days) || days < 0) return { text: 'give the days as a whole number, e.g. /personal-computer cleanup 30', exitCode: 1 }
+      return { text: await cleanup($, days) }
+    }
     if (verb === 'setup') {
       const { list, error } = await setUp($, settings, text => $.ui.toast(`personal-computer: ${text}`))
       return error === undefined ? report(list, settings) : { text: error, exitCode: 1 }
     }
-    if (verb !== '') return { text: 'use /personal-computer, /personal-computer check or /personal-computer setup', exitCode: 1 }
+    if (verb !== '') return { text: 'use /personal-computer, /personal-computer check, /personal-computer setup or /personal-computer cleanup [days]', exitCode: 1 }
     await refresh($, settings)
     const { isPlaced } = await $.ui.open({ id: PANE, title: 'Personal computer', focus: true, closeOnEscape: true })
     return isPlaced ? {} : report(await read($, checked), settings)
@@ -593,6 +613,22 @@ export function register(on, options) {
         { header: 'Personal', options: ['Send unchecked', 'Cancel'] }).catch(() => 'Cancel')
     return choice === 'Send unchecked' ? next(e) : { drop: `personal-computer could not check the prompt for personal data (${why}), so it was not sent. /personal-computer shows what is wrong.` }
   })
+
+  // A machine-made prompt (a background task's notification) is recorded as queued, the transcript's queue-operation
+  // entry, before prompt.submit masks it: the record is masked too, with the same placeholders; one that cannot be
+  // checked is kept without its text. A person's prompt is recorded as prompt.submit left it. Claude never reads the
+  // record. shortcut: a check over a second (a scanner still starting) is passed by and the record written as
+  // raised; a deadline of its own if that shows up.
+  on('session.append', { door: 'queue' }, async ($, e, next) => {
+    if (e.origin.kind !== 'engine' || !(await isActive($))) return next(e)
+    const content = []
+    for (const b of e.message.content) {
+      if (b.type !== 'text') continue
+      const found = findings(b.text, (await scan($, { text: b.text })).spans, allow)
+      content.push(found.length === 0 ? b : { ...b, text: await maskSession($, b.text, found) })
+    }
+    return next({ ...e, message: { ...e.message, content } })
+  }).catch(($, e, next) => next.called ? next(e) : next({ ...e, message: { ...e.message, content: [] } }))
 
   // A file the engine attaches itself reaches Claude with no tool call: checked as a tool's output is.
   on('prompt.attachment', async ($, e, next) => {

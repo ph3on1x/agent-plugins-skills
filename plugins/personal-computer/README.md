@@ -66,7 +66,9 @@ or `pii-tracer`: one model alone needs less disk and memory, and finds less.
 
 One scanner process serves all your sessions. It listens on 127.0.0.1 only and exits after 30 minutes without a
 request. Withheld outputs, masked answers and each session's placeholders (so a resumed session still writes the real
-values) are kept in `~/.local/state/personal-computer/withheld`, readable by you only.
+values) are kept in `~/.local/state/personal-computer/withheld`, readable by you only. They are removed with Claude
+Code's own transcripts, after `cleanupPeriodDays` (30 days by default); `/personal-computer cleanup [days]` removes
+them sooner.
 
 **Answers are checked too:** your private agent's, and every background task's notification (subagents run in the
 background by default). If one holds personal data, Claude gets it masked and you get a notice with the path of the
@@ -87,7 +89,10 @@ withheld as well: the text models cannot read them.
 - The footer label and the pane are drawn in the terminal and the desktop app. VS Code shows the pane but no label,
   and mobile shows neither; the warning line shows everywhere. Use `/personal-computer check` where there is no pane.
 - Changing a setting reloads the plugin, so the pane locks its settings while setup runs.
+- A forked session (`--fork-session`) cannot restore the placeholders from before the fork: a file Claude writes
+  there keeps them as they are. New values get new numbers.
 - The private agent's tools are not sandboxed: it works with your files under your permission rules, as any
   subagent does.
 - Claude Code's local transcripts (`~/.claude/projects`) can hold personal data: the private agent's own transcript,
-  and background notifications as they were queued. They stay on your machine.
+  a file you name after an `@` as it was read, and what Claude wrote to a file in mask mode. They stay on your
+  machine until Claude Code removes them after `cleanupPeriodDays`.

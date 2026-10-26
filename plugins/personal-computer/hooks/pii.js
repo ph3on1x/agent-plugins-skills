@@ -174,10 +174,10 @@ export function withheldNotice(source, found, agent) {
 export function mask(text, found, table) {
   const next = { ...table }
   const known = new Map(Object.entries(next).map(([k, v]) => [v, k]))
-  const count = (prefix) => Object.keys(next).filter(k => k.startsWith(`${prefix}_`)).length
+  const last = (prefix) => Math.max(0, ...Object.keys(next).filter(k => k.startsWith(`${prefix}_`)).map(k => Number(k.slice(prefix.length + 1))))
   const placeholder = (f) => {
     if (!known.has(f.value)) {
-      const key = `${PREFIX[f.type]}_${count(PREFIX[f.type]) + 1}`
+      const key = `${PREFIX[f.type]}_${last(PREFIX[f.type]) + 1}`
       next[key] = f.value
       known.set(f.value, key)
     }
@@ -192,10 +192,15 @@ export function mask(text, found, table) {
   return { text: out + text.slice(from), table: next }
 }
 
+// The placeholders already in `text` (a conversation whose table is not on this machine, as a forked session's is
+// not), each reserved with no value: new values are numbered after them, and they are restored to nothing.
+export const reserved = text => Object.fromEntries([...text.matchAll(/\[([A-Z]+)_(\d+)\]/g)]
+  .filter(m => Object.values(PREFIX).includes(m[1])).map(m => [`${m[1]}_${m[2]}`, null]))
+
 // `value` with each value of `table` in any of its strings replaced by its placeholder, longest first, so a tool's
 // own result object keeps its shape (an object where its schema wants one) and reads as usual.
 export function hide(value, table) {
-  const pairs = Object.entries(table).sort((a, b) => b[1].length - a[1].length)
+  const pairs = Object.entries(table).filter(([, v]) => v !== null).sort((a, b) => b[1].length - a[1].length)
   const walk = (v) => typeof v === 'string' ? pairs.reduce((t, [key, val]) => t.replaceAll(val, `[${key}]`), v)
     : Array.isArray(v) ? v.map(walk)
     : v !== null && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]))
