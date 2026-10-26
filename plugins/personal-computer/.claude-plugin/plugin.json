@@ -1,7 +1,7 @@
 {
   "name": "personal-computer",
   "description": "Keeps personal data out of Claude: every tool output is scanned on your machine (OpenAI Privacy Filter and PII-Tracer), and output with personal data is processed by a private model you choose through anymodel, while Claude orchestrates.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Dennis Nasarov"
   },
@@ -42,9 +42,16 @@
     "detectors": {
       "type": "string",
       "title": "Detection models",
-      "description": "both: OpenAI Privacy Filter and PII-Tracer (most found, 3.7 GB). opf: OpenAI Privacy Filter alone (2.6 GB). pii-tracer: PII-Tracer alone (1.1 GB). IBANs and card numbers are always found by their checksums. Run /personal-computer setup after a change.",
+      "description": "both: OpenAI Privacy Filter and PII-Tracer (most found; 3.7 GB on MLX, 8 GB on ONNX Runtime). opf: OpenAI Privacy Filter alone (2.6 GB, or 5.6 GB). pii-tracer: PII-Tracer alone (1.1 GB, or 2.4 GB). IBANs and card numbers are always found by their checksums. Run /personal-computer setup after a change.",
       "options": ["both", "opf", "pii-tracer"],
       "default": "both"
+    },
+    "runtime": {
+      "type": "string",
+      "title": "Runs on",
+      "description": "auto: MLX on a Mac with Apple silicon, ONNX Runtime elsewhere (Linux, and Windows inside WSL 2). mlx: MLX, Apple silicon only. onnx: ONNX Runtime on any of them; it needs more memory, up to about 30 GB on an output past 8,000 tokens. onnx-int8: 8-bit models on ONNX Runtime, a third of the download (2.5 GB); PII-Tracer then needs a quarter of the memory, and each model finds a little less (see the reference). gguf: PII-Tracer from Perplexity's own GGUF on your llama.cpp (llama-server on PATH, which picks its CPU or GPU build), OpenAI Privacy Filter on ONNX Runtime. Run /personal-computer setup after a change.",
+      "options": ["auto", "mlx", "onnx", "onnx-int8", "gguf"],
+      "default": "auto"
     }
   }
 }

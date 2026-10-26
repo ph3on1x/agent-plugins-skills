@@ -1,8 +1,14 @@
 // usage: claude plugin test (from plugins/personal-computer). The mod's hooks, with Claude Code, the tools and the PII
 // scanner stubbed; pii.test.js covers the helpers.
 import { expect, test } from 'claude-code/testing'
+import ARTIFACTS from '../scanner/artifacts.js'
 
 const STATE = '/home/u/.local/state/personal-computer'
+// Where ONNX models are kept, as plain files: each one's folder, and the files setup leaves there.
+const ONNX_DIR = '/home/u/.cache/huggingface/personal-computer'
+const localFiles = (a: { repo: string; revision: string; files: string[] }): [string, string][] =>
+  a.files.map(f => [`${ONNX_DIR}/${a.repo.replace('/', '--')}@${a.revision}/${f}`, ''])
+const onnxFiles = (model: 'opf' | 'pii-tracer') => localFiles(ARTIFACTS[model].onnx)
 // What /personal-computer setup leaves once its check passed: without it the plugin is off.
 const SET_UP: [string, string] = [`${STATE}/setup.json`, '{"detectors":"both"}']
 const statement = 'Account holder: Johanna Vexley, IBAN DE29 3704 0044 9172 6048 15. Total 2996.38'
@@ -43,6 +49,10 @@ type World = {
   history: { role: 'user' | 'assistant'; text: string; toolUses: [] }[]
   // A scanner whose start never comes up (its environment does not build).
   broken?: boolean
+  // Native Windows: OS is Windows_NT, and no POSIX program (/bin/*, /usr/bin/*) can start.
+  windows?: boolean
+  // Files that exist but cannot be read (EACCES).
+  unreadable?: string[]
 }
 
 function world(over: Partial<World> = {}): World {
@@ -97,13 +107,21 @@ function stubs(on: any, w: World) {
   on('prompt.mention', ($: unknown, e: { path: string }) => (w.mentioned.push(e.path), { type: 'file' }))
   on('ui.toast', ($: unknown, e: { text: string }) => (w.toasts.push(e.text), { value: undefined }))
   on('ui.log', () => ({ value: undefined }))
-  on('env.get', ($: unknown, e: { name: string }) => ({ value: { HOME: '/home/u' }[e.name] }))
+  on('env.get', ($: unknown, e: { name: string }) => ({ value: { HOME: '/home/u', USER: 'u', ...(w.windows ? { OS: 'Windows_NT' } : {}) }[e.name] }))
   on('fs.read', ($: unknown, e: { path: string }) => ({ value: w.files.get(e.path) }))
+  on('fs.exists', ($: unknown, e: { path: string }) => ({ value: w.files.has(e.path) }))
   on('fs.write', ($: unknown, e: { path: string; text?: string }) => (w.files.set(e.path, e.text ?? ''), { value: undefined }))
+  // A missing path rejects ENOENT, as the engine's does; one that cannot be read, EACCES.
+  on('fs.stat', ($: unknown, e: { path: string }) => w.unreadable?.includes(e.path) ? { deny: 'failed: EACCES' }
+    : w.files.has(e.path) ? { value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false } } : { deny: 'failed: ENOENT' })
   on('process.run', ($: unknown, e: { argv: string[] }) => {
     w.ran.push(e.argv)
+    if (w.windows && e.argv[0].startsWith('/')) return { deny: `cannot start ${e.argv[0]}: ENOENT` }
     const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '' } })
     if (e.argv[0] === 'git') return ok(e.argv[3] === 'user.name' ? 'Dennis Nasarov\n' : 'dennis@example.org\n')
+    // The account's full name: macOS's id -F; on Linux id has no -F, and getent passwd holds it (GECOS).
+    if (e.argv[0] === '/usr/bin/id') return w.uname.startsWith('Darwin') ? ok('Dennis Nasarov\n') : { value: { exitCode: 1, stdout: '', stderr: "id: invalid option -- 'F'" } }
+    if (e.argv[0] === 'getent') return w.uname.startsWith('Linux') ? ok(`${e.argv[2]}:x:1000:1000:Ada Example,,,:/home/u:/bin/bash\n`) : { deny: 'cannot start getent: ENOENT' }
     if (e.argv[0] === '/usr/bin/uname') return ok(`${w.uname}\n`)
     // The cleanup: two old files, as find prints what it removed.
     if (e.argv[0] === '/usr/bin/find') return ok(`${e.argv[1]}/tu0.txt\n${e.argv[1]}/S0.placeholders.json\n`)
@@ -118,9 +136,11 @@ function stubs(on: any, w: World) {
   on('process.spawn', async function* ($: unknown, e: { argv: string[] }) {
     w.ran.push(e.argv)
     const repos: Record<string, string> = { opf: 'mlx-community--openai-privacy-filter-bf16', 'pii-tracer': 'perplexity-ai--PII-Tracer' }
+    const onnx = e.argv[e.argv.indexOf('--runtime') + 1] === 'onnx'
     for (const line of w.download) {
       const { model, status } = JSON.parse(line)
-      if (status === 'done') w.cached.push(repos[model])
+      if (status === 'done' && onnx) for (const [f] of onnxFiles(model)) w.files.set(f, '')
+      else if (status === 'done') w.cached.push(repos[model])
       yield { stream: 'stdout', text: `${line}\n` }
     }
     if (w.download.every(l => !l.includes('pii-tracer", "status": "done'))) yield { stream: 'stderr', text: 'OSError: no space left on device\n' }
@@ -247,7 +267,7 @@ for (const [how, result] of Object.entries(PDF_READS)) {
     stubs(on, w)
     await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
     const r = await read($, PDF)
-    expect(w.scanned).toContainEqual({ path: PDF, models: ['opf', 'pii-tracer'] })
+    expect(w.scanned).toContainEqual({ path: PDF, models: ['opf', 'pii-tracer'], runtime: 'mlx' })
     expect(r.deny).toMatch(/1 name, 1 IBAN/)
   })
 }
@@ -280,6 +300,15 @@ test("personal data a hook added to an output's context counts too", opts('priva
 test("the user's own name in an output does not count as personal data", opts('private'), async ($, on) => {
   const log = 'a3f9 Dennis Nasarov fix the parser'
   const w = world({ outputs: { Bash: log }, spans: text => [span(text, 'private_person', 'Dennis Nasarov')] })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect((await $.tool.call({ tool: 'Bash', command: 'git log -1', tool_use_id: 'tu5' })).text).toBe(log)
+})
+
+test("on Linux the account's full name, from its passwd entry, does not count as personal data either", opts('private'), async ($, on) => {
+  const log = 'a3f9 Ada Example fix the parser'
+  const w = world({ uname: 'Linux x86_64', files: new Map([SET_UP, ...onnxFiles('opf'), ...onnxFiles('pii-tracer')]), outputs: { Bash: log },
+    spans: text => [span(text, 'private_person', 'Ada Example')] })
   stubs(on, w)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   expect((await $.tool.call({ tool: 'Bash', command: 'git log -1', tool_use_id: 'tu5' })).text).toBe(log)
@@ -478,13 +507,13 @@ test('/personal-computer check reports every part working, the private agent on 
   expect(r.text).not.toMatch(/Johanna|DE29/)
 })
 
-test('/personal-computer check names each gap and how to fix it', opts('private', 'ask', { agent: 'nobody' }), async ($, on) => {
+test('/personal-computer check names each gap and how to fix it', opts('private', 'ask', { agent: 'nobody', runtime: 'mlx' }), async ($, on) => {
   const w = world({ uname: 'Linux x86_64', uv: false, cached: ['mlx-community--openai-privacy-filter-bf16'] })
   stubs(on, w)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const r = await command($, 'check')
   expect(r.exitCode).toBe(1)
-  expect(r.text).toMatch(/platform +FAILED: .*Apple silicon/)
+  expect(r.text).toMatch(/platform +FAILED: Linux x86_64: MLX needs a Mac with Apple silicon; set the runtime to auto or onnx/)
   expect(r.text).toMatch(/uv +MISSING: .*docs\.astral\.sh\/uv/)
   expect(r.text).toMatch(/models +MISSING: PII-Tracer\. Run \/personal-computer setup/)
   expect(r.text).toMatch(/scanner +not started/)
@@ -542,7 +571,7 @@ test('/personal-computer setup downloads the chosen models, starts the scanner a
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const r = await command($, 'setup')
   const download = w.ran.find(a => a.includes('--download'))
-  expect(download?.slice(-3)).toEqual(['--download', '--models', 'opf'])
+  expect(download?.slice(-5)).toEqual(['--download', '--models', 'opf', '--runtime', 'mlx'])
   expect(w.toasts.some(t => /Downloading OpenAI Privacy Filter/.test(t))).toBe(true)
   expect(r.text).toMatch(/scanner +ok: found 1 name, 1 IBAN/)
   expect(r.text).toMatch(/detectors opf/)
@@ -562,8 +591,43 @@ test('detectors opf scans with OPF alone', opts('private', 'ask', { detectors: '
   stubs(on, w)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await $.tool.call({ tool: 'Bash', command: 'make', tool_use_id: 'tu10' })
-  expect(w.scanned).toEqual([{ text: 'Total: 2996.38', models: ['opf'] }])
-  expect(w.ran.find(a => a[0] === '/bin/sh' && a[2]?.includes('uv run --script'))?.slice(-2)).toEqual(['--models', 'opf'])
+  expect(w.scanned).toEqual([{ text: 'Total: 2996.38', models: ['opf'], runtime: 'mlx' }])
+  expect(w.ran.find(a => a[0] === '/bin/sh' && a[2]?.includes('uv run --script'))?.slice(-4)).toEqual(['--models', 'opf', '--runtime', 'mlx'])
+})
+
+test('on Linux it runs on ONNX Runtime: its models in a folder of their own, the scanner and what it is asked', opts('private'), async ($, on) => {
+  const w = world({ uname: 'Linux x86_64', cached: [], files: new Map([SET_UP, ...onnxFiles('opf'), ...onnxFiles('pii-tracer')]) })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const c = await command($, 'check')
+  expect(c.text).toMatch(/platform +ok: Linux x86_64, ONNX Runtime/)
+  expect(c.text).toMatch(/models +ok: OpenAI Privacy Filter, PII-Tracer/)
+  expect((await read($)).deny).toMatch(/1 name, 1 IBAN/)
+  expect(w.scanned.at(-1)).toEqual({ text: statement, models: ['opf', 'pii-tracer'], runtime: 'onnx' })
+  expect(w.ran.find(a => a[2]?.includes('uv run --script'))?.slice(-4)).toEqual(['--models', 'opf,pii-tracer', '--runtime', 'onnx'])
+})
+
+test('runtime gguf runs PII-Tracer from its GGUF on llama.cpp, and OpenAI Privacy Filter, which has none, on ONNX Runtime', opts('private', 'ask', { runtime: 'gguf' }), async ($, on) => {
+  const w = world({ uname: 'Linux x86_64', cached: [], files: new Map([SET_UP, ...onnxFiles('opf'), ...localFiles(ARTIFACTS['pii-tracer'].gguf)]) })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const c = await command($, 'check')
+  expect(c.text).toMatch(/platform +ok: Linux x86_64, llama\.cpp for PII-Tracer, ONNX Runtime for OpenAI Privacy Filter/)
+  expect(c.text).toMatch(/models +ok: OpenAI Privacy Filter, PII-Tracer/)
+  await read($)
+  expect(w.scanned.at(-1)).toEqual({ text: statement, models: ['opf', 'pii-tracer'], runtime: 'gguf' })
+})
+
+test('on Linux setup fetches the ONNX models, and a missing one names its size', opts('private'), async ($, on) => {
+  const w = world({ uname: 'Linux aarch64', cached: [], files: new Map([...fresh(), ...onnxFiles('opf')]),
+    spans: text => [span(text, 'private_person', 'Johanna Vexley-Canary')], download: ['{"model": "pii-tracer", "status": "downloading"}', '{"model": "pii-tracer", "status": "done"}'] })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect((await command($, 'check')).text).toMatch(/models +MISSING: PII-Tracer\. Run \/personal-computer setup \(about 2\.4 GB\)/)
+  const r = await command($, 'setup')
+  expect(w.ran.find(a => a.includes('--download'))?.slice(-5)).toEqual(['--download', '--models', 'pii-tracer', '--runtime', 'onnx'])
+  expect(r.text).toMatch(/models +ok/)
+  expect(r.text).toMatch(/scanner +ok/)
 })
 
 // The plugin before /personal-computer setup: installed, no setup file.
@@ -593,6 +657,34 @@ test('before setup the first session says once how to turn it on', opts('private
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   expect(w.toasts.filter(t => /off.*\/personal-computer/.test(t))).toHaveLength(1)
   expect(w.toasts.some(t => /private agent|not downloaded/.test(t))).toBe(false)
+})
+
+test('on native Windows it is off, says to run Claude Code inside WSL 2, and starts no POSIX program', opts('private'), async ($, on) => {
+  // Set up before (a copied state folder) or not, native Windows stays off.
+  const w = world({ windows: true })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const r = await read($)
+  expect(r.text).toBe(statement)
+  await $.prompt.submit(typed('Write to Johanna Vexley'))
+  expect(w.submitted).toEqual(['Write to Johanna Vexley'])
+  expect(w.toasts).toContain('personal-computer is off: native Windows isn\'t supported yet, run Claude Code inside WSL 2')
+  const c = await command($, 'check')
+  expect(c.exitCode).toBe(1)
+  expect(c.text).toMatch(/platform +FAILED: native Windows isn't supported yet, run Claude Code inside WSL 2/)
+  expect(c.text).not.toMatch(/uv|models|scanner/)
+  expect(w.scanned).toEqual([])
+  expect(w.ran.filter(a => a[0].startsWith('/') && a[0] !== '/usr/bin/id')).toEqual([])
+})
+
+test('a setup state that cannot be read withholds outputs and says why: it might hide a setup', opts('private'), async ($, on) => {
+  const w = world({ unreadable: [`${STATE}/setup.json`] })
+  stubs(on, w)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect(w.status).toMatch(/cannot tell whether personal-computer is set up.*EACCES.*outputs are withheld/)
+  const r = await read($)
+  expect(r.deny).toMatch(/could not check this output.*EACCES.*withheld/)
+  expect(r.deny).not.toMatch(/Johanna|DE29/)
 })
 
 // The engine's own footer: it draws the mode labels it is handed.

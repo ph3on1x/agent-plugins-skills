@@ -6,7 +6,7 @@
 **Claude still does the work, with a private model you run.**
 
 [![Claude Code 2.1.310+](https://img.shields.io/badge/Claude_Code-2.1.310%2B-D97757)](https://code.claude.com)
-[![Mac with Apple silicon](https://img.shields.io/badge/Mac-Apple_silicon-5E5D59)](REFERENCE.md#requirements)
+[![Mac, Linux, WSL 2](https://img.shields.io/badge/runs_on-Mac_%C2%B7_Linux_%C2%B7_WSL_2-5E5D59)](REFERENCE.md#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2F6DB5)](../../LICENSE)
 
 **[Quick start](#quick-start)** · [Usage](#usage) · [How it works](#how-it-works) · [Comparison](#comparison) · [FAQ](#faq)
@@ -27,7 +27,7 @@ Ask Claude about your bank statement, your contracts or your customer list, and 
 
 **Every tool output, on your machine.**<br>
 Two local models, OpenAI Privacy Filter and PII-Tracer, and IBAN and card checksums find names, addresses, phone
-numbers, account numbers and secrets in milliseconds.
+numbers, account numbers and secrets, in milliseconds on a Mac.
 
 </td>
 <td width="50%" valign="top">
@@ -83,8 +83,9 @@ It runs inside Claude Code as a mod. Your login, your plan and Remote Control wo
 
 ## Quick start
 
-You need Claude Code 2.1.310 or later (tested on 2.1.310), a Mac with Apple silicon (the checks run on MLX),
-[uv](https://docs.astral.sh/uv/), and 3.7 GB of disk for the two detection models.
+You need Claude Code 2.1.310 or later (tested on 2.1.310) on a Mac with Apple silicon, on Linux, or on Windows inside
+WSL 2; [uv](https://docs.astral.sh/uv/); and disk for the two detection models: 3.7 GB on a Mac (MLX), 8 GB elsewhere
+(ONNX Runtime). [Requirements](REFERENCE.md#requirements)
 
 **1. Install the plugin** in Claude Code. [anymodel](../anymodel) installs with it:
 
@@ -165,7 +166,7 @@ design.
 | **Claude Code untouched, Remote Control works** | **Yes** | Yes | No | Yes | No |
 | **Real values back in files Claude writes** | **Yes**, `mask` mode | Partly | Partly | Partly | — |
 | **Subagent answers and notifications checked** | **Yes** | Partly | Yes ⁵ | No | — |
-| **Any OS** | No, Mac with Apple silicon | Yes | Yes | Yes | Yes |
+| **Any OS** | Mac, Linux, Windows in WSL 2 | Yes | Yes | Yes | Yes |
 
 ¹ [claude-code-redaction-hooks](https://github.com/l-mb/claude-code-redaction-hooks),
 [claude-code-redact](https://github.com/karanb192/claude-code-redact) and
@@ -190,7 +191,7 @@ does none of the work.<br>
 
 Not what the models find: in `private` mode Claude gets "1 name, 1 address, 1 IBAN", and in `mask` mode
 `[PERSON_1]`. It sees what they miss, what you choose to share in `ask` mode, and the files you open in your editor.
-Detection is statistical; your own name and email (from git and your Mac account) are never counted.
+Detection is statistical; your own name and email (from git and your account) are never counted.
 [What is checked](REFERENCE.md#what-is-checked)
 </details>
 

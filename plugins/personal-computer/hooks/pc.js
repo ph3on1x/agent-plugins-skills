@@ -1,5 +1,6 @@
 import { atom, read, update } from 'claude-code'
 
+import ARTIFACTS from '../scanner/artifacts.js'
 import { findings, hide, mask, reserved, restore, summary, withheldNotice } from './pii.js'
 
 // personal-computer: every tool output is scanned for personal data on this machine before Claude reads it. Output
@@ -17,12 +18,15 @@ const FILE_ATTACHMENTS = ['file', 'edited_text_file']
 // How the notice Claude reads names each: the user's @-mention, or a file Claude wrote that changed since.
 const ATTACHMENT_SOURCE = { file: 'A file the user mentioned', edited_text_file: 'A file that changed on disk' }
 const IMAGE = /\.(png|jpe?g|gif|webp|heic|bmp|tiff?)$/i
-// The detectors setting, and each model: its name for the person, its folder in the Hugging Face cache, its size.
+// The detectors setting, and each model's name for the person. What each runtime fetches of it, where it keeps it and
+// its size: scanner/artifacts.js, which the scanner reads too.
 const DETECTORS = { both: ['opf', 'pii-tracer'], opf: ['opf'], 'pii-tracer': ['pii-tracer'] }
-const MODEL_INFO = {
-  opf: { label: 'OpenAI Privacy Filter', repo: 'mlx-community--openai-privacy-filter-bf16', size: '2.6 GB' },
-  'pii-tracer': { label: 'PII-Tracer', repo: 'perplexity-ai--PII-Tracer', size: '1.1 GB' },
-}
+const MODEL_LABEL = { opf: 'OpenAI Privacy Filter', 'pii-tracer': 'PII-Tracer' }
+// The runtime setting: auto is MLX on a Mac with Apple silicon, ONNX Runtime elsewhere; gguf is PII-Tracer on llama.cpp.
+const RUNTIMES = ['auto', 'mlx', 'onnx', 'onnx-int8', 'gguf']
+// A model's artifact for a runtime; a runtime it has none for names the one it uses instead (scan.py's artifact()).
+const pick = (m, rt) => typeof ARTIFACTS[m][rt] === 'string' ? ARTIFACTS[m][ARTIFACTS[m][rt]] : ARTIFACTS[m][rt]
+let chosen = 'auto'
 // What the check scans: one name and one IBAN, so a scanner that finds less is not working.
 const SELF_TEST = 'Account holder: Johanna Vexley-Canary, IBAN DE29 3704 0044 9172 6048 15'
 // The detectors this session uses, and those found whole in the cache: a download is not undone, so one found is not
@@ -66,10 +70,30 @@ async function setupFile($) {
   return `${await stateDir($)}/setup.json`
 }
 
+// Native Windows has none of the POSIX programs the plugin runs, so it stays off there; Claude Code inside WSL 2 is
+// Linux.
+const NATIVE_WINDOWS = 'native Windows isn\'t supported yet, run Claude Code inside WSL 2'
+const isNativeWindows = async $ => (await $.env.get('OS')) === 'Windows_NT'
+
+// The OS and CPU, as uname -sm says them (Darwin arm64, Linux x86_64), read once per load.
+let uname
+async function machine($) {
+  if (await isNativeWindows($)) return 'Windows'
+  return (uname ??= (await $.process.run(['/usr/bin/uname', '-sm'])).stdout.trim())
+}
+
+const runtime = async $ => chosen !== 'auto' ? chosen : (await machine($)) === 'Darwin arm64' ? 'mlx' : 'onnx'
+const artifact = async ($, m) => pick(m, await runtime($))
+const RUNTIME_LABEL = { mlx: 'MLX', onnx: 'ONNX Runtime', 'onnx-int8': 'ONNX Runtime, 8-bit models', gguf: 'llama.cpp for PII-Tracer, ONNX Runtime for OpenAI Privacy Filter' }
+
+// Off while the setup file is missing. A state that cannot be read (EACCES) may hide a setup, so it raises and every
+// output is withheld until it reads.
 async function isSetUp($) {
-  const r = await $.process.run(['/bin/test', '-e', await setupFile($)])
-  if (r.exitCode > 1) throw new Error(`cannot tell whether personal-computer is set up: ${r.stderr.trim()}`)
-  return r.exitCode === 0
+  if (await isNativeWindows($)) return false
+  return $.fs.stat(await setupFile($)).then(() => true, err => {
+    if (/\bENOENT$/.test(err.message)) return false
+    throw new Error(`cannot tell whether personal-computer is set up: ${err.message}`)
+  })
 }
 
 const isActive = async $ => (active ??= await isSetUp($))
@@ -99,34 +123,45 @@ async function startScanner($) {
   if ((await scannerUrl($)) !== undefined) return
   const dir = await stateDir($)
   const started = await $.process.run(['/bin/sh', '-c',
-    'command -v uv >/dev/null || { echo "uv is not installed (https://docs.astral.sh/uv/)" >&2; exit 127; }; nohup uv run --script "$0" --state "$1" "$3" "$4" >"$2" 2>&1 &',
-    `${$.plugin.root}/scanner/scan.py`, `${dir}/scanner.json`, `${dir}/scanner.log`, '--models', models.join(',')])
+    'command -v uv >/dev/null || { echo "uv is not installed (https://docs.astral.sh/uv/)" >&2; exit 127; }; nohup uv run --script "$0" --state "$1" "$3" "$4" "$5" "$6" >"$2" 2>&1 &',
+    `${$.plugin.root}/scanner/scan.py`, `${dir}/scanner.json`, `${dir}/scanner.log`, '--models', models.join(','), '--runtime', await runtime($)])
   if (started.exitCode !== 0) throw new Error(`cannot start the PII scanner: ${started.stderr.trim()}`)
 }
 
+// Hugging Face's home, as huggingface_hub finds it; scan.py finds it alike.
+const hfHome = async $ => (await $.env.get('HF_HOME')) ?? `${(await $.env.get('XDG_CACHE_HOME')) ?? `${await $.env.get('HOME')}/.cache`}/huggingface`
+
 async function hubDir($) {
   const hub = await $.env.get('HF_HUB_CACHE')
-  if (hub) return hub
-  const home = (await $.env.get('HF_HOME')) ?? `${(await $.env.get('XDG_CACHE_HOME')) ?? `${await $.env.get('HOME')}/.cache`}/huggingface`
-  return `${home}/hub`
+  return hub ? hub : `${await hfHome($)}/hub`
 }
 
-// The detectors of this session the Hugging Face cache does not hold whole: a model's weights and tokenizer appear in
-// its snapshot once their download completed.
+// Where a model is kept: an MLX one in the Hugging Face cache; an ONNX one as plain files in a folder of its own, since
+// ONNX Runtime refuses external data behind the cache's symlinks.
+const where = async ($, a) => a.store === 'local' ? `${await hfHome($)}/personal-computer/${a.repo.replace('/', '--')}@${a.revision}` : `${await hubDir($)}/models--${a.repo.replace('/', '--')}`
+
+// Whether a model is whole: in the cache, its weights and tokenizer appear in its snapshot once their download
+// completed; in its own folder, each of its files.
+async function isFetched($, a) {
+  const dir = await where($, a)
+  if (a.store === 'hub') return (await $.process.run(['/bin/sh', '-c', 'ls "$0"/snapshots/*/model.safetensors "$0"/snapshots/*/tokenizer.json >/dev/null 2>&1', dir])).exitCode === 0
+  for (const f of a.files) if (!(await $.fs.exists(`${dir}/${f}`))) return false
+  return true
+}
+
+// The detectors of this session not yet fetched whole for its runtime.
 async function missing($) {
-  const hub = await hubDir($)
   const absent = []
   for (const m of models) {
     if (ready.has(m)) continue
-    const r = await $.process.run(['/bin/sh', '-c', 'ls "$0"/snapshots/*/model.safetensors "$0"/snapshots/*/tokenizer.json >/dev/null 2>&1',
-      `${hub}/models--${MODEL_INFO[m].repo}`])
-    if (r.exitCode === 0) ready.add(m)
+    if (await isFetched($, await artifact($, m))) ready.add(m)
     else absent.push(m)
   }
   return absent
 }
 
-const labels = ms => ms.map(m => MODEL_INFO[m].label).join(', ')
+const labels = ms => ms.map(m => MODEL_LABEL[m]).join(', ')
+const sizes = async ($, ms) => (await Promise.all(ms.map(m => artifact($, m)))).map(a => a.size).join(' + ')
 
 // The scanner's spans for a text, or for a PDF it reads itself (its text comes back with them). Missing models are
 // fetched by /personal-computer setup, never here: a download takes minutes. A scanner that exited (idle) is started
@@ -163,7 +198,7 @@ async function scanOnce($, body) {
       throw failed
     }
   }
-  const r = await $.http.fetch(`${url}/scan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, models }) })
+  const r = await $.http.fetch(`${url}/scan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, models, runtime: await runtime($) }) })
   const answer = JSON.parse(r.text)
   if (!r.ok || !Array.isArray(answer.spans)) throw new Error(`the PII scanner failed: ${answer.error ?? r.status}`)
   return answer
@@ -285,19 +320,23 @@ const local = url => ['127.0.0.1', 'localhost', '[::1]', '0.0.0.0'].includes(new
 // is reported by counts.
 async function checks($, settings) {
   const { mode, agent } = settings
+  if (await isNativeWindows($)) return [{ label: 'platform', status: 'failed', text: NATIVE_WINDOWS }]
   const list = []
   const add = (label, status, text) => list.push({ label, status, text })
-  const uname = (await $.process.run(['/usr/bin/uname', '-sm'])).stdout.trim()
-  const mac = uname === 'Darwin arm64'
-  if (mac) add('platform', 'ok', 'macOS on Apple silicon')
-  else add('platform', 'failed', `${uname}: the detection models run on MLX, which needs a Mac with Apple silicon`)
+  const os = await machine($)
+  const rt = await runtime($)
+  const mac = os === 'Darwin arm64'
+  const platformOk = mac || (os.startsWith('Linux ') && rt !== 'mlx')
+  if (platformOk) add('platform', 'ok', `${mac ? 'macOS on Apple silicon' : os}, ${RUNTIME_LABEL[rt]}`)
+  else if (os.startsWith('Linux ')) add('platform', 'failed', `${os}: MLX needs a Mac with Apple silicon; set the runtime to auto or onnx`)
+  else add('platform', 'failed', `${os}: personal-computer runs on a Mac with Apple silicon, on Linux, and on Windows inside WSL 2`)
   const uv = await $.process.run(['/bin/sh', '-c', 'command -v uv'])
   if (uv.exitCode === 0) add('uv', 'ok', uv.stdout.trim())
   else add('uv', 'missing', 'install it: https://docs.astral.sh/uv/')
   const absent = await missing($)
   if (absent.length === 0) add('models', 'ok', labels(models))
-  else add('models', 'missing', `${labels(absent)}. Run /personal-computer setup (about ${absent.map(m => MODEL_INFO[m].size).join(' + ')})`)
-  if (!mac || uv.exitCode !== 0 || absent.length > 0) add('scanner', 'skipped', 'not started: fix the lines above first')
+  else add('models', 'missing', `${labels(absent)}. Run /personal-computer setup (about ${await sizes($, absent)})`)
+  if (!platformOk || uv.exitCode !== 0 || absent.length > 0) add('scanner', 'skipped', 'not started: fix the lines above first')
   // Off, the scanner is not started for a look: it loads the models, gigabytes of memory.
   else if (!active) add('scanner', 'skipped', 'starts with setup')
   else list.push(await selfTest($))
@@ -350,7 +389,8 @@ async function download($, absent, say) {
   let stdout = ''
   let stderr = ''
   const done = new Set()
-  for await (const piece of $.process.spawn({ argv: ['/bin/sh', '-c', 'exec uv run --script "$0" "$@"', `${$.plugin.root}/scanner/scan.py`, '--download', '--models', absent.join(',')] })) {
+  const rt = await runtime($)
+  for await (const piece of $.process.spawn({ argv: ['/bin/sh', '-c', 'exec uv run --script "$0" "$@"', `${$.plugin.root}/scanner/scan.py`, '--download', '--models', absent.join(','), '--runtime', rt] })) {
     if (piece.stream !== 'stdout') {
       stderr = (stderr + piece.text).slice(-4000)
       continue
@@ -360,14 +400,14 @@ async function download($, absent, say) {
     stdout = lines.pop()
     for (const l of lines.filter(Boolean)) {
       const { model, status } = JSON.parse(l)
-      if (status === 'downloading') await say(`Downloading ${MODEL_INFO[model].label} (about ${MODEL_INFO[model].size}), ${absent.indexOf(model) + 1} of ${absent.length}…`)
+      if (status === 'downloading') await say(`Downloading ${MODEL_LABEL[model]} (about ${pick(model, rt).size}), ${absent.indexOf(model) + 1} of ${absent.length}…`)
       if (status === 'done') done.add(model)
     }
   }
   const failed = absent.filter(m => !done.has(m))
   if (failed.length > 0) return `${labels(failed)} did not download: ${stderr.trim().split('\n').at(-1) ?? 'no reason given'}`
   const left = await missing($)
-  return left.length === 0 ? undefined : `the download ended, but ${labels(left)} is not in the Hugging Face cache (${await hubDir($)})`
+  return left.length === 0 ? undefined : `the download ended, but ${labels(left)} is not whole in ${await where($, await artifact($, left[0]))}`
 }
 
 // /personal-computer setup and the pane's Set up: fetch what is missing, start the scanner and check it. Once the
@@ -410,8 +450,10 @@ async function refresh($, settings) {
 
 const MODE_OPTIONS = [{ value: 'private', label: 'Process privately' }, { value: 'mask', label: 'Replace with placeholders' }, { value: 'ask', label: 'Ask me each time' }]
 const PROMPT_OPTIONS = [{ value: 'ask', label: 'Ask me' }, { value: 'mask', label: 'Replace with placeholders' }, { value: 'off', label: 'Don\'t check' }]
-const DETECTOR_OPTIONS = [{ value: 'both', label: 'Both (3.7 GB)' }, { value: 'opf', label: 'OpenAI Privacy Filter (2.6 GB)' }, { value: 'pii-tracer', label: 'PII-Tracer (1.1 GB)' }]
-const LABEL = { platform: 'Mac with Apple silicon', uv: 'uv', models: 'Detection models', scanner: 'Scanner', agent: 'Private agent' }
+// The detectors with their download for the runtime: 3.7 GB both on MLX, 8 GB on ONNX Runtime.
+const gb = (ms, rt) => `${ms.reduce((n, m) => n + parseFloat(pick(m, rt).size), 0).toFixed(1)} GB`
+const detectorOptions = rt => [{ value: 'both', label: `Both (${gb(DETECTORS.both, rt)})` }, { value: 'opf', label: `OpenAI Privacy Filter (${gb(['opf'], rt)})` }, { value: 'pii-tracer', label: `PII-Tracer (${gb(['pii-tracer'], rt)})` }]
+const LABEL = { platform: 'Platform', uv: 'uv', models: 'Detection models', scanner: 'Scanner', agent: 'Private agent' }
 const MARK = { ok: '✓', failed: '✗', missing: '✗', skipped: '·' }
 
 // A pane setting's choice, written as the person's own /plugin configure would; the plugin reloads with it.
@@ -430,6 +472,7 @@ export function register(on, options) {
   const prompts = PROMPTS.includes(options.prompts) ? options.prompts : 'ask'
   const detectors = Object.hasOwn(DETECTORS, options.detectors) ? options.detectors : 'both'
   models = DETECTORS[detectors]
+  chosen = RUNTIMES.includes(options.runtime) ? options.runtime : 'auto'
   const settings = { mode, prompts, detectors, agent }
 
   on('session.start', async ($, e, next) => {
@@ -439,19 +482,30 @@ export function register(on, options) {
       const r = await $.process.run(argv).catch(() => ({ exitCode: 1 }))
       if (r.exitCode === 0 && r.stdout.trim() !== '') own.push(r.stdout.trim())
     }
+    // Linux keeps the account's full name in its passwd entry (GECOS, before the first comma); id -F is macOS's.
+    const pw = await $.process.run(['getent', 'passwd', String(await $.env.get('USER'))]).catch(() => ({ exitCode: 1 }))
+    const gecos = pw.exitCode === 0 ? (pw.stdout.split(':')[4] ?? '').split(',')[0].trim() : ''
+    if (gecos !== '') own.push(gecos)
     allow = own
     try {
       await $.command.register({ name: 'personal-computer', description: 'Turn personal-computer on, see how it stands, and change its settings', argumentHint: '[check | setup | cleanup [days]]' })
     } catch (err) {
       $.ui.toast(`personal-computer: cannot add /personal-computer: ${err.message}`)
     }
-    active = await isSetUp($)
+    try {
+      active = await isSetUp($)
+    } catch (err) {
+      // Each gate asks again, and withholds until the state reads.
+      warned = true
+      $.ui.status(`${err.message}, so outputs are withheld · /personal-computer`)
+      return started
+    }
     await update($, isOn, () => active)
     // A pane in use is read again after a reload (a setting changed in it), once this start is done.
     if ((await read($, checked)).length > 0) $.clock.after(0, () => refresh($, settings))
     if (!active) {
       if ((await $.store.get(HINTED)) !== true) {
-        $.ui.toast('personal-computer is off: /personal-computer sets it up')
+        $.ui.toast(`personal-computer is off: ${(await isNativeWindows($)) ? NATIVE_WINDOWS : '/personal-computer sets it up'}`)
         await $.store.set(HINTED, true)
       }
       return started
@@ -489,7 +543,7 @@ export function register(on, options) {
         : choices.length > 0 ? [row('agent', 'Private agent', agent === '' ? undefined : agent, choices.map(n => ({ value: n, label: n })))]
         : [Text({ dimColor: true, children: 'Private agent: none yet. Add one with /plugin configure anymodel' })]),
       row('prompts', 'Your prompts', prompts, PROMPT_OPTIONS),
-      row('detectors', 'Detection models', detectors, DETECTOR_OPTIONS),
+      row('detectors', 'Detection models', detectors, detectorOptions(await runtime($))),
     ]
     const checkRows = list.map(c => Text({ children: [`${MARK[c.status]} ${LABEL[c.label]}  `, Text({ dimColor: true, children: c.text })] }))
     const needsSetup = !isSetOn || list.some(c => GATE.includes(c.label) && c.status !== 'ok')

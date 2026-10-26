@@ -17,6 +17,21 @@ node --test plugins/personal-computer/test/pii.test.js      # hooks/pii.js
 claude plugin validate plugins/personal-computer
 ```
 
+## Detection parity
+
+`test/parity` holds made-up texts and the values each model finds in them: OpenAI Privacy Filter as OpenAI's own
+weights in transformers (`baseline/opf-transformers.json`, from `record_transformers_opf.py`), PII-Tracer on MLX
+(`baseline/pii-tracer-mlx.json`). `parity.py` runs the scanner on a runtime and compares, value for value; it needs
+that runtime's models, as setup fetches them.
+
+```bash
+cd plugins/personal-computer/test/parity
+python3 parity.py --model opf --against transformers -- --runtime onnx
+python3 parity.py --model pii-tracer --against mlx -- --runtime gguf     # llama-server on PATH
+```
+
+Every runtime matches but `onnx-int8`, whose differences are in the [reference](../REFERENCE.md#runtimes).
+
 ## Against real sessions
 
 What the suites cannot show, that nothing with personal data reaches Anthropic, was tested by hand on Claude Code
