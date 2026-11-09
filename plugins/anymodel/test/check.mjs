@@ -107,6 +107,8 @@ const workers = Object.fromEntries(locals.map(a => {
   return [a, { session: id, transcript: `${dir}/${id}.jsonl`, sessionIds: [...new Set(entries.map(e => e.sessionId).filter(Boolean))], prompts, nested }]
 }))
 const workerTools = Object.values(workers).flatMap(w => (w.prompts ?? []).flatMap(p => p.tools))
+// Auto mode refusing every action that needs its check, as when it asks a server that never runs it for the check.
+const unchecked = [JSON.stringify(events), ...Object.values(workers).map(w => read(w.transcript ?? ''))].filter(t => t.includes('Auto mode is unavailable')).length
 // The workers' requests; the mod's own context reads (GETs, with the key as a bearer too, as Unsloth Studio needs it)
 // are not theirs.
 const wrec = jsonl(`${D}/logs/${tag}.wrec.jsonl`).filter(r => r.method === 'POST')
@@ -132,6 +134,7 @@ const checks = {
   'workers ran in the expected permission mode': opt('--task-mode').every(m => tasks.length > 0 && tasks.every(t => t.mode === m)),
   'no task holds the excluded text': opt('--task-lacks').every(re => !tasks.some(t => new RegExp(re).test(t.text))),
   'expected tools in a worker transcript': opt('--worker-tool').every(n => workerTools.includes(n)),
+  'auto mode\'s check ran in main and every worker': unchecked === 0,
   ...(args.includes('--nested') ? { 'a worker ran a subagent of its own': Object.values(workers).some(w => w.nested?.some(n => n.turns > 0)) } : {}),
   ...(args.includes('--wrec') ? { 'worker requests carry only the agent key': wrec.length > 0 && wrec.every(r => r.keyOk && !r.auth && !r.trap) } : {}),
   'expected notices in a local agent transcript': opt('--notice').every(re => notices.some(n => new RegExp(re).test(n))),

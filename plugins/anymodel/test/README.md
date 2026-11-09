@@ -9,7 +9,9 @@ canary, IBAN or raw rows appear in a request body; with only the subagent's answ
 not.
 
 Nothing touches your `~/.claude` or `~/.local/state/anymodel`: every session gets its own `HOME` and
-`CLAUDE_CONFIG_DIR` under the test dir, a dummy token, and `ANTHROPIC_BASE_URL` pointed at the recorder.
+`CLAUDE_CONFIG_DIR` under the test dir, a dummy token, `ANTHROPIC_BASE_URL` pointed at the recorder, and
+`CLAUDE_CODE_AUTO_MODE_SERVER=0`: auto mode's check is then Claude Code's own request, which the recorder takes to the
+stand-in (the server-side check Claude Code asks for by default runs only on Anthropic's API).
 The agents go into that config's plugin store, as anymodel saves them, and their keys into its
 `pluginConfigs["anymodel@inline"].options` API key field, as the settings form holds them (`ANYMODEL_AGENTS` in
 `run.sh`; by default the agent `gem` on Unsloth Studio with its key); the suite sets the options back to `{}` when it
@@ -89,6 +91,7 @@ logs, before anything changes.
 | t38 | TUI: a settings change while an agent's worker runs (a 30 s `sleep`) reloads the plugin; nothing of that agent reaches the recorder. |
 | t39 | A `SendMessage` written to the running worker, which is killed before it takes it: the run sends the message on to the agent, which answers it in its next run (37 negative rows). |
 | t40 | A Claude Code agent definition `.claude/agents/gem.md` (its own prompt, `tools: Bash, Read`, `model: anymodel`): main calls `subagent_type "gem"`, the plugin answers it as `anymodel:gem`, and the worker's requests carry the definition's prompt, only its tools and the agent's model; nothing at the recorder. |
+| t41 | Each permission mode, headless through `/anymodel gem <task>` (no main turn, so only the worker's checks run): the worker counts the rows with Bash in every mode, and writes a file with Write in `acceptEdits`, `auto` and `bypassPermissions` and one with `python3` (which auto mode's check reviews) in `auto` and `bypassPermissions`; in `default`, `plan` and `dontAsk` it writes neither. |
 | tkey | After every run: the Unsloth key in no log, transcript, worker file or run directory. |
 
 The main agent in these runs is the local model standing in for Claude, so a scenario can fail because
@@ -110,7 +113,8 @@ the notification.
   `ctrlc`, `kill9`, `gone:<s>`, `ps`, `wait:<text>`: the screen shows text after what the last wait matched).
 - `check.mjs`: the verdict for one run from the recorder log, the debug log, the transcript and the workers'
   transcripts. A request under an anymodel agent's id, or of agent type `custom` (a plugin agent; with the mod
-  on only anymodel's), counts as a leak.
+  on only anymodel's), counts as a leak. "Auto mode is unavailable" in main's or a worker's transcript fails every run:
+  auto mode then refuses each action its check would review.
 - `keywatch.py`: lists the processes whose arguments or environment hold a key, from `ps` every 0.3 s.
 - `fixtures/mcp-word.mjs`: a stdio MCP server with one tool, `secret_word`.
 - `anymodel.test.ts`: the mod's hooks under `claude plugin test`, with Claude Code, the worker and the provider stubbed.

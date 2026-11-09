@@ -344,6 +344,27 @@ tag=t40; want "$@" && {  # a Claude Code agent definition named like the agent: 
     "$D/logs/$tag.wrec.jsonl.bodies" "$M"
   verdict $? "the definition's prompt and tools, on the agent's model"; }
 
+tag=t41; want "$@" && {  # each permission mode: the worker reads in every one, and its Write and python3 writes go ahead only as the mode allows
+  task=$(cat <<'EOF'
+Do these three steps in order, each even if an earlier one failed. 1: use the Bash tool to run exactly: wc -l statement.csv 2: use the Write tool to create the file w.txt in the current directory with the single line written. 3: use the Bash tool to run exactly: python3 -c 'open("p.txt", "w").write("written")' Then report the number of data rows (the line count less one for the header) and whether steps 2 and 3 succeeded.
+EOF
+)
+  # Through /anymodel, so no main turn: main's own check of an Agent call in auto and plan mode would run on the
+  # stand-in, where it times out (a user's main is Claude, which Anthropic's server checks); t8 and t16 cover that path.
+  for mode in default acceptEdits auto plan dontAsk bypassPermissions; do
+    tag=t41$mode; rm -f "$D/work/w.txt" "$D/work/p.txt"
+    perms="--permission-mode $mode"; [ $mode = bypassPermissions ] && perms=--dangerously-skip-permissions
+    # The worker's own first checks in auto mode can time out on a local model and be retried.
+    RUN_TIMEOUT=900 PERMS=$perms run $tag "/anymodel gem $task"
+    # In plan mode the agent may answer with a plan and not run even the read-only count.
+    count=(--expect '\b40\b'); [ $mode = plan ] && count=()
+    check --task-name gem --task-mode $mode "${count[@]}" --sent "$task" --max-main 0
+    case $mode in acceptEdits) want=10 ;; auto | bypassPermissions) want=11 ;; *) want=00 ;; esac
+    got=$([ -f "$D/work/w.txt" ] && echo 1 || echo 0)$([ -f "$D/work/p.txt" ] && echo 1 || echo 0)
+    [ $got = $want ]; verdict $? "files written by Write and python3: $got, expected $want"
+  done
+  tag=t41; }
+
 # Every run: the key in no log, transcript, worker file or run directory (-D skip: a killed worker's run directory
 # keeps its FIFO, and grep would wait on it for good).
 tag=tkey; block=tkey; ! grep -rqsF -D skip -f <(head -c 20 "$ANYMODEL_KEY_FILE") "$D/logs" "$D/cfg/projects" "$D/home/.local/state/anymodel" "/tmp/anymodel-$(id -u)"

@@ -32,6 +32,9 @@ cmd=(env -i HOME="$D/home" USER="$USER" LOGNAME="$USER" SHELL=/bin/zsh LANG=en_U
   ANTHROPIC_MODEL=claude-sonnet-5-5 ANTHROPIC_CUSTOM_HEADERS="x-anymodel-run: $tag"
   CLAUDE_CODE_ATTRIBUTION_HEADER=0 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 CLAUDE_CODE_GATEWAY_HINT_HEADERS=1
   CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off  # main's <total_tokens> work budget is for Claude; the stand-in does without
+  # Auto mode's check as Claude Code's own requests, through the recorder to the stand-in: the server-side check it
+  # asks for by default runs only on Anthropic's API, and without it auto mode refuses every action that needs it.
+  CLAUDE_CODE_AUTO_MODE_SERVER=0
   ${EXTRA_ENV:-}
   claude --plugin-dir "$here/.." $([ -n "${MAIN_MCP:-}" ] || echo --strict-mcp-config) --debug-file "$D/logs/$tag.debug.txt")
 if [ $tui = 1 ]; then

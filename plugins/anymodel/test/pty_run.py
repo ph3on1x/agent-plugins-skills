@@ -27,7 +27,9 @@ cfg = D / 'cfg' / '.claude.json'
 state = json.loads(cfg.read_text()) if cfg.exists() else {}
 # The one-time auto mode billing notice would block the first prompt.
 state.update(hasCompletedOnboarding=True, theme='dark', autoModeClassifierBillingNoticeAcknowledgedAt=int(time.time() * 1000))
-state.setdefault('projects', {})[str(D / 'work')] = {'hasTrustDialogAccepted': True, 'allowedTools': []}
+# Under both spellings: Claude Code keys the project by its resolved path (/tmp is /private/tmp on macOS).
+for work in {str(D / 'work'), str((D / 'work').resolve())}:
+    state.setdefault('projects', {})[work] = {'hasTrustDialogAccepted': True, 'allowedTools': []}
 cfg.write_text(json.dumps(state))
 log = D / 'logs' / 'recorder.jsonl'
 screen = open(D / 'logs' / f'{tag}.pty.txt', 'wb')
