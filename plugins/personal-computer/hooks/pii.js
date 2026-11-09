@@ -162,11 +162,14 @@ export function summary(found) {
 }
 
 // What Claude reads in place of an output with personal data: what kind was found, never a value, and who can work
-// with it. Claude restates what it needs, which only it knows.
+// with it. Claude restates what it needs, which only it knows; a doubt about the answer goes back to the agent too,
+// or Claude would check it against the data itself.
 export function withheldNotice(source, found, agent) {
   return `${source} contains personal data (${summary(found)}), so it was withheld from you. ` +
     `Ask anymodel:${agent} to do the part of the task that needs this data: tell it what you need and where the data is ` +
-    '(it can read files and run commands itself). Its answer reaches you without the personal data.'
+    '(it can read files and run commands itself). Its answer reaches you without the personal data. ' +
+    'When you doubt its answer, do not check it against this data yourself: tell the agent with SendMessage what to ' +
+    'check and how, and its answer reaches you the same way.'
 }
 
 // `text` with each finding replaced by its placeholder. `table` maps placeholders to values for the session, so a

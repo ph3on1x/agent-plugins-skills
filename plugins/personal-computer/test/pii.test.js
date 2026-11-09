@@ -163,6 +163,8 @@ test('withheldNotice names the source, the counts and the agent to delegate to, 
   assert.match(notice, /Read/)
   assert.match(notice, /1 name, 1 IBAN/)
   assert.match(notice, /anymodel:qwen/)
+  // A doubt about the agent's answer goes back to the agent, not to the data.
+  assert.match(notice, /When you doubt its answer, do not check it against this data yourself: .*SendMessage/)
   assert.doesNotMatch(notice, /Johanna|DE29/)
 })
 

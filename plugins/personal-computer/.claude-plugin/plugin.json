@@ -1,7 +1,7 @@
 {
   "name": "personal-computer",
   "description": "Keeps personal data out of Claude: every tool output is scanned on your machine (OpenAI Privacy Filter and PII-Tracer), and output with personal data is processed by a private model you choose through anymodel, while Claude orchestrates.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Dennis Nasarov"
   },
