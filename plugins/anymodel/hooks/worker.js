@@ -9,6 +9,16 @@ const SUBAGENT_RULE =
   'You run as a subagent of another Claude Code session. Your final message is your report to it: ' +
   'give the answer or findings the task asks for.'
 
+// Claude Code's own words to a subagent in plan mode. A session of its own in plan mode gets the main session's
+// instead (write a plan file, end with ExitPlanMode, which the worker does not have) and loops looking for a way out,
+// and auto mode's check there would let the agent's own model approve a change. So the worker runs in default mode
+// with these words: whatever it would change is asked of main's rules and plan mode, as for Claude.
+const PLAN_RULE =
+  'Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits, ' +
+  'run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the ' +
+  'system. This supercedes any other instructions you have received. Answer the query you were given comprehensively ' +
+  'in your final message, and do not write a plan or anything else to a file.'
+
 // Reasoning a model writes inline as text before its answer (Gemma 4's channel, <think>), cut to its close or,
 // unclosed, to the end. Only at the start: a report may quote these tags.
 const REASONING = /^\s*(?:<\|channel>[\s\S]*?(?:<channel\|>|$)|<think>[\s\S]*?(?:<\/think>|$))/
@@ -297,6 +307,9 @@ export function workerArgv({ claude, dataDir, tmpDir, backend, hasKey, mode, per
     ANTHROPIC_API_KEY: hasKey ? '' : 'local', ANTHROPIC_AUTH_TOKEN: '', ANTHROPIC_CUSTOM_HEADERS: '',
     CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0',
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', CLAUDE_CODE_ATTRIBUTION_HEADER: '0',
+    // Auto mode's check runs on the agent's model. Its server never runs Anthropic's server-side check, which Claude
+    // Code asks for by default, so without this the worker refuses every action that needs the check.
+    CLAUDE_CODE_AUTO_MODE_SERVER: '0',
   }
   // The project's settings load (with its CLAUDE.md); these CLI settings outrank them, so its env cannot point the
   // worker at another backend. availableModels swaps any other model, such as a definition's model: anymodel, for the agent's.
@@ -310,13 +323,13 @@ export function workerArgv({ claude, dataDir, tmpDir, backend, hasKey, mode, per
     'CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1',
     claude, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--replay-user-messages',
     // Its permission questions come to the mod, which asks main's rules and the person (see permissionAsk).
-    '--permission-prompt-tool', 'stdio', '--permission-mode', mode,
+    '--permission-prompt-tool', 'stdio', '--permission-mode', mode === 'plan' ? 'default' : mode,
     '--setting-sources=project,local', '--settings', JSON.stringify(settings),
     '--strict-mcp-config', ...(mcpConfig === undefined ? [] : ['--mcp-config', mcpConfig]),
     '--disallowedTools', WITHHELD_TOOLS.join(','),
     // Its prompt and tools, on the agent's model (availableModels above).
     ...(asAgent === undefined ? [] : ['--agent', asAgent]),
-    '--append-system-prompt', SUBAGENT_RULE,
+    '--append-system-prompt', mode === 'plan' ? `${SUBAGENT_RULE} ${PLAN_RULE}` : SUBAGENT_RULE,
     ...session,
   ]
 }

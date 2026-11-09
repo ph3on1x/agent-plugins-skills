@@ -286,7 +286,9 @@ test('workerArgv starts a full Claude Code in main environment, pointed only at 
   const settings = JSON.parse(argv[argv.indexOf('--settings') + 1])
   // CLI settings outrank the project's env: nothing there can send the requests, or other credentials, elsewhere.
   assert.equal(settings.env.ANTHROPIC_BASE_URL, 'http://127.0.0.1:1234')
-  for (const [k, v] of Object.entries({ ANTHROPIC_API_KEY: 'local', ANTHROPIC_AUTH_TOKEN: '', ANTHROPIC_CUSTOM_HEADERS: '', CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' })) {
+  // Auto mode's check runs on the agent's model: its server never runs Anthropic's server-side check, and without this
+  // the worker refuses every action that needs the check.
+  for (const [k, v] of Object.entries({ ANTHROPIC_API_KEY: 'local', ANTHROPIC_AUTH_TOKEN: '', ANTHROPIC_CUSTOM_HEADERS: '', CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', CLAUDE_CODE_AUTO_MODE_SERVER: '0' })) {
     assert.equal(settings.env[k], v, k)
   }
   // Main's rules and sandbox, never its default mode: the mode comes in --permission-mode.
@@ -296,10 +298,16 @@ test('workerArgv starts a full Claude Code in main environment, pointed only at 
 })
 
 test('workerArgv runs in main permission mode as it is, resumes a session, and takes main MCP servers from a file', () => {
-  for (const mode of ['acceptEdits', 'auto', 'plan', 'bypassPermissions', 'dontAsk']) {
+  for (const mode of ['acceptEdits', 'auto', 'bypassPermissions', 'dontAsk']) {
     const argv = workerArgv({ ...run, mode })
     assert.equal(argv[argv.indexOf('--permission-mode') + 1], mode)
+    assert.doesNotMatch(argv[argv.indexOf('--append-system-prompt') + 1], /Plan mode/)
   }
+  // In plan mode a session of its own would write a plan file and look for ExitPlanMode: the worker gets Claude Code's
+  // words to a subagent instead, and default mode, so main's rules and plan mode decide what it would change.
+  const plan = workerArgv({ ...run, mode: 'plan' })
+  assert.equal(plan[plan.indexOf('--permission-mode') + 1], 'default')
+  assert.match(plan[plan.indexOf('--append-system-prompt') + 1], /^You run as a subagent.*Plan mode is active\..*MUST NOT make any edits.*do not write a plan or anything else to a file\.$/s)
   const argv = workerArgv({ ...run, mcpConfig: '/tmp/anymodel-501/run-a/mcp.json', session: ['--resume', 'abc'] })
   assert.equal(argv[argv.indexOf('--mcp-config') + 1], '/tmp/anymodel-501/run-a/mcp.json')
   assert.deepEqual(argv.slice(-2), ['--resume', 'abc'])

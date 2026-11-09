@@ -129,7 +129,12 @@ your rules and mode decide it as they would for Claude:
 
 In `bypassPermissions` everything goes ahead, including a sandboxed command's connection to any domain. In `auto`
 mode the agent's own model approves its tool calls (Claude's auto-mode check sees only its report). Use `auto` and
-`bypassPermissions` only with models you trust with your shell.
+`bypassPermissions` only with models you trust with your shell. Each of those checks sends Claude Code's rules for it,
+about 35k tokens, to the agent's server, and Claude Code waits about 60 s for the answer: on a local server too slow
+for that, the first checks time out and the agent tries the action again once the server has the rules cached.
+
+In `plan` mode the agent works as Claude Code's own subagents do there: it reads and answers, and anything it would
+change is asked of your rules and mode, as for Claude.
 
 ## Tested models
 
