@@ -190,6 +190,10 @@ const row = { id: 'a1', type: 'anymodel:gem', status: 'running', name: 'ledger' 
 const send = ($: any, to: string, text: string) => $.session.send({ to, text, origin: { kind: 'model' } })
 const done = (result: string) => ({ type: 'result', subtype: 'success', is_error: false, terminal_reason: 'completed', result })
 const RECORD = '/home/u/.local/state/anymodel/sessions/S1-a1'
+const said = (content: unknown[]) => ({ type: 'assistant', message: { content } })
+// The line a worker's report ends with: its run's tool calls, which the engine's tool_uses does not count.
+const NO_TOOLS = '\n\nanymodel: in this run the agent ran no tool calls.'
+const ONE_BASH = "\n\nanymodel: in this run the agent made 1 tool call (Bash) in its own Claude Code process on this machine; this result's tool_uses counts only anymodel's stand-in, not them."
 
 test('a step of no anymodel agent goes on to the session backend', { options }, async ($, on) => {
   const w = world({ rows: [{ id: 'a1', type: 'general-purpose', status: 'running' }] })
@@ -214,7 +218,7 @@ test('a worker run answers the step, its tool calls shown and asked of main, its
   stubs(on, w)
   await start($)
   const { result } = await step($)
-  expect(result.answer).toBe('7964.25')
+  expect(result.answer).toBe(`7964.25${ONE_BASH}`)
   expect(w.claude).toBe(false)
   // Main's verdict answers the worker's question.
   expect(w.written).toEqual([{ type: 'control_response', response: { subtype: 'success', request_id: 'r1', response: { behavior: 'allow', updatedInput: { command: 'ls' }, toolUseID: 'tu1' } } }])
@@ -240,8 +244,37 @@ test('another plugin screens the answer before main gets it, through anymodel.sc
     return { value: { text: e.text.replace('Johanna Vexley', '[PERSON_1]') } }
   })
   await start($)
-  expect((await step($)).result.answer).toBe('Paid [PERSON_1] 7964.25')
-  expect(seen).toEqual([{ agentId: 'a1', name: 'gem', text: 'Paid Johanna Vexley 7964.25' }])
+  expect((await step($)).result.answer).toBe(`Paid [PERSON_1] 7964.25${NO_TOOLS}`)
+  expect(seen).toEqual([{ agentId: 'a1', name: 'gem', text: `Paid Johanna Vexley 7964.25${NO_TOOLS}` }])
+})
+
+// The worker read a file and ran python3 three times over two turns of its model: main reads those calls by name.
+const groceries = [
+  init,
+  said([{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: '/work/receipts/groceries.csv' } }, { type: 'tool_use', id: 't2', name: 'Bash', input: { command: 'python3 sum.py receipts/groceries.csv' } }]),
+  said([{ type: 'tool_use', id: 't3', name: 'Bash', input: { command: "python3 -c 'print(round(327.455, 2))'" } }]),
+  done('327.46'),
+]
+const RAN_THREE = "327.46\n\nanymodel: in this run the agent made 3 tool calls (Read, Bash ×2) in its own Claude Code process on this machine; this result's tool_uses counts only anymodel's stand-in, not them."
+
+test("the answer ends with the count and names of the worker's tool calls, never their input", { options }, async ($, on) => {
+  const w = world({ worker: groceries })
+  stubs(on, w)
+  await start($)
+  const { result } = await step($)
+  expect(result.answer).toBe(RAN_THREE)
+  expect(result.answer).not.toMatch(/groceries|python3|\/work/)
+})
+
+test("a hand-back ends with the count and names of the worker's tool calls, never their input", { options }, async ($, on) => {
+  const reminder = '<system-reminder>Deliver your report by calling SubagentHandback.</system-reminder>'
+  const w = world({ worker: groceries, messages: [{ role: 'user', content: [{ type: 'text', text: 'sum the groceries' }, { type: 'text', text: reminder }] }] })
+  stubs(on, w)
+  await start($, 'auto')
+  const { result } = await step($)
+  expect(result.toolUses[0].name).toBe('SubagentHandback')
+  expect(result.toolUses[0].input.message).toBe(RAN_THREE)
+  expect(result.toolUses[0].input.message).not.toMatch(/groceries|python3|\/work/)
 })
 
 // A plugin that reads $.anymodel.agents(), as personal-computer's check does.
@@ -328,7 +361,7 @@ test('a step that comes before its spawn resolves waits for it instead of going 
   const stepped = step($)
   release()
   await spawned
-  expect((await stepped).result.answer).toBe('ok')
+  expect((await stepped).result.answer).toBe(`ok${NO_TOOLS}`)
   expect(w.claude).toBe(false)
 })
 
@@ -337,7 +370,7 @@ test('a control request the mod does not handle is refused, so the worker never 
   const w = world({ worker: [init, 'echo task', elicit, done('ok')] })
   stubs(on, w)
   await start($)
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   expect(w.written).toEqual([{ type: 'control_response', response: { subtype: 'error', request_id: 'r2', error: 'anymodel does not handle elicitation requests' } }])
 })
 
@@ -360,7 +393,7 @@ test('a message reaches the worker once it took its task, and the run waits for 
   await again.reached
   again.open()
   // The answer that came before the worker took the message, and the one after.
-  expect((await stepped).result.answer).toBe('first\n\nsecond')
+  expect((await stepped).result.answer).toBe(`first\n\nsecond${NO_TOOLS}`)
 })
 
 test('a message that cannot reach a worker which already answered ends the run with that answer', { options }, async ($, on) => {
@@ -379,7 +412,7 @@ test('a message that cannot reach a worker which already answered ends the run w
   writing.open()
   await received
   expect(w.queued).toEqual(['also this'])
-  expect((await stepped).result.answer).toBe('first')
+  expect((await stepped).result.answer).toBe(`first${NO_TOOLS}`)
   expect(w.killed).toBe(true)
 })
 
@@ -391,7 +424,7 @@ test('a task that never reached a worker goes to it again with the next message'
   expect((await step($)).result.answer).toBe('anymodel: claude is not on PATH')
   w.claudePath = '/bin/claude'
   w.messages = [...task('sum the debits'), { role: 'assistant', content: [{ type: 'text', text: 'anymodel: claude is not on PATH' }] }, ...task('retry')]
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   expect(JSON.parse(w.input.split('\n')[1]).message.content).toBe('sum the debits\n\nretry')
   expect(w.argv.slice(-2)).toEqual(['--resume', 'w0'])
 })
@@ -444,7 +477,7 @@ test('a server started after the session start runs the agent: a failed context 
   w.fetch = () => ({ value: up ? { status: 200, ok: true, headers: {}, text: JSON.stringify({ data: [{ id: 'gemma', context_length: 49152 }] }) } : { status: 404, ok: false, headers: {}, text: 'not found' } })
   await start($)
   up = true
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   expect(w.argv.length > 0).toBe(true)
 })
 
@@ -460,7 +493,7 @@ test('a run while the session start still reads the context size waits for that 
   }
   await start($)
   await g.reached
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   expect(reads).toBe(1)
 })
 
@@ -471,12 +504,12 @@ test("a local provider's window is read again before each run, a remote one's on
   const hosts: string[] = []
   w.fetch = ($: unknown, e: { url: string }) => (hosts.push(new URL(e.url).host), { value: { status: 200, ok: true, headers: {}, text: JSON.stringify({ data: [{ id: 'gemma', context_length: size }] }) } })
   await start($)
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   expect(w.argv).toContain('CLAUDE_CODE_MAX_CONTEXT_TOKENS=49152')
   // The model is reloaded with another window between two runs.
   size = 65536
   w.messages = [...task('sum the debits'), { role: 'assistant', content: [{ type: 'text', text: 'ok' }] }, ...task('and the credits')]
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   expect(w.argv).toContain('CLAUDE_CODE_MAX_CONTEXT_TOKENS=65536')
   expect(hosts.filter(h => h === 'cloud.example')).toEqual(['cloud.example'])
 })
@@ -490,14 +523,13 @@ test('/anymodel says when the window the server reports overrides the context si
 })
 
 test("the agent's view shows its text, its tool calls and their first line of output, and its answer once", { options }, async ($, on) => {
-  const said = (content: unknown[]) => ({ type: 'assistant', message: { content } })
   const output = { type: 'user', uuid: 'u2', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: '41 statement.csv\n' }] } }
   const w = world({ worker: [init, 'echo task', said([{ type: 'text', text: 'Counting the rows.' }, { type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'wc -l statement.csv' } }]), output, said([{ type: 'text', text: '40' }]), done('40')] })
   stubs(on, w)
   const notices: string[] = []
   on('session.append', ($: unknown, e: { message: { content: { text: string }[] } }, next: (e: unknown) => unknown) => (notices.push(e.message.content[0].text), next(e)))
   await start($)
-  expect((await step($)).result.answer).toBe('40')
+  expect((await step($)).result.answer).toBe(`40${ONE_BASH}`)
   expect(notices.filter(n => !n.startsWith('Done:'))).toEqual(['Counting the rows.', 'Bash(wc -l statement.csv)', '⎿ 41 statement.csv'])
 })
 
@@ -507,7 +539,7 @@ async function runWith($: any, on: any, file?: string) {
   const w = world({ worker: [init, 'echo task', done('ok')], files })
   stubs(on, w)
   await start($)
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   // The worker's own config directory sees the user's agents.
   return { asAgent: w.argv.join(' ').includes('--agent gem'), linked: w.ran.some(a => a.join(' ').includes('/home/u/.claude/agents /home/u/.local/state/anymodel/config/agents')) }
 }
@@ -539,7 +571,7 @@ test('a call of the definition by its own name runs on the agent\'s model, never
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await $.agent.spawn({ subagentType: 'gem', prompt: 'review src', description: 'review', permissionMode: 'default' })
   expect(spawned).toEqual([expect.objectContaining({ subagentType: 'anymodel:gem', model: 'gemma' })])
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
 })
 
 test('an agent named like a built-in, with no definition file, leaves the built-in on Claude', { options }, async ($, on) => {
@@ -579,7 +611,7 @@ test('an agent with a settings problem answers it, and the others still run', { 
   const w = world({ worker: [init, 'echo task', done('ok')], agents: { gem, typo: { url: 'nowhere', model: 'm' } } })
   stubs(on, w)
   await start($)
-  expect((await step($)).result.answer).toBe('ok')
+  expect((await step($)).result.answer).toBe(`ok${NO_TOOLS}`)
   const list = await $.command.run({ command: 'anymodel', args: '' })
   expect(list.text).toMatch(/^gem {3}gemma at .*\ntypo  needs fixing \(below\)\n/)
   expect(list.exitCode).toBe(1)

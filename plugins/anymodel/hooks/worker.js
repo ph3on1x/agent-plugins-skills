@@ -488,6 +488,20 @@ export function usageLine(events) {
   return `${turns} turn${turns === 1 ? '' : 's'}, tokens: ${k(sum(r => r.usage?.input_tokens))} input${cached ? `, ${k(cached)} cache read` : ''}, ${k(sum(r => r.usage?.output_tokens))} output`
 }
 
+// The tool calls of a run, by name in order of first use and never their input, for main: the engine's tool_uses for
+// the agent counts only the facade's stand-in response.
+export function toolsLine(events) {
+  const counts = new Map()
+  for (const ev of events) {
+    if (ev.type !== 'assistant') continue
+    for (const b of ev.message?.content ?? []) if (b.type === 'tool_use') counts.set(b.name, (counts.get(b.name) ?? 0) + 1)
+  }
+  const total = [...counts.values()].reduce((a, b) => a + b, 0)
+  if (total === 0) return 'anymodel: in this run the agent ran no tool calls.'
+  const names = [...counts].map(([name, n]) => (n === 1 ? name : `${name} ×${n}`)).join(', ')
+  return `anymodel: in this run the agent made ${total} tool call${total === 1 ? '' : 's'} (${names}) in its own Claude Code process on this machine; this result's tool_uses counts only anymodel's stand-in, not them.`
+}
+
 // The worker's report: the answer of each turn of its run (a message it took after an answer starts another turn);
 // `subtype` reads "success" even on API errors, so check the rest. A result is the turn's last message, empty when a
 // thinking block came after the answer (Gemini through OpenRouter): then its last text is the answer.

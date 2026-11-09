@@ -163,7 +163,7 @@ Anthropic.
 | To | What |
 |---|---|
 | **The agent's provider** | The agent's prompts, the files it reads, its command output and its own auto-mode checks. With a local model, that is your machine. |
-| **Anthropic** | The task Claude writes and the agent's answer, Claude Code's progress summary of a long-running agent and, in auto mode, its check of the answer. |
+| **Anthropic** | The task Claude writes and the agent's answer, with the names and count of the tools it ran, Claude Code's progress summary of a long-running agent and, in auto mode, its check of the answer. |
 
 **Reports reach Claude.** Ask the agent for a summary when the code itself should not.
 API keys stay in Claude Code's secure storage and go only to their own server.

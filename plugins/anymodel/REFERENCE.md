@@ -13,7 +13,7 @@ your PATH (each agent runs it), and a model that calls tools on a server that sp
 | To | What |
 |---|---|
 | **The agent's provider** | Everything the agent works with: Claude Code's prompt and tool definitions (about 13k tokens), the project's `CLAUDE.md`, the task, every file it reads and every command output. The requests that read the model's context size: when the plugin loads, and before each run for a local server. Your key for that provider, and only to it. |
-| **Anthropic** (your main session) | What any subagent sends: Claude's brief and the agent's report. In an interactive session, Claude Code's progress summary of an agent that runs over about 30 s (it holds the task). In auto mode, the auto-mode check of the agent's report. `/anymodel` adds no brief and no Claude turn, but its answer joins the conversation, so Anthropic gets it with your next message to Claude. |
+| **Anthropic** (your main session) | What any subagent sends: Claude's brief and the agent's report, which ends with a line counting the tool calls of its run by name, never their input. In an interactive session, Claude Code's progress summary of an agent that runs over about 30 s (it holds the task). In auto mode, the auto-mode check of the agent's report. `/anymodel` adds no brief and no Claude turn, but its answer joins the conversation, so Anthropic gets it with your next message to Claude. |
 
 A local model keeps the agent's work on your machine. Claude spends your usage on the brief and the report, as for
 any subagent. The provider bills the agent's prompt (13k tokens and growing) on every request, and caches it if it
@@ -176,6 +176,8 @@ Where an agent differs from Claude Code's own subagents:
   view ([requested](https://github.com/anthropics/claude-code/issues/104824)). A tool's output shows as its first
   line.
 - **Background commands**: the agent cannot run a command in the background, as its session ends with its answer.
+- **Tool use count**: Claude Code's `tool_uses` for an agent counts only anymodel's stand-in response, not the
+  agent's own tool calls, so the agent's report ends with how many it made.
 - **Your user settings**: only their permission settings and sandbox reach the agent; your user `CLAUDE.md`, hooks,
   plugins and skills do not (the project's do), so your own hooks do not see its tool calls.
 - **MCP**: the agent gets the servers of your user config and the project's `.mcp.json` that your session has
@@ -220,12 +222,12 @@ To uninstall: `/plugin uninstall anymodel@ph3on1x`, which removes the keys from 
 
 The plugin's hooks module registers each agent as the subagent type `anymodel:<name>`, on its own model, and answers
 every model step of such an agent itself, so none of it reaches the session's backend. It runs the task in a
-separate `claude -p` pointed at the agent's provider and model, the worker, and returns the worker's final answer as
-the agent's report. Claude Code talks to one backend per process, so each worker is a process of its own. A small
-bridge (`hooks/bridge.sh`) carries the worker's permission questions, tool calls, your messages and Esc between it and
-your session. Each run of an agent keeps its worker session, so a `SendMessage` to it continues with everything it
-did before; a new `@` or `/anymodel` call starts fresh, as Claude Code's own subagents do, and so does moving the
-agent to another server or model.
+separate `claude -p` pointed at the agent's provider and model, the worker, and returns the worker's final answer,
+with its tool calls counted by name, as the agent's report. Claude Code talks to one backend per process, so each
+worker is a process of its own. A small bridge (`hooks/bridge.sh`) carries the worker's permission questions, tool
+calls, your messages and Esc between it and your session. Each run of an agent keeps its worker session, so a
+`SendMessage` to it continues with everything it did before; a new `@` or `/anymodel` call starts fresh, as Claude
+Code's own subagents do, and so does moving the agent to another server or model.
 
 It relies on Claude Code behaviour the docs do not promise, so it is tested end to end: see
 [test/README.md](test/README.md).

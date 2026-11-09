@@ -2,7 +2,7 @@ import {
   agentList, agentSpec, agentsConfig, answeredAsks, answerIn, asks, checkAnswer, checkBody, checkReport, cleanupCommands, commandArgs,
   errorLine, formKeys, freshAsks, handbackRequired, interruptLine, mcpServers, permissionAnswer, removeAgent, saveAgent,
   contextText, guarded, localHost, permissionAsk, permissionSettings, readContext, readResult, redact, responseLine, resultLine, resumable, sessionOf, sessionRecord,
-  takeEvents, taskText, toolLine, usageLine, userLine, workerArgv,
+  takeEvents, taskText, toolLine, toolsLine, usageLine, userLine, workerArgv,
 } from './worker.js'
 
 // The agent name of each registered type (anymodel:<name> → name), and per spawned agent the name it runs as: a
@@ -349,8 +349,9 @@ async function runWorker($, e, agent, task, mode, dataDir, resume, recordFile, a
           worker.pending.delete(ev.uuid)
           worker.answered = false
         } else if (ev.type === 'assistant') {
-          // Only its text is kept, for a result that comes without one.
-          events.push({ type: 'assistant', message: { content: (ev.message?.content ?? []).filter(b => b.type === 'text') } })
+          // Only its text is kept, for a result that comes without one, and its tool calls by name, for main's count.
+          const content = (ev.message?.content ?? []).flatMap(b => (b.type === 'text' ? [b] : b.type === 'tool_use' ? [{ type: 'tool_use', name: b.name }] : []))
+          events.push({ type: 'assistant', message: { content } })
           // Its text shows once a text or a tool call follows it: the last one is its answer, shown as the report.
           for (const b of ev.message?.content ?? []) {
             if (b.type !== 'text' && b.type !== 'tool_use') continue
@@ -401,7 +402,7 @@ async function runWorker($, e, agent, task, mode, dataDir, resume, recordFile, a
   if (sessionOf(events) === undefined && resume === undefined) $.ui.log(`anymodel: no worker session agent=${e.agentId}`, { to: 'debug' })
   let text
   try {
-    text = readResult(events, stderr)
+    text = `${readResult(events, stderr)}\n\n${toolsLine(events)}`
   } catch (err) {
     throw new Error(`${agent.model} at ${agent.baseUrl}: ${message(err)}`)
   }
